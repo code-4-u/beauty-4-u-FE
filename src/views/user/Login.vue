@@ -1,6 +1,11 @@
 <script setup>
 import { ref } from "vue";
+import { useRouter } from 'vue-router';
+import { useAuthStore } from "@/stores/auth.js";
 import axios from "axios";
+
+const router = useRouter();
+const authStore = useAuthStore();
 
 const userCode = ref('');
 const userPassword = ref('');
@@ -13,8 +18,13 @@ const saveUser = async () => {
           userPassword: userPassword.value
         }
     );
-    alert('로그인 성공');
 
+    if (response.status === 200) {
+      authStore.login(response.headers['authorization'], response.headers['refresh-token']);
+      alert('로그인 성공');
+    }
+
+    await router.push('/');
   } catch (error) {
     console.log('로그인 실패', error);
   }
