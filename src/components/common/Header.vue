@@ -1,8 +1,13 @@
 <script setup>
+import { useAuthStore } from "@/stores/auth.js";
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 
+const authStore = useAuthStore();
+
 const handleLogoutClick = () => {
-  console.log("로그아웃 클릭");
+  authStore.logout();
+  alert('로그아웃 성공');
+  window.location.reload();
 };
 </script>
 
