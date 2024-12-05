@@ -45,5 +45,17 @@ export const useAuthStore = defineStore('auth', () => {
         return userRole.value.includes(requiredRole);
     }
 
-    return { accessToken, refreshToken, userRole, userCode, login, logout, isAuthorized };
+    function setAccessToken(aToken) {
+        accessToken.value = aToken;
+        localStorage.removeItem('accessToken');
+        localStorage.setItem('accessToken', aToken);
+    }
+
+    function setRefreshToken(rToken) {
+        refreshToken.value = rToken;
+        localStorage.removeItem('refreshToken');
+        localStorage.setItem('refreshToken', rToken);
+    }
+
+    return { accessToken, refreshToken, userRole, userCode, login, logout, isAuthorized, setAccessToken, setRefreshToken };
 });
