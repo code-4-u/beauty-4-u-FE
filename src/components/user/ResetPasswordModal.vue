@@ -1,25 +1,39 @@
 <script setup>
 import { ref } from 'vue';
+import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
+import {postFetch} from "@/stores/apiClient.js";
 
 const emit = defineEmits(['close']);
 const userCode = ref('');
 const userName = ref('');
 const userEmail = ref('');
+const isLoading = ref(false);
 
 const closeModal = () => {
   emit('close');
 };
 
 const resetPassword = async () => {
+
+  if (isLoading.value) return; // 로딩 중에는 추가 요청 방지
+
+  isLoading.value = true;
   try {
-    // api 추가
-    console.log('Resetting password for:', {
-      userCode: userCode.value,
-      name: userName.value,
-      email: userEmail.value
-    });
+    await postFetch('/user/password/reset',
+        {
+          userCode: userCode.value,
+          userName: userName.value,
+          email: userEmail.value
+        }
+    )
+
+    alert('입력하신 이메일로 재발급된 비밀번호가 발송되었습니다.');
+    closeModal();
   } catch (error) {
+    alert('비밀번호 재발급에 실패했습니다. 입력하신 정보를 다시 확인해주세요.');
     console.error('비밀번호 재발급 실패:', error);
+  } finally {
+    isLoading.value = false;
   }
 };
 </script>
@@ -40,6 +54,7 @@ const resetPassword = async () => {
               placeholder="사번 입력"
               required
               class="form-input"
+              :disabled="isLoading"
           />
         </div>
         <div class="form-group">
@@ -50,6 +65,7 @@ const resetPassword = async () => {
               placeholder="이름 입력"
               required
               class="form-input"
+              :disabled="isLoading"
           />
         </div>
         <div class="form-group">
@@ -60,6 +76,7 @@ const resetPassword = async () => {
               placeholder="등록된 이메일 입력"
               required
               class="form-input"
+              :disabled="isLoading"
           />
         </div>
         <div class="small-text">
@@ -67,10 +84,17 @@ const resetPassword = async () => {
         </div>
         <div class="button-group">
           <button type="button" class="cancel-button" @click="closeModal">취소</button>
-          <button type="submit" class="submit-button">비밀번호 재발급</button>
+          <button
+              type="submit"
+              class="submit-button"
+              :disabled="isLoading"
+          >
+            비밀번호 재발급
+          </button>
         </div>
       </form>
     </div>
+    <LoadingSpinner v-if="isLoading"/>
   </div>
 </template>
 
@@ -89,7 +113,7 @@ const resetPassword = async () => {
 }
 
 .modal-content {
-  background: white;
+  background: var(--white);
   padding: 2rem;
   border-radius: 8px;
   width: 100%;
@@ -108,6 +132,7 @@ const resetPassword = async () => {
   font-size: 1.25rem;
   font-weight: 600;
   margin: 0;
+  color: var(--black);
 }
 
 .close-button {
@@ -116,6 +141,7 @@ const resetPassword = async () => {
   font-size: 1.25rem;
   cursor: pointer;
   padding: 0.5rem;
+  color: var(--black);
 }
 
 .form-group {
@@ -126,13 +152,13 @@ const resetPassword = async () => {
   display: block;
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
-  color: #333;
+  color: var(--gray);
 }
 
 .form-input {
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   font-size: 0.9rem;
 }
@@ -145,7 +171,7 @@ const resetPassword = async () => {
 
 .small-text {
   font-size: 0.8rem;
-  color: #666;
+  color: var(--small-gray);
   margin-bottom: 1.5rem;
 }
 
@@ -160,8 +186,8 @@ const resetPassword = async () => {
   padding: 0.75rem;
   border: none;
   border-radius: 4px;
-  background-color: #f5f5f5;
-  color: #666;
+  background-color: var(--background-color);
+  color: var(--gray);
   cursor: pointer;
   font-weight: 500;
 }
@@ -172,16 +198,26 @@ const resetPassword = async () => {
   border: none;
   border-radius: 4px;
   background-color: var(--main-green);
-  color: white;
+  color: var(--white);
   cursor: pointer;
   font-weight: 500;
 }
 
 .cancel-button:hover {
-  background-color: #ebebeb;
+  background-color: var(--disabled2);
 }
 
 .submit-button:hover {
   background-color: var(--hover-green);
+}
+
+.submit-button:disabled {
+  background-color: var(--disabled1);
+  cursor: not-allowed;
+}
+
+.form-input:disabled {
+  background-color: var(--disabled2);
+  cursor: not-allowed;
 }
 </style>
