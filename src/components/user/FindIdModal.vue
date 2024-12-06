@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue';
-import {postFetch} from "@/stores/apiClient.js";
+import { postFetch } from "@/stores/apiClient.js";
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
 
 const emit = defineEmits(['close']);
@@ -78,6 +78,9 @@ const findId = async () => {
               class="form-input"
               :disabled="isLoading"
           />
+        </div>
+        <div class="small-text">
+          * 해당 이메일로 사원번호가 발송됩니다.
         </div>
         <div class="button-group">
           <button type="button" class="cancel-button" @click="closeModal">취소</button>
@@ -166,6 +169,12 @@ const findId = async () => {
   outline: none;
   border-color: var(--main-green);
   box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+.small-text {
+  font-size: 0.8rem;
+  color: var(--small-gray);
+  margin-bottom: 1.5rem;
 }
 
 .button-group {
