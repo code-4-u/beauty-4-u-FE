@@ -1,25 +1,38 @@
 <script setup>
 import { ref } from 'vue';
+import {postFetch} from "@/stores/apiClient.js";
 
 const emit = defineEmits(['close']);
 const userName = ref('');
-const userContact = ref('');
+const userPhone = ref('');
 const userEmail = ref('');
+const isLoading = ref(false);
 
 const closeModal = () => {
   emit('close');
 };
 
 const findId = async () => {
+
+  if (isLoading.value) return; // 로딩 중에는 추가 요청 방지
+
+  isLoading.value = true;
   try {
-    // api 추가
-    console.log('Finding ID with:', {
-      name: userName.value,
-      contact: userContact.value,
-      email: userEmail.value
-    });
+    await postFetch('/user/id/search',
+        {
+          userName: userName.value,
+          phone: userPhone.value,
+          email: userEmail.value
+        }
+    )
+
+    alert('입력하신 이메일로 사원번호(아이디)가 발송되었습니다.');
+    closeModal();
   } catch (error) {
+    alert('사원번호(아이디) 찾기에 실패했습니다. 입력하신 정보를 다시 확인해주세요.');
     console.error('ID 찾기 실패:', error);
+  } finally {
+    isLoading.value = false;
   }
 };
 </script>
@@ -40,16 +53,18 @@ const findId = async () => {
               placeholder="이름 입력"
               required
               class="form-input"
+              :disabled="isLoading"
           />
         </div>
         <div class="form-group">
           <label>연락처</label>
           <input
               type="text"
-              v-model="userContact"
+              v-model="userPhone"
               placeholder="연락처 입력"
               required
               class="form-input"
+              :disabled="isLoading"
           />
         </div>
         <div class="form-group">
@@ -60,13 +75,23 @@ const findId = async () => {
               placeholder="등록된 이메일 입력"
               required
               class="form-input"
+              :disabled="isLoading"
           />
         </div>
         <div class="button-group">
           <button type="button" class="cancel-button" @click="closeModal">취소</button>
-          <button type="submit" class="submit-button">사원번호(아이디) 찾기</button>
+          <button
+              type="submit"
+              class="submit-button"
+              :disabled="isLoading"
+          >
+            사원번호(아이디) 찾기
+          </button>
         </div>
       </form>
+    </div>
+    <div v-if="isLoading" class="loading-overlay">
+      <div class="loading-spinner"></div>
     </div>
   </div>
 </template>
@@ -86,7 +111,7 @@ const findId = async () => {
 }
 
 .modal-content {
-  background: white;
+  background: var(--white);
   padding: 2rem;
   border-radius: 8px;
   width: 100%;
@@ -105,6 +130,7 @@ const findId = async () => {
   font-size: 1.25rem;
   font-weight: 600;
   margin: 0;
+  color: var(--black);
 }
 
 .close-button {
@@ -113,6 +139,7 @@ const findId = async () => {
   font-size: 1.25rem;
   cursor: pointer;
   padding: 0.5rem;
+  color: var(--black);
 }
 
 .form-group {
@@ -123,15 +150,17 @@ const findId = async () => {
   display: block;
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
-  color: #333;
+  color: var(--gray);
 }
 
 .form-input {
+  box-sizing: border-box;
   width: 100%;
   padding: 0.75rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--border-color);
   border-radius: 4px;
   font-size: 0.9rem;
+  color: var(--black);
 }
 
 .form-input:focus {
@@ -151,8 +180,8 @@ const findId = async () => {
   padding: 0.75rem;
   border: none;
   border-radius: 4px;
-  background-color: #f5f5f5;
-  color: #666;
+  background-color: var(--background-color);
+  color: var(--gray);
   cursor: pointer;
   font-weight: 500;
 }
@@ -163,16 +192,54 @@ const findId = async () => {
   border: none;
   border-radius: 4px;
   background-color: var(--main-green);
-  color: white;
+  color: var(--white);
   cursor: pointer;
   font-weight: 500;
 }
 
 .cancel-button:hover {
-  background-color: #ebebeb;
+  background-color: var(--disabled2);
 }
 
 .submit-button:hover {
   background-color: var(--hover-green);
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--loading-overlay-bg);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1010;
+  border-radius: 8px;
+}
+
+.loading-spinner {
+  width: 30px;
+  height: 30px;
+  border: 3px solid var(--spinner);
+  border-top: 3px solid var(--main-green);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.submit-button:disabled {
+  background-color: var(--disabled1);
+  cursor: not-allowed;
+}
+
+.form-input:disabled {
+  background-color: var(--disabled2);
+  cursor: not-allowed;
 }
 </style>
