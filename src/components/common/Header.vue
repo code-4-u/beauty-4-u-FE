@@ -63,12 +63,12 @@ const handleLogoutClick = () => {
 }
 
 .menu-item:hover {
-  color: #2e7d32;
+  color: var(--menu-green);
   background-color: rgba(46, 125, 50, 0.1);
 }
 
 .menu-item.active {
-  color: #2e7d32;
+  color: var(--menu-green);
   background-color: rgba(46, 125, 50, 0.1);
   font-weight: 500;
 }
