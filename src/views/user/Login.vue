@@ -3,12 +3,17 @@ import { ref } from "vue";
 import { useRouter } from 'vue-router';
 import { useAuthStore } from "@/stores/auth.js";
 import axios from "axios";
+import ResetPasswordModal from '@/components/user/ResetPasswordModal.vue';
+import FindIdModal from '@/components/user/FindIdModal.vue';
 
 const router = useRouter();
 const authStore = useAuthStore();
 
 const userCode = ref('');
 const userPassword = ref('');
+
+const showResetPasswordModal = ref(false);
+const showFindIdModal = ref(false);
 
 const saveUser = async () => {
   try {
@@ -28,6 +33,14 @@ const saveUser = async () => {
   } catch (error) {
     console.log('로그인 실패', error);
   }
+};
+
+const goToFindPassword = () => {
+  showResetPasswordModal.value = true;
+};
+
+const goToFindId = () => {
+  showFindIdModal.value = true;
 };
 
 </script>
@@ -61,7 +74,13 @@ const saveUser = async () => {
         </div>
         <button type="submit" class="submit-button">로그인</button>
       </form>
+      <div class="service-link">
+        <div @click="goToFindPassword" class="service-menu">비밀번호 재발급</div>
+        <div @click="goToFindId" class="service-menu">사원번호(아이디) 찾기</div>
+      </div>
     </div>
+    <ResetPasswordModal v-if="showResetPasswordModal" @close="showResetPasswordModal = false" />
+    <FindIdModal v-if="showFindIdModal" @close="showFindIdModal = false" />
   </div>
 </template>
 
@@ -143,5 +162,35 @@ const saveUser = async () => {
 
 .submit-button:active {
   transform: translateY(1px);
+}
+
+.service-link {
+  margin-top: 25px;
+  display: flex;
+  gap: 40px;
+  color: var(--gray);
+  justify-content: center;
+}
+
+.service-menu {
+  text-decoration: none;
+  color: #666;
+  font-size: 0.8rem;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  user-select: none;
+  cursor: pointer;
+}
+
+.service-menu:hover {
+  color: var(--menu-green);
+  background-color: rgba(46, 125, 50, 0.1);
+}
+
+.service-menu.active {
+  color: var(--menu-green);
+  background-color: rgba(46, 125, 50, 0.1);
+  font-weight: 500;
 }
 </style>
