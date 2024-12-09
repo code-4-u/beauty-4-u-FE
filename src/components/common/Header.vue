@@ -1,6 +1,6 @@
 <script setup>
-import { useAuthStore } from "@/stores/auth.js";
-import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
+import {useAuthStore} from "@/stores/auth.js";
+import {FontAwesomeIcon} from '@fortawesome/vue-fontawesome';
 
 const authStore = useAuthStore();
 
@@ -15,7 +15,7 @@ const handleLogoutClick = () => {
   <header class="header">
     <router-link to="/" class="logo">BEAUTY4U</router-link>
     <div class="menu">
-      <router-link to="/client" class="menu-item">고객</router-link>
+      <router-link to="/customer" class="menu-item">고객</router-link>
       <router-link to="/goods" class="menu-item">상품</router-link>
       <router-link to="/stats" class="menu-item">분석 대시보드</router-link>
     </div>
