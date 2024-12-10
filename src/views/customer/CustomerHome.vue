@@ -1,14 +1,13 @@
 <script setup>
 import CustomerNav from "@/components/common/CustomerNav.vue";
-
 </script>
 <template>
-  <div class="container-fluid">
+  <div>
     <div class="row">
-      <div class="col-md-3 sidebar">
+      <div class="col-md-2 sidebar">
         <customer-nav/>
       </div>
-      <div class="col-md-9 main-content">
+      <div class="col-md-9 pl-1 main-content">
         <div class="content-wrapper">
           <router-view/>
         </div>
@@ -28,7 +27,6 @@ import CustomerNav from "@/components/common/CustomerNav.vue";
   margin: 0;
   width: 100%;
   display: flex;
-  flex-wrap: wrap;
 }
 
 .sidebar {
@@ -37,27 +35,24 @@ import CustomerNav from "@/components/common/CustomerNav.vue";
   overflow-y: auto;
   position: fixed;
   left: 0;
-  width: 25%;
-  max-width: 300px;
   background-color: #fff;
-  z-index: 1000;
 }
 
 .main-content {
   flex: 1;
   min-height: 100vh;
   overflow-y: auto;
-  width: 100%;
+  margin-left: 350px;
+  padding-left: 2px;
   display: flex;
-  justify-content: center;
 }
 
 .content-wrapper {
   background-color: #fff;
-  padding: 1.5rem;
+  padding: 2rem;
   width: 100%;
-  max-width: 1200px;
-  margin: 1rem;
+  max-width: 4000px;
+  margin: 1%;
 }
 
 @media (max-width: 768px) {
@@ -77,8 +72,8 @@ import CustomerNav from "@/components/common/CustomerNav.vue";
   
   .main-content {
     position: relative;
-    margin-left: 20%;
-    width: 80%;
+    margin-left: 0;
+    width: 100%;
     height: auto;
     min-height: 50vh;
     margin-top: 1rem;
