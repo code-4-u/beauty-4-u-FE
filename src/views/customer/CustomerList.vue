@@ -1,8 +1,12 @@
 <script setup>
 import {computed, onMounted, ref} from 'vue'
 import {getFetch} from '@/stores/apiClient'
-import FilterModal from '@/components/Customer/FilterModal.vue'
+import CustomerListFilterModal from '@/components/Customer/CustomerListFilterModal.vue'
 import router from "@/router/index.js";
+import {formatDate} from "@/stores/util.js"
+import {useCustomerStore} from "@/stores/customerPinia.js";
+
+const cStore = useCustomerStore();
 
 // 상태 관리
 const customers = ref([])
@@ -40,14 +44,13 @@ const fetchCustomerStats = async () => {
   }
 };
 
-
 // 이벤트 핸들러
 const handlePageChange = (page) => {
   currentPage.value = page
 }
 
 const handleSearch = async () => {
-    performSearch()
+  performSearch()
 }
 
 const isFilterModalOpen = ref(false)
@@ -145,17 +148,14 @@ const removeTag = (key) => {
   performSearch(); // 필터가 변경되면 검색 수행
 };
 
-const formatDate = (dateString) => {
-  const date = new Date(dateString);
-  if (isNaN(date.getTime())) {
-    return 'N/A'; // 유효하지 않은 날짜일 경우 기본값
-  }
-  return date.toLocaleDateString(); // 원하는 형식으로 변환
-};
+const manageCustomer = (customerCode, customerName, createdDate, customerGrade) => {
+  cStore.updateCustomerDetails(customerCode, customerName, createdDate, customerGrade);
 
-const manageCustomer = (customerCode) => {
   // 고객 관리 페이지로 이동
-  router.push(`/customer/${customerCode}`);
+  router.push({
+        path: `/customer/${customerCode}`
+      }
+  );
 }
 
 // 초기 데이터 로딩
@@ -167,329 +167,330 @@ onMounted(async () => {
 </script>
 
 <template>
-    <div class="customer-list">
-      <h2 class="title">고객 관리</h2>
-  
-      <!-- 통계 카드 -->
-      <div class="stats-container">
-        <div class="stat-card">
-          <div class="stat-title">
-            <span>전체 고객</span>
-            <i class="icon-users blue"></i>
-          </div>
-          <div class="stat-value">
-            <strong>{{ totalCustomers }}</strong>
-          </div>
+  <div class="customer-list">
+    <h2 class="title">고객 관리</h2>
+
+    <!-- 통계 카드 -->
+    <div class="stats-container">
+      <div class="stat-card">
+        <div class="stat-title">
+          <span>전체 고객</span>
+          <i class="icon-users blue"></i>
         </div>
-  
-        <div class="stat-card">
-          <div class="stat-title">
-            <span>GOLD 고객</span>
-            <i class="icon-star gold"></i>
-          </div>
-          <div class="stat-value">
-            <strong>{{ goldCustomers }}</strong>
-          </div>
-        </div>
-  
-        <div class="stat-card">
-          <div class="stat-title">
-            <span>신규 가입</span>
-            <i class="icon-user-plus green"></i>
-          </div>
-          <div class="stat-value">
-            <strong>{{ newCustomers }}</strong>
-          </div>
-        </div>
-  
-        <div class="stat-card">
-          <div class="stat-title">
-            <span>휴면 고객</span>
-            <i class="icon-user-minus red"></i>
-          </div>
-          <div class="stat-value">
-            <strong>{{ inactiveCustomers }}</strong>
-          </div>
+        <div class="stat-value">
+          <strong>{{ totalCustomers }}</strong>
         </div>
       </div>
-  
-      <!-- 검색 영역 -->
-      <div class="search-section">
-        <div class="search-area">
-          <input 
-            type="text" 
+
+      <div class="stat-card">
+        <div class="stat-title">
+          <span>GOLD 고객</span>
+          <i class="icon-star gold"></i>
+        </div>
+        <div class="stat-value">
+          <strong>{{ goldCustomers }}</strong>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-title">
+          <span>신규 가입</span>
+          <i class="icon-user-plus green"></i>
+        </div>
+        <div class="stat-value">
+          <strong>{{ newCustomers }}</strong>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-title">
+          <span>휴면 고객</span>
+          <i class="icon-user-minus red"></i>
+        </div>
+        <div class="stat-value">
+          <strong>{{ inactiveCustomers }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- 검색 영역 -->
+    <div class="search-section">
+      <div class="search-area">
+        <input
+            type="text"
             placeholder="이름, 고객 코드로 검색"
             v-model="searchTerm"
             @input="handleSearch"
-          />
-          <div class="button-group">
-            <select v-model="searchCriteria" class="search-criteria-select">
-              <option value="name">이름</option>
-              <option value="code">코드</option>
-            </select>
-            <button class="search-btn" @click="handleSearch">검색</button>
-            <button class="filter-btn" @click="openFilterModal">필터</button>
-            <select v-model="sortCriteria" class="sort-select" @change="performSearch">
-              <option value="" selected>정렬 기준</option>
-              <option value="name">이름</option>
-              <option value="joinDate">가입일</option>
-              <option value="lastOrderDate">최근 구매일</option>
-            </select>
-            <select v-model="order" class="order-select" @change="performSearch">
-              <option value="" selected>정렬 방향</option>
-              <option value="asc">오름차순</option>
-              <option value="desc">내림차순</option>
-            </select>
-            <button class="export-btn">내보내기</button>
-          </div>
+        />
+        <div class="button-group">
+          <select v-model="searchCriteria" class="search-criteria-select">
+            <option value="name">이름</option>
+            <option value="code">코드</option>
+          </select>
+          <button class="search-btn" @click="handleSearch">검색</button>
+          <button class="filter-btn" @click="openFilterModal">필터</button>
+          <select v-model="sortCriteria" class="sort-select" @change="performSearch">
+            <option value="" selected>정렬 기준</option>
+            <option value="name">이름</option>
+            <option value="joinDate">가입일</option>
+            <option value="lastOrderDate">최근 구매일</option>
+          </select>
+          <select v-model="order" class="order-select" @change="performSearch">
+            <option value="" selected>정렬 방향</option>
+            <option value="asc">오름차순</option>
+            <option value="desc">내림차순</option>
+          </select>
+          <button class="export-btn">내보내기</button>
         </div>
-  
-        <div class="tag-area">
+      </div>
+
+      <div class="tag-area">
           <span v-if="filter.grade" class="tag">
             {{ filter.grade }} 등급
             <i class="icon-close" @click="removeTag('grade')">✕</i>
           </span>
-          <span v-if="filter.code" class="tag">
+        <span v-if="filter.code" class="tag">
             코드: {{ filter.code }}
             <i class="icon-close" @click="removeTag('code')">✕</i>
           </span>
-          <span v-if="filter.gender" class="tag">
+        <span v-if="filter.gender" class="tag">
             성별: {{ filter.gender }}
             <i class="icon-close" @click="removeTag('gender')">✕</i>
           </span>
-          <span v-if="filter.ageGroup" class="tag">
+        <span v-if="filter.ageGroup" class="tag">
             연령대: {{ filter.ageGroup }}대
             <i class="icon-close" @click="removeTag('ageGroup')">✕</i>
           </span>
-        </div>
-  
-        <!-- 필터 모달 -->
-        <FilterModal 
-          v-if="isFilterModalOpen" 
-          :filter="filter"
-          @update:filter="applyFilter" 
-          @close="closeFilterModal" 
-        />
       </div>
-  
-      <!-- 고객 정보 테이블 -->
-      <div class="customer-table">
-        <table class="customer-t">
-          <thead>
-            <tr class="table-header">
-              <th>고객정보</th>
-              <th>등급</th>
-              <th>구매정보</th>
-              <th>최근 구매일</th>
-              <th>가입일</th>
-              <th>관리</th>
-            </tr>
-          </thead>
-          <tbody class="table-body">
-            <tr v-for="customer in customers" :key="customer.customerCode" class="table-row">
-              <td>
-                <div>{{ customer.customerName }}</div>
-                <div>{{ customer.customerPhone }}</div>
-              </td>
-              <td>{{ customer.customerGrade }}</td>
-              <td>
-                <div>총 구매액: {{ customer.totalPurchaseAmount }}원</div>
-                <div>구매 횟수: {{ customer.totalPurchaseCount }}회</div>
-              </td>
-              <td>{{ formatDate(customer.customerLastOrderDate) }}</td>
-              <td>{{ formatDate(customer.createdDate) }}</td>
-              <td>
-                <button @click="manageCustomer(customer.customerCode)">관리</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-        <!-- 페이지네이션 -->
-        <div class="pagination">
-          <button @click="prevPage" :disabled="currentPage === 1">이전</button>
-          <span v-for="page in visiblePages" :key="page">
+
+      <!-- 필터 모달 -->
+      <CustomerListFilterModal
+          v-if="isFilterModalOpen"
+          :filter="filter"
+          @update:filter="applyFilter"
+          @close="closeFilterModal"
+      />
+    </div>
+
+    <!-- 고객 정보 테이블 -->
+    <div class="customer-table">
+      <table class="customer-t">
+        <thead>
+        <tr class="table-header">
+          <th>고객정보</th>
+          <th>등급</th>
+          <th>구매정보</th>
+          <th>최근 구매일</th>
+          <th>가입일</th>
+          <th>관리</th>
+        </tr>
+        </thead>
+        <tbody class="table-body">
+        <tr v-for="customer in customers" :key="customer.customerCode" class="table-row">
+          <td>
+            <div>{{ customer.customerName }}</div>
+            <div>{{ customer.customerPhone }}</div>
+          </td>
+          <td>{{ customer.customerGrade }}</td>
+          <td>
+            <div>총 구매액: {{ customer.totalPurchaseAmount }}원</div>
+            <div>구매 횟수: {{ customer.totalPurchaseCount }}회</div>
+          </td>
+          <td>{{ formatDate(customer.customerLastOrderDate) }}</td>
+          <td>{{ formatDate(customer.createdDate) }}</td>
+          <td>
+            <button @click="manageCustomer(customer.customerCode, customer.customerName, customer.createdDate, customer.customerGrade)">관리</button>
+          </td>
+        </tr>
+        </tbody>
+      </table>
+      <!-- 페이지네이션 -->
+      <div class="pagination justify-content-center">
+        <button @click="prevPage" :disabled="currentPage === 1">이전</button>
+        <span v-for="page in visiblePages" :key="page">
               <button
-              :class="{ active: page === currentPage }"
-              @click="changePage(page)"
+                  :class="{ active: page === currentPage }"
+                  @click="changePage(page)"
               >{{ page }}</button>
           </span>
-          <button @click="nextPage" :disabled="currentPage === totalPages">다음</button>
-        </div>
+        <button @click="nextPage" :disabled="currentPage === totalPages">다음</button>
       </div>
     </div>
-  </template>
-  
-  <style scoped>
-  .customer-list {
-    padding: 20px;
-  }
-  
-  .title {
-    font-size: 24px;
-    font-weight: bold;
-    margin-bottom: 20px;
-    border-bottom: 2px solid #000;
-  }
-  
-  .stats-container {
-    display: flex;
-    gap: 16px;
-    margin-bottom: 24px;
-  }
-  
-  .stat-card {
-    flex: 1;
-    background: white;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 16px;
-  }
-  
-  .stat-title {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-    color: #666;
-  }
-  
-  .stat-value {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
-  
-  .stat-value strong {
-    font-size: 24px;
-    font-weight: 600;
-  }
-  
-  .increase {
-    font-size: 13px;
-    color: #2e7d32;
-  }
-  
-  .period {
-    font-size: 13px;
-    color: #666;
-  }
-  
-  .search-section {
-    margin-bottom: 24px;
-  }
+  </div>
+</template>
 
-  .customer-t {
-    width: 100%;
-  }
-  .search-area {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 8px;
-    background: white;
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
-    padding: 8px;
-  }
-  
-  .search-area input {
-    flex: 1;
-    border: none;
-    padding: 8px;
-  }
-  
-  .button-group {
-    display: flex;
-    gap: 8px;
-  }
-  
-  .filter-btn,
-  .sort-select,
-  .export-btn {
-    height: 32px;
-    padding: 0 12px;
-    border: 1px solid #e0e0e0;
-    border-radius: 4px;
-    background: white;
-    font-size: 14px;
-    color: #333;
-    cursor: pointer;
-  }
-  
-  .tag-area {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 16px;
-  }
-  
-  .tag {
-    display: inline-flex;
-    align-items: center;
-    height: 24px;
-    padding: 0 8px;
-    border-radius: 4px;
-    font-size: 13px;
-    background: #f0f9ff;
-    color: #0288d1;
-    cursor: pointer;
-  }
-  
-  .icon-close {
-    font-size: 12px;
-    margin-left: 4px;
-  }
-  
-  .customer-table {
-    width: 100%;
-    border-collapse: collapse;
-  }
-  
-  .table-header {
-    background-color: #f0f0f0;
-    border-bottom: 1px solid #ddd;
-  }
+<style scoped>
+.customer-list {
+  padding: 20px;
+}
 
-  .table-header th {
-    text-align: left;
-  }
-  
-  .table-row {
-    border-bottom: 1px solid #ddd;
-  }
-  
-  .table-row td {
-    padding: 10px;
-    text-align: left;
-  }
-  
-  .table-row td div {
-    margin-bottom: 5px;
-  }
-  
-  .pagination {
-    margin-top: 20px;
-    text-align: center;
-  }
-  
-  .pagination button {
-    margin: 0 5px;
-    padding: 5px 10px;
-    border: none;
-    border-radius: 20px;
-    background-color: #f0f0f0;
-    color: black;
-    cursor: pointer;
-  }
-  
-  .pagination button.active {
-    background-color: #4CAF50;
-    color: white;
-  }
-  
-  .pagination span {
-    margin: 0 5px;
-    padding: 5px 10px;
-    border-radius: 20px;
-    background-color: #f0f0f0;
-  }
-  </style>
+.title {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #000;
+}
+
+.stats-container {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  flex: 1;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.stat-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  color: #666;
+}
+
+.stat-value {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-value strong {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.increase {
+  font-size: 13px;
+  color: #2e7d32;
+}
+
+.period {
+  font-size: 13px;
+  color: #666;
+}
+
+.search-section {
+  margin-bottom: 24px;
+}
+
+.customer-t {
+  width: 100%;
+}
+
+.search-area {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.search-area input {
+  flex: 1;
+  border: none;
+  padding: 8px;
+}
+
+.button-group {
+  display: flex;
+  gap: 8px;
+}
+
+.filter-btn,
+.sort-select,
+.export-btn {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background: white;
+  font-size: 14px;
+  color: #333;
+  cursor: pointer;
+}
+
+.tag-area {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 13px;
+  background: #f0f9ff;
+  color: #0288d1;
+  cursor: pointer;
+}
+
+.icon-close {
+  font-size: 12px;
+  margin-left: 4px;
+}
+
+.customer-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-header {
+  background-color: #f0f0f0;
+  border-bottom: 1px solid #ddd;
+}
+
+.table-header th {
+  text-align: left;
+}
+
+.table-row {
+  border-bottom: 1px solid #ddd;
+}
+
+.table-row td {
+  padding: 10px;
+  text-align: left;
+}
+
+.table-row td div {
+  margin-bottom: 5px;
+}
+
+.pagination {
+  margin-top: 20px;
+  text-align: center;
+}
+
+.pagination button {
+  margin: 0 5px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 20px;
+  background-color: #f0f0f0;
+  color: black;
+  cursor: pointer;
+}
+
+.pagination button.active {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.pagination span {
+  margin: 0 5px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  background-color: #f0f0f0;
+}
+</style>
