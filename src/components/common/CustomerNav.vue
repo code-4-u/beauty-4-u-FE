@@ -21,7 +21,7 @@ navItems.value = [
       <div class="user-icon">🔔</div>
     </div>
     <div class="search-bar">
-      <input type="text" v-model="searchQuery" placeholder="Search for..." />
+      <input type="text" v-model="searchQuery" placeholder="Search for..." style="width: 80%;" />
     </div>
     <ul class="nav-list">
       <li v-for="item in navItems" :key="item.id">
@@ -37,7 +37,7 @@ navItems.value = [
 
 <style scoped>
 .sidebar {
-  width: 250px;
+  width: 300px;
   background-color: #f0f0f0;
   padding: 20px;
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
@@ -55,6 +55,7 @@ navItems.value = [
 
 .search-bar {
   margin: 20px 0;
+  left: 0;
 }
 
 .search-bar input {
@@ -67,7 +68,7 @@ navItems.value = [
 
 .nav-list {
   list-style-type: none;
-  padding: 0;
+  padding-left: 1em;
 }
 
 .nav-list li {
