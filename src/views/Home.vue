@@ -103,17 +103,14 @@ const handleDatesSet = (arg) => {
             <FullCalendar :options="calendarOptions" class="custom-calendar"/>
           </div>
         </div>
-        <div class="row">
+        <div class="row mt-3">
           <div class="col-md-6">
             <div class="notice-section">
-              <h5>공지사항</h5>
-              <!-- 공지사항 내용 추가 -->
+              <SimpleInform/>
             </div>
           </div>
           <div class="col-md-6">
             <div class="qa-section">
-              <h5>Q&A</h5>
-              <!-- Q&A 내용 추가 -->
             </div>
           </div>
         </div>
