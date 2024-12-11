@@ -1,8 +1,8 @@
 <script setup>
-import { ref, watch } from 'vue';
+import {ref, watch} from 'vue';
 
 const props = defineProps(['filter']);
-const emit = defineEmits(['update:filter']);
+const emit = defineEmits(['update:filter', 'close']);
 
 const localFilter = ref({ ...props.filter });
 
@@ -67,7 +67,7 @@ const applyFilter = () => {
   left: 50%;
   transform: translate(-50%, -50%);
   background: white;
-  border: 1px solid #4caf50;
+  border: 1px solid #29C458;
   border-radius: 8px;
   padding: 20px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -82,7 +82,7 @@ const applyFilter = () => {
 
 .modal-content h3 {
   margin-bottom: 16px;
-  color: #4caf50;
+  color: #29C458;
 }
 
 label {
@@ -107,12 +107,12 @@ input, select {
   padding: 8px 12px;
   border: none;
   border-radius: 4px;
-  background: #4caf50;
+  background: #29C458;
   color: white;
   cursor: pointer;
 }
 
 .modal-buttons button:hover {
-  background: #45a049;
+  background: #29C458;
 }
 </style>
