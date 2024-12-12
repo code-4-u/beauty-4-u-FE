@@ -1,15 +1,15 @@
 <script setup>
-import { RouterView } from "vue-router";
+import {RouterView} from "vue-router";
 import '@/assets/css/resetcss.css';
 import Header from "@/components/common/Header.vue";
 import Footer from "@/components/common/Footer.vue";
 </script>
 
 <template>
-  <div class="container">
+  <div class="container-fluid">
     <Header/>
     <main class="main-content">
-      <RouterView/>
+      <router-view/>
     </main>
     <Footer/>
   </div>
@@ -28,6 +28,5 @@ import Footer from "@/components/common/Footer.vue";
   padding: 1rem;
   margin: 0 auto;
   width: 100%;
-  max-width: 1200px;
 }
 </style>
