@@ -1,5 +1,5 @@
 <script setup>
-import InformNav from "@/components/common/InformNav.vue";
+import InformNav from "@/components/common/BoardNav.vue";
 </script>
 
 <template>
