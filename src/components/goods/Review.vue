@@ -10,17 +10,37 @@
           <thead>
           <tr>
             <th>
-              <div class="th-content">
+              <div class="th-content-date">
                 <span>리뷰 일시</span>
                 <div class="sort-arrows">
-                  <span class="arrow" :class="{ active: sortDirection === 'ASC' }" @click="handleSort('ASC')">▲</span>
-                  <span class="arrow" :class="{ active: sortDirection === 'DESC' }" @click="handleSort('DESC')">▼</span>
+                  <span
+                      class="arrow"
+                      :class="{ active: sortStates.created_date.active && sortStates.created_date.direction === 'ASC' }"
+                      @click="handleSort('created_date', 'ASC')">▲</span>
+                  <span
+                      class="arrow"
+                      :class="{ active: sortStates.created_date.active && sortStates.created_date.direction === 'DESC' }"
+                      @click="handleSort('created_date', 'DESC')">▼</span>
                 </div>
               </div>
             </th>
             <th>리뷰 번호</th>
             <th>제품명</th>
-            <th>평점</th>
+            <th>
+              <div class="th-content-score">
+                <span>평점</span>
+                <div class="sort-arrows">
+                  <span
+                      class="arrow"
+                      :class="{ active: sortStates.review_score.active && sortStates.review_score.direction === 'ASC' }"
+                      @click="handleSort('review_score', 'ASC')">▲</span>
+                  <span
+                      class="arrow"
+                      :class="{ active: sortStates.review_score.active && sortStates.review_score.direction === 'DESC' }"
+                      @click="handleSort('review_score', 'DESC')">▼</span>
+                </div>
+              </div>
+            </th>
             <th>리뷰 내용</th>
           </tr>
           </thead>
@@ -58,7 +78,17 @@ import GoodsSidebar from "@/components/goods/GoodsSidebar.vue";
 const searchReview = ref([])
 // 정렬 상태 저장 ref
 const sortDirection = ref("DESC")
-const sortField = ref("created_date")
+
+const sortStates = ref({
+  created_date: {
+    direction: 'DESC',
+    active: true
+  },
+  review_score: {
+    direction: 'DESC',
+    active: false
+  }
+})
 
 
 // 리뷰 목록 가져오는 함수
@@ -74,10 +104,17 @@ const fetchReviews = async (field = 'created_date', direction = 'DESC') => {
     console.error('리뷰 목록 조회 실패: ', error)
   }
 }
-// 정렬 버튼
-const handleSort = (direction) => {
-  sortDirection.value = direction
-  fetchReviews(sortDirection.value, direction)
+// 정렬 처리 함수
+const handleSort = (field, direction) => {
+  Object.keys(sortStates.value).forEach(key => {
+    if (key !== field){
+      sortStates.value[key].active = false
+    }
+  })
+    sortStates.value[field].direction = direction
+    sortStates.value[field].active = true
+
+    fetchReviews(field, direction)
 }
 
 onMounted(() => {
@@ -88,7 +125,8 @@ onMounted(() => {
 
 <style scoped>
 
-.th-content {
+.th-content-date,
+.th-content-score {
   display: flex;
   align-items: center;
   justify-content: space-between;
