@@ -2,15 +2,20 @@ import { library } from '@fortawesome/fontawesome-svg-core';
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 
 import {
-    faArrowRightFromBracket
+    faArrowRightFromBracket,
+    faArrowRotateRight
 } from '@fortawesome/free-solid-svg-icons';
 
 import {
-
+    faTrashCan,
+    faPenToSquare
 } from '@fortawesome/free-regular-svg-icons';
 
 const icons = [
-    faArrowRightFromBracket
+    faArrowRightFromBracket,
+    faTrashCan,
+    faPenToSquare,
+    faArrowRotateRight
 ];
 
 icons.forEach(icon => library.add(icon))
