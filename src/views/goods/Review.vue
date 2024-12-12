@@ -2,9 +2,6 @@
   <div class="product-review-page">
     <header class="header"></header>
     <div class="main-content">
-      <aside class="sidebar">
-        <GoodsSidebar @select-subcategory="handleSubCategorySelect"/>
-      </aside>
       <main>
         <table class="review-table">
           <thead>
@@ -72,7 +69,6 @@
 
 import {onMounted, ref} from "vue";
 import axios from "axios";
-import GoodsSidebar from "@/components/goods/GoodsSidebar.vue";
 
 // 리뷰데이터 저장 ref 생성
 const searchReview = ref([])
@@ -107,14 +103,14 @@ const fetchReviews = async (field = 'created_date', direction = 'DESC') => {
 // 정렬 처리 함수
 const handleSort = (field, direction) => {
   Object.keys(sortStates.value).forEach(key => {
-    if (key !== field){
+    if (key !== field) {
       sortStates.value[key].active = false
     }
   })
-    sortStates.value[field].direction = direction
-    sortStates.value[field].active = true
+  sortStates.value[field].direction = direction
+  sortStates.value[field].active = true
 
-    fetchReviews(field, direction)
+  fetchReviews(field, direction)
 }
 
 onMounted(() => {
