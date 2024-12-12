@@ -2,10 +2,13 @@
 import {computed, onMounted, ref} from 'vue';
 import {getFetch} from "@/stores/apiClient.js";
 import CreateUserModal from "@/components/admin/CreateUserModal.vue";
+import UpdateUserModal from "@/components/admin/UpdateUserModal.vue";
 import {FontAwesomeIcon} from "@fortawesome/vue-fontawesome";
 
 const users = ref([]);
 const showCreateUserModal = ref(false);
+const showUpdateUserModal = ref(false);
+const selectedUserCode = ref('');
 
 // 검색어 상태 관리
 const searchQuery = ref('');
@@ -67,9 +70,13 @@ const deleteUser = (id) => {
   users.value = users.value.filter(user => user.id !== id);
 };
 
-// 신규 계정 등록 함수
 const addNewUser = () => {
   showCreateUserModal.value = true;
+};
+
+const editUser = (userCode) => {
+  selectedUserCode.value = userCode;
+  showUpdateUserModal.value = true;
 };
 
 const formatDate = (dateString) => {
@@ -148,7 +155,7 @@ onMounted(async () => {
         <td>{{ formatDate(user.userExpiredDate) }}</td>
         <td>
           <div class="action-buttons">
-            <button class="edit">
+            <button class="edit" @click="editUser(user.userCode)">
               <font-awesome-icon :icon="['far', 'pen-to-square']" />
             </button>
             <button
@@ -192,6 +199,12 @@ onMounted(async () => {
         v-if="showCreateUserModal"
         @close="showCreateUserModal = false"
         @created="fetchUserList"
+    />
+    <UpdateUserModal
+        v-if="showUpdateUserModal"
+        :userCode="selectedUserCode"
+        @close="showUpdateUserModal = false"
+        @updated="fetchUserList"
     />
   </div>
 </template>
