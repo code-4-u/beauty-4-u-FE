@@ -1,8 +1,20 @@
 <script setup>
 import {useAuthStore} from "@/stores/auth.js";
 import {FontAwesomeIcon} from '@fortawesome/vue-fontawesome';
+import {ref} from "vue";
 
 const authStore = useAuthStore();
+
+const headerItems = ref([]);
+
+headerItems.value = [
+  {id: 1, name: '고객', link: '/customer/list'},
+  {id: 2, name: '상품', link: '/goods'},
+  {id: 3, name: '분석 대시보드', link: '/stats'},
+  {id: 4, name: '프로모션', link: '/promotion'},
+  {id: 5, name: '게시판', link: '/board/inform'},
+  {id: 6, name: '팀 스페이스', link: '/teamspace'}
+];
 
 const handleLogoutClick = () => {
   authStore.logout();
@@ -14,13 +26,16 @@ const handleLogoutClick = () => {
 <template>
   <header class="header">
     <router-link to="/" class="logo">BEAUTY4U</router-link>
-    <div class="menu">
-      <router-link to="/customer" class="menu-item">고객</router-link>
-      <router-link to="/goods" class="menu-item">상품</router-link>
-      <router-link to="/stats" class="menu-item">분석 대시보드</router-link>
-    </div>
+    <ul class="menu">
+      <li v-for="item in headerItems" :key="item.id">
+        <router-link :to="item.link" class="menu-item">
+          {{ item.name }}
+        </router-link>
+      </li>
+    </ul>
+
     <div @click="handleLogoutClick" class="logout">
-      <font-awesome-icon :icon="['fas', 'arrow-right-from-bracket']" />
+      <font-awesome-icon :icon="['fas', 'arrow-right-from-bracket']"/>
     </div>
   </header>
 </template>
