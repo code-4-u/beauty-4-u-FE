@@ -6,6 +6,7 @@ import Login from "@/views/user/Login.vue";
 import userRoutes from './user.js';
 import customerRoutes from './customer.js';
 import boards from './board.js';
+import adminRoutes from './admin.js';
 
 const routes = [
     {
@@ -18,7 +19,8 @@ const routes = [
     },
     ...userRoutes,
     ...customerRoutes,
-    ...boards
+    ...boards,
+    ...adminRoutes
 ];
 
 const router = createRouter({
