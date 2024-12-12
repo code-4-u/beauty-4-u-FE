@@ -1,7 +1,10 @@
 <script setup>
-import {computed, onMounted, ref} from "vue";
-import {getFetch} from "@/stores/apiClient.js";
+import {computed, onBeforeMount, onMounted, ref} from "vue";
+import {getFetch, putFetch} from "@/stores/apiClient.js";
 import {formatDate} from "@/stores/util.js";
+import {onBeforeRouteUpdate, useRouter} from 'vue-router';
+
+const router = useRouter();
 
 const informs = ref([]);
 
@@ -83,6 +86,33 @@ const removeTag = (key) => {
   fetchInforms();
 };
 
+const updateInformViewcount = async (informId, count) => {
+  const viewCount = count + 1;
+  try {
+    const response = await putFetch(
+        `/inform/${informId}`,
+        {
+          informViewcount: viewCount
+        }
+    )
+  } catch (error) {
+    console.error("조회수를 수정하는데 있어 문제가 생겼습니다.", error);
+  }
+
+}
+
+// 공지사항 상세 조회 페이지로 이동
+const goToInformDetail = (informId, informViewcount) => {
+  updateInformViewcount(informId, informViewcount);
+  router.push({
+    path: `/board/inform/${informId}`
+  });
+};
+
+onBeforeMount(() => {
+  fetchInforms();
+})
+
 onMounted(() => {
   fetchInforms();
 });
@@ -149,8 +179,13 @@ onMounted(() => {
         <th>조회수</th>
       </tr>
       </thead>
-      <tbody class="table-body">
-      <tr v-for="inform in informs" :key="inform.informId" class="table-row">
+      <tbody>
+      <tr
+          v-for="inform in informs"
+          :key="inform.informId"
+          class="table-row"
+          @click="goToInformDetail(inform.informId, inform.informViewcount)"
+      >
         <td>
           <div>{{ formatDate(inform.createdDate) }}</div>
         </td>
@@ -250,7 +285,9 @@ onMounted(() => {
   text-align: left;
 }
 
+
 .table-row {
+  cursor: pointer;
   border-bottom: 1px solid #ddd;
 }
 
@@ -288,5 +325,18 @@ onMounted(() => {
   padding: 5px 10px;
   border-radius: 20px;
   background-color: #f0f0f0;
+}
+
+/* 부트스트랩 스타일 덮어쓰기 */
+.table.table-striped tbody tr:hover {
+  background-color: #CFF7D3 !important;
+  color: white !important;
+  cursor: pointer;
+}
+
+/* 선택된 행의 스타일 */
+.table.table-striped tbody tr:hover td {
+  background-color: #CFF7D3 !important;
+  color: black !important;
 }
 </style>
