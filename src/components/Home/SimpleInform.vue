@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { getFetch } from '@/stores/apiClient.js'
-import {formatDate} from "../../stores/util.js";
+import {formatDate} from "@/stores/util.js";
 
 const informs = ref([]);
 
