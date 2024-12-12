@@ -5,9 +5,8 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import HomeSideBar from "@/components/Home/HomeSideBar.vue";
-import CustomerNav from "@/components/common/CustomerNav.vue";
 import SimpleInform from "@/components/Home/SimpleInform.vue";
-import SimpleQAndA from "@/components/Home/SimpleQAndA.vue";
+
 
 const calendarOptions = reactive({
   plugins: [dayGridPlugin, interactionPlugin, timeGridPlugin],
