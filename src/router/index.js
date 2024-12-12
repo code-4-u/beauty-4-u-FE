@@ -3,9 +3,12 @@ import {createRouter, createWebHistory} from "vue-router";
 import Home from "@/views/Home.vue";
 import Login from "@/views/user/Login.vue";
 import userRoutes from './user.js';
+import customerRoutes from './customer.js';
+import chatRouters from './chat.js';
 import boards from './board.js';
 import customerRoutes from './customer.js'
 import goods from "@/router/goods.js";
+
 
 const routes = [
     {
@@ -17,6 +20,8 @@ const routes = [
         component: Login
     },
     ...userRoutes,
+    ...customerRoutes,
+    ...chatRouters
     ...userRoutes,
     ...customerRoutes,
     ...boards,
