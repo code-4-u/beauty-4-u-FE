@@ -1,7 +1,10 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { getFetch } from '@/stores/apiClient.js'
-import {formatDate} from "@/stores/util.js";
+import {formatDate} from "../../stores/util.js";
+import {useRouter} from 'vue-router';
+
+const router = useRouter();
 
 const informs = ref([]);
 
@@ -12,37 +15,44 @@ const fetchNotices = async () => {
 
   // 검색 요청을 위한 데이터 준비
   const searchParams = new URLSearchParams({
-    publishStatus: 'PUBLISHED',
     page: currentPage.value,
     count: itemsPerPage.value
   });
 
   try {
-    const response = await getFetch(`/inform/list?${searchParams}`); // 여기에 API URL을 입력하세요
-    informs.value = response.data.data; // API 응답 데이터로 notices 업데이트
+    const response = await getFetch(`/inform/list?${searchParams}`);
+    informs.value = response.data.data.informList;
+    console.log(informs.value)
   } catch (error) {
     console.error("공지사항을 가져오는 데 오류가 발생했습니다:", error);
   }
 };
 
+const goToDetail = (informId) => {
+  router.push({
+    path: `/board/inform/${informId}`
+  });
+};
+
+const toInformList = () => {
+  router.push({
+    path: `/board/inform/list`
+  });
+};
+
 onMounted(() => {
   fetchNotices(); // 컴포넌트가 마운트될 때 API 호출
 });
-
-const handleMoreClick = () => {
-  // 더보기 클릭 시 동작할 코드
-  console.log("더보기 클릭됨");
-};
 </script>
 
 <template>
   <div class="notice-container">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
       <h2>공지사항</h2>
-      <div class="more-button" @click="handleMoreClick">더보기</div>
+      <div class="more-button" @click="toInformList">더보기</div>
     </div>
     <ul style="margin-top: 16px;">
-      <li v-for="inform in informs" :key="inform.informId">
+      <li v-for="inform in informs" :key="inform.informId" @click="goToDetail(inform.informId)">
         <span>{{ inform.informTitle }}</span>
         <span>{{ formatDate(inform.createdDate) }}</span>
       </li>
@@ -70,6 +80,7 @@ const handleMoreClick = () => {
   display: flex;
   justify-content: space-between;
   margin-bottom: 16px; /* 간격을 넓히기 위해 값 증가 */
+  cursor: pointer; /* 커서 모양 변경 */
 }
 
 .notice-container .more-button {
@@ -78,7 +89,6 @@ const handleMoreClick = () => {
   border-bottom: 1px solid rgba(204, 204, 204, 0.5); /* 아래쪽 테두리만 흐리게 */
   border-radius: 0; /* 모서리 둥글게 제거 */
   padding: 4px 8px; /* 패딩을 줄여서 크기 축소 */
-  cursor: pointer; /* 커서 모양 변경 */
   display: inline-block; /* 인라인 블록으로 설정 */
 }
 
