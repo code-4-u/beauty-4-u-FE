@@ -3,13 +3,6 @@ import {computed, onMounted, ref} from "vue";
 import {getFetch} from "@/stores/apiClient.js";
 import {formatDate} from "@/stores/util.js";
 
-const props = defineProps({
-  customerCode: {
-    type: String,
-    required: true
-  }
-});
-
 const informs = ref([]);
 
 const totalCount = ref(0);
