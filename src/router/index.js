@@ -8,7 +8,6 @@ import boards from './board.js';
 import customerRoutes from './customer.js'
 import goods from "@/router/goods.js";
 
-
 const routes = [
     {
         path: '/',
