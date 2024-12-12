@@ -1,14 +1,113 @@
+<script setup>
+import { computed, onMounted, ref } from 'vue'
+import axios from 'axios'
+
+// 브랜드 검색과 관련된 상태 관리
+const brands = ref([])
+const selectedBrand = ref(null)
+const showBrandDropdown = ref(false)
+
+// 상품 검색과 관련된 상태 관리
+const searchTerm = ref('')
+const suggestions = ref([])
+const searchResults = ref([])
+
+// 하위 카테고리 선택 시 상품 목록을 조회하는 함수
+const handleSubCategorySelect = async (subCategoryCode) => {
+  try {
+    const response = await axios.get(`/api/v1/goods/category/sub/${subCategoryCode}`)
+    searchResults.value = response.data
+  } catch (error) {
+    console.error('카테고리 상품 조회 중 오류 발생:', error)
+  }
+}
+
+// 선택된 브랜드의 이름을 표시하기 위한 계산된 속성
+const selectedBrandName = computed(() => {
+  if (!selectedBrand.value) return ''
+  const brand = brands.value.find(b => b.brandCode === selectedBrand.value.brandCode)
+  return brand ? brand.brandName : ''
+})
+
+// 브랜드 목록을 서버에서 가져오는 함수
+const fetchBrands = async () => {
+  try {
+    const response = await axios.get('/api/v1/goods/brands')
+    brands.value = response.data
+  } catch (error) {
+    console.error('브랜드 목록 조회 중 오류 발생:', error)
+  }
+}
+
+// 검색어 입력 시 자동 완성 목록을 가져오는 함수
+const handleSearchInput = async () => {
+  if (searchTerm.value.length > 0) {
+    try {
+      const response = await axios.get(`/api/v1/goods/search/${searchTerm.value}`)
+      suggestions.value = response.data
+    } catch (error) {
+      console.error('검색 제안 조회 중 오류 발생:', error)
+    }
+  } else {
+    suggestions.value = []
+  }
+}
+
+// 검색 실행 함수
+const search = async () => {
+  try {
+    const response = await axios.get('/api/v1/goods/search', {
+      params: {
+        brandCode: selectedBrand.value?.brandCode || '',
+        goodsName: searchTerm.value
+      }
+    })
+    searchResults.value = response.data
+  } catch (error) {
+    console.error('검색 결과 조회 중 오류 발생:', error)
+  }
+}
+
+// 브랜드 선택 처리 함수
+const selectBrand = (brand) => {
+  selectedBrand.value = brand
+  showBrandDropdown.value = false
+}
+
+// 검색어 제안 선택 처리 함수
+const selectSuggestion = (item) => {
+  searchTerm.value = item.goodsName
+  suggestions.value = []
+}
+
+// 검색 조건 초기화 함수
+const clearSearch = (type) => {
+  if (type === 'brand') {
+    selectedBrand.value = null
+  } else {
+    searchTerm.value = ''
+    suggestions.value = []
+  }
+}
+
+// 가격을 원화 형식으로 변환하는 함수
+const formatPrice = (price) => {
+  return price.toLocaleString() + '원'
+}
+
+// 컴포넌트 초기화 시 실행되는 함수들
+onMounted(() => {
+  fetchBrands()
+  search()
+})
+</script>
+
 <template>
   <div class="product-search-page">
-    <header class="header">
-    </header>
     <div class="main-content">
-      <aside class="sidebar">
-        <GoodsSidebar @select-subcategory="handleSubCategorySelect"/>
-      </aside>
       <main>
         <div class="search-inputs">
-          <!-- 브랜드 검색 -->
+          <!-- 브랜드 검색 영역 -->
           <div class="input-group">
             <label>브랜드명</label>
             <div class="dropdown-container">
@@ -33,7 +132,7 @@
             </div>
           </div>
 
-          <!-- 상품명 검색 -->
+          <!-- 상품명 검색 영역 -->
           <div class="input-group">
             <label>상품명</label>
             <div class="dropdown-container">
@@ -81,145 +180,12 @@
           </tr>
           </tbody>
         </table>
-
-        <div class="pagination">
-          <button>이전</button>
-          <button
-              v-for="page in 3"
-              :key="page"
-              :class="{ active: page === 1 }"
-          >
-            {{ page }}
-          </button>
-          <button>다음</button>
-        </div>
       </main>
     </div>
   </div>
 </template>
 
-<script>
-import {computed, onMounted, ref} from 'vue'
-import axios from 'axios'
-import GoodsSidebar from "@/components/goods/GoodsSidebar.vue";
-
-export default {
-  name: 'GoodsSearch',
-  components: {
-    GoodsSidebar
-  },
-
-  setup() {
-    const brands = ref([])
-    const selectedBrand = ref(null)
-    const showBrandDropdown = ref(false)
-    const searchTerm = ref('')
-    const suggestions = ref([])
-    const searchResults = ref([])
-
-    // 하위 카테고리 선택 시 처리하는 함수 추가
-    const handleSubCategorySelect = async (subCategoryCode) => {
-      try {
-        // 선택된 하위 카테고리의 상품 목록 조회
-        const response = await axios.get(`/api/v1/goods/category/sub/${subCategoryCode}`)
-        searchResults.value = response.data
-      } catch (error) {
-        console.error('Failed to fetch category goods:', error)
-      }
-    }
-
-    const selectedBrandName = computed(() => {
-      if (!selectedBrand.value) return ''
-      const brand = brands.value.find(b => b.brandCode === selectedBrand.value.brandCode)
-      return brand ? brand.brandName : ''
-    })
-
-    const fetchBrands = async () => {
-      try {
-        const response = await axios.get('/api/v1/goods/brands')
-        brands.value = response.data
-      } catch (error) {
-        console.error('Failed to fetch brands:', error)
-      }
-    }
-
-    const handleSearchInput = async () => {
-      if (searchTerm.value.length > 0) {
-        try {
-          const response = await axios.get(`/api/v1/goods/search/${searchTerm.value}`)
-          suggestions.value = response.data
-        } catch (error) {
-          console.error('Failed to fetch suggestions:', error)
-        }
-      } else {
-        suggestions.value = []
-      }
-    }
-
-    const search = async () => {
-      try {
-        const response = await axios.get('/api/v1/goods/search', {
-          params: {
-            brandCode: selectedBrand.value?.brandCode || '',
-            goodsName: searchTerm.value
-          }
-        })
-        searchResults.value = response.data
-      } catch (error) {
-        console.error('Failed to fetch search results:', error)
-      }
-    }
-
-    const selectBrand = (brand) => {
-      selectedBrand.value = brand
-      showBrandDropdown.value = false
-    }
-
-    const selectSuggestion = (item) => {
-      searchTerm.value = item.goodsName
-      suggestions.value = []
-    }
-
-    const clearSearch = (type) => {
-      if (type === 'brand') {
-        selectedBrand.value = null
-      } else {
-        searchTerm.value = ''
-        suggestions.value = []
-      }
-    }
-
-    const formatPrice = (price) => {
-      return price.toLocaleString() + '원'
-    }
-
-    onMounted(() => {
-      fetchBrands()
-      search()
-    })
-
-    return {
-      handleSubCategorySelect,
-      brands,
-      searchTerm,
-      selectedBrand,
-      selectedBrandName,
-      suggestions,
-      searchResults,
-      showBrandDropdown,
-      handleSearchInput,
-      search,
-      selectBrand,
-      selectSuggestion,
-      clearSearch,
-      formatPrice
-    }
-  }
-}
-</script>
-
 <style scoped>
-
 .main-content {
   display: flex;
   height: calc(100vh - 60px);
@@ -227,12 +193,14 @@ export default {
 
 .product-search-page {
   font-family: Arial, sans-serif;
+  padding: 20px;  /* 패딩 추가 */
 }
 
 main {
   flex-grow: 1;
   padding: 20px;
   overflow-y: auto;
+  background-color: white;
 }
 
 .search-inputs {
