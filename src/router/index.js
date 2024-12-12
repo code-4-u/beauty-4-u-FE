@@ -3,7 +3,8 @@ import {createRouter, createWebHistory} from "vue-router";
 import Home from "@/views/Home.vue";
 
 import userRoutes from './user.js';
-import customerRoutes from './customer.js'
+import customerRoutes from './customer.js';
+import chatRouters from './chat.js';
 
 const routes = [
     {
@@ -11,7 +12,8 @@ const routes = [
         component : Home
     },
     ...userRoutes,
-    ...customerRoutes
+    ...customerRoutes,
+    ...chatRouters
 ];
 
 const router = createRouter({
