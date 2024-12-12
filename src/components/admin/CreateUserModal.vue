@@ -68,6 +68,7 @@ const createUser = async () => {
   isLoading.value = true;
   try {
     await postFetch('/user', formData.value);
+
     alert('계정이 성공적으로 생성되었습니다.');
     emit('created');
     closeModal();
@@ -109,6 +110,12 @@ onMounted(async () => {
                   :disabled="isLoading"
               />
             </div>
+            <div class="form-group password-group">
+              <label>비밀번호</label>
+              <div class="password-notice">
+                * 초기 비밀번호는 사번과 동일하게 설정됩니다.
+              </div>
+            </div>
             <div class="form-group">
               <label>이름<span class="required">*</span></label>
               <input
@@ -129,18 +136,6 @@ onMounted(async () => {
               >
                 <option v-for="dept in depts" :key="dept.deptCode" :value="dept.deptCode">
                   {{ dept.deptName }}
-                </option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label>계정 권한<span class="required">*</span></label>
-              <select
-                  v-model="formData.userRoleId"
-                  class="form-input"
-                  :disabled="isLoading"
-              >
-                <option v-for="role in roles" :key="role.userRoleId" :value="role.userRoleId">
-                  {{ role.userRoleName }}
                 </option>
               </select>
             </div>
@@ -178,6 +173,18 @@ onMounted(async () => {
               >
                 <option v-for="job in jobs" :key="job.jobCode" :value="job.jobCode">
                   {{ job.jobName }}
+                </option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>계정 권한<span class="required">*</span></label>
+              <select
+                  v-model="formData.userRoleId"
+                  class="form-input"
+                  :disabled="isLoading"
+              >
+                <option v-for="role in roles" :key="role.userRoleId" :value="role.userRoleId">
+                  {{ role.userRoleName }}
                 </option>
               </select>
             </div>
@@ -256,10 +263,10 @@ onMounted(async () => {
 .form-column {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
 }
 
 .form-group {
+  height: 85px;
   margin-bottom: 1.5rem;
 }
 
@@ -267,7 +274,7 @@ onMounted(async () => {
   display: block;
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
-  color: #666;
+  color: var(--black);
 }
 
 .required {
@@ -333,5 +340,12 @@ onMounted(async () => {
 .form-input:disabled {
   background-color: #f5f5f5;
   cursor: not-allowed;
+}
+
+.password-notice {
+  color: var(--gray);
+  font-size: 0.9rem;
+  margin-top: 1rem;
+  margin-left: 1rem;
 }
 </style>
