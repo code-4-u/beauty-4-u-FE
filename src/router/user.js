@@ -1,8 +1,15 @@
-import Login from "@/views/user/Login.vue";
+import MyPage from "@/views/user/MyPage.vue";
+import UserHome from "@/views/user/UserHome.vue";
 
 export default [
     {
-        path: '/login',
-        component: Login
+        path: "/user",
+        component: UserHome,
+        children: [
+            {
+                path: 'mypage',
+                component: MyPage
+            }
+        ]
     }
 ];
