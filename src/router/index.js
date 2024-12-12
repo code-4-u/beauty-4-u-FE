@@ -4,30 +4,22 @@ import userRoutes from './user.js';
 import boards from './board.js';
 import customerRoutes from './customer.js'
 import Home from "@/views/Home.vue";
-import Goods from "@/components/goods/Goods.vue";
-import Review from "@/components/goods/Review.vue";
+import goods from "@/router/goods.js";
 
 const routes = [
     {
         path: '/',
         component: Home
     },
-    {
-        path: '/goods',
-        component: Goods
-    },
-    {
-        path: '/review',
-        component: Review
-    },
     ...userRoutes,
     ...userRoutes,
     ...customerRoutes,
-    ...boards
+    ...boards,
+    ...goods
 ];
 
 const router = createRouter({
-    history : createWebHistory(),
+    history: createWebHistory(),
     routes
 });
 
