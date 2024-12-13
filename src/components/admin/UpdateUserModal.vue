@@ -1,9 +1,16 @@
 <script setup>
 import {onMounted, ref} from 'vue';
 import LoadingSpinner from "@/components/common/LoadingSpinner.vue";
-import {getFetch, postFetch} from "@/stores/apiClient.js";
+import {getFetch, putFetch} from "@/stores/apiClient.js";
 
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'updated']);
+const props = defineProps({
+  userCode: {
+    type: String,
+    required: true
+  }
+});
+
 const isLoading = ref(false);
 const depts = ref([]);
 const jobs = ref([]);
@@ -23,58 +30,83 @@ const closeModal = () => {
   emit('close');
 };
 
-const fetchDeptList = async () => {
+const fetchUserData = async () => {
   try {
-    const response = await getFetch('/user/dept/list');
-    depts.value = response.data.data;
+    const [deptResponse, jobResponse, roleResponse] = await Promise.all([
+      getFetch('/user/dept/list'),
+      getFetch('/user/job/list'),
+      getFetch('/user/role/list')
+    ]);
 
-    if (depts.value.length > 0) {
-      formData.value.deptCode = depts.value[0].deptCode;
-    }
+    depts.value = deptResponse.data.data;
+    jobs.value = jobResponse.data.data;
+    roles.value = roleResponse.data.data;
+
+    const response = await getFetch(`/user/${props.userCode}`);
+    const userData = response.data.data;
+
+    const matchedDept = depts.value.find(dept => dept.deptName === userData.deptName);
+    const matchedJob = jobs.value.find(job => job.jobName === userData.jobName);
+    const matchedRole = roles.value.find(role => role.userRoleName === userData.userRoleName);
+
+    formData.value = {
+      userCode: userData.userCode || '',
+      userName: userData.userName || '',
+      email: userData.email || '',
+      phone: userData.phone || '',
+      deptCode: matchedDept?.deptCode || '',
+      jobCode: matchedJob?.jobCode || '',
+      userRoleId: matchedRole?.userRoleId || ''
+    };
+
   } catch (error) {
-    console.error('부서를 불러오는데 실패했습니다.', error);
+    console.error('회원 정보를 불러오는데 실패했습니다.', error);
   }
 };
 
-const fetchJobList = async () => {
-  try {
-    const response = await getFetch('/user/job/list');
-    jobs.value = response.data.data;
-
-    if (jobs.value.length > 0) {
-      formData.value.jobCode = jobs.value[0].jobCode;
-    }
-  } catch (error) {
-    console.error('직급을 불러오는데 실패했습니다.', error);
-  }
-};
-
-const fetchRoleList = async () => {
-  try {
-    const response = await getFetch('/user/role/list');
-    roles.value = response.data.data;
-
-    if (roles.value.length > 0) {
-      formData.value.userRoleId = roles.value[0].userRoleId;
-    }
-  } catch (error) {
-    console.error('직급을 불러오는데 실패했습니다.', error);
-  }
-};
-
-const createUser = async () => {
+const updateUser = async () => {
   if (isLoading.value) return;
 
   isLoading.value = true;
   try {
-    await postFetch('/user', formData.value);
+    const updateData = {
+      jobCode: formData.value.jobCode,
+      deptCode: formData.value.deptCode,
+      userRoleId: formData.value.userRoleId,
+      email: formData.value.email,
+      phone: formData.value.phone
+    };
 
-    alert('계정이 성공적으로 생성되었습니다.');
-    emit('created');
+    await putFetch(`/user/${props.userCode}`, updateData);
+
+    alert('계정이 성공적으로 수정되었습니다.');
+    emit('updated');
     closeModal();
   } catch (error) {
-    alert('계정 생성에 실패했습니다.');
-    console.error('계정 생성 실패:', error);
+    alert('계정 수정에 실패했습니다.');
+    console.error('계정 수정 실패:', error);
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const resetPassword = async () => {
+  if (isLoading.value) return;
+
+  const confirmed = confirm('비밀번호를 초기화하시겠습니까?');
+  if (!confirmed) return;
+
+  isLoading.value = true;
+  try {
+    await putFetch('/user/password/admin/reset',
+        {
+          userCode: props.userCode
+        }
+    );
+    alert('비밀번호가 성공적으로 초기화되었습니다.');
+  } catch (error) {
+    alert('비밀번호 초기화에 실패했습니다.');
+    console.error('비밀번호 초기화 실패:', error);
   } finally {
     isLoading.value = false;
   }
@@ -82,9 +114,7 @@ const createUser = async () => {
 
 onMounted(async () => {
   await Promise.all([
-    fetchDeptList(),
-    fetchJobList(),
-    fetchRoleList()
+    fetchUserData()
   ])
 });
 </script>
@@ -93,38 +123,37 @@ onMounted(async () => {
   <div class="modal-overlay" @click="closeModal">
     <div class="modal-content" @click.stop>
       <div class="modal-header">
-        <h2>계정 등록</h2>
+        <h2>계정 정보 수정</h2>
         <button class="close-button" @click="closeModal">X</button>
       </div>
-      <form @submit.prevent="createUser">
+      <form @submit.prevent="updateUser">
         <div class="form-grid">
           <div class="form-column">
             <div class="form-group">
-              <label>사원번호 (아이디)<span class="required">*</span></label>
+              <label>사원번호 (아이디)</label>
               <input
                   type="text"
                   v-model="formData.userCode"
-                  placeholder="EMP001"
-                  required
+                  disabled
                   class="form-input"
-                  :disabled="isLoading"
               />
             </div>
-            <div class="form-group password-group">
+            <div class="form-group">
               <label>비밀번호</label>
-              <div class="password-notice">
-                * 초기 비밀번호는 사번과 동일하게 설정됩니다.
+              <div class="password-container">
+                <div class="password-tag" @click="resetPassword">비밀번호 초기화</div>
+                <div class="password-tooltip">
+                  * 초기화 시 사번과 동일하게 설정됩니다.
+                </div>
               </div>
             </div>
             <div class="form-group">
-              <label>이름<span class="required">*</span></label>
+              <label>이름</label>
               <input
                   type="text"
                   v-model="formData.userName"
-                  placeholder="홍길동"
-                  required
+                  disabled
                   class="form-input"
-                  :disabled="isLoading"
               />
             </div>
             <div class="form-group">
@@ -198,7 +227,7 @@ onMounted(async () => {
               class="submit-button"
               :disabled="isLoading"
           >
-            등록하기
+            수정하기
           </button>
         </div>
       </form>
@@ -267,14 +296,15 @@ onMounted(async () => {
 
 .form-group {
   height: 85px;
-  margin-bottom: 1.5rem;
+  margin-bottom: 0.5rem;
 }
 
 .form-group label {
   display: block;
   margin-bottom: 0.5rem;
   font-size: 0.9rem;
-  color: var(--black);
+  color: #666;
+  font-weight: 600;
 }
 
 .required {
@@ -288,6 +318,7 @@ onMounted(async () => {
   border: 1px solid #ddd;
   border-radius: 4px;
   font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .form-input:focus {
@@ -342,10 +373,35 @@ onMounted(async () => {
   cursor: not-allowed;
 }
 
-.password-notice {
-  color: var(--gray);
-  font-size: 0.9rem;
-  margin-top: 1rem;
-  margin-left: 1rem;
+.password-container {
+  display: flex;
+  gap: 16px;
+}
+
+.password-tag {
+  display: inline-block;
+  background-color: #fff;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  color: #4CAF50;
+  box-shadow: 0 2px 4px rgba(76, 175, 80, 0.1);
+  border: 1px solid #4CAF50;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.password-tag:hover {
+  background-color: #4CAF50;
+  color: white;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px rgba(76, 175, 80, 0.2);
+}
+
+.password-tooltip {
+  font-size: 16px;
+  word-break: keep-all;
+  word-wrap: break-word;
+  flex: 1;
 }
 </style>
