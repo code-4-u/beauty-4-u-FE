@@ -1,12 +1,12 @@
 <script setup>
-import {reactive, ref, provide, onMounted} from 'vue';
+import {onMounted, provide, reactive, ref} from 'vue';
 import FullCalendar from '@fullcalendar/vue3';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import HomeSideBar from "@/components/Home/HomeSideBar.vue";
 import SimpleInform from "@/components/Home/SimpleInform.vue";
-import {getFetch, postFetch} from "@/stores/apiClient.js";
+import {getFetch, postFetch, putFetch} from "@/stores/apiClient.js";
 
 const events = ref([]);
 provide('events', events);
@@ -45,12 +45,31 @@ const calendarOptions = reactive({
 
 const isModalOpen = ref(false);
 const eventForm = reactive({
+  id: '',
   title: '',
   content: '',
   startDate: '',
+  startTime: '00:00',
   endDate: '',
+  endTime: '00:00',
   color: '#2196F3'
 });
+
+const resetEventForm = () => {
+  eventForm.id = '';
+  eventForm.title = '';
+  eventForm.content = '';
+  eventForm.startDate = '';
+  eventForm.startTime = '00:00';
+  eventForm.endDate = '';
+  eventForm.endTime = '00:00';
+  eventForm.color = '#2196F3';
+};
+
+function closeModal() {
+  isModalOpen.value = false;
+  resetEventForm();
+}
 
 function handleDateClick(info) {
   eventForm.startDate = info.dateStr;
@@ -59,12 +78,52 @@ function handleDateClick(info) {
 }
 
 function handleEventClick(info) {
-  const event = events.value.find(e => e.id === info.event.id);
+  const event = events.value.find(e => e.id === Number(info.event.id));
   if (event) {
+    // 한국 시간대 옵션 설정
+    const koreaOptions = { timeZone: 'Asia/Seoul' };
+
+    // 날짜 객체 생성 및 한국 시간대로 변환
+    const startDateTime = new Date(event.start);
+    const endDateTime = new Date(event.end);
+
+    // 날짜를 YYYY-MM-DD 형식으로 변환 (한국 시간 기준)
+    const startDate = startDateTime.toLocaleDateString('ko-KR', {
+      ...koreaOptions,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).split('. ').join('-').replace('.', '');
+
+    const endDate = endDateTime.toLocaleDateString('ko-KR', {
+      ...koreaOptions,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit'
+    }).split('. ').join('-').replace('.', '');
+
+    // 시간을 HH:mm 형식으로 변환 (한국 시간 기준)
+    const startTime = startDateTime.toLocaleTimeString('ko-KR', {
+      ...koreaOptions,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+
+    const endTime = endDateTime.toLocaleTimeString('ko-KR', {
+      ...koreaOptions,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false
+    });
+
+    eventForm.id = event.id;
     eventForm.title = event.title;
     eventForm.content = event.content;
-    eventForm.startDate = event.start;
-    eventForm.endDate = event.end;
+    eventForm.startDate = startDate;
+    eventForm.startTime = startTime;
+    eventForm.endDate = endDate;
+    eventForm.endTime = endTime;
     eventForm.color = event.color;
     isModalOpen.value = true;
   }
@@ -82,58 +141,104 @@ function handleDatesSet(arg) {
   // 날짜 범위가 변경될 때 필요한 처리
 }
 
+const formatDateTime = (dateStr, timeStr = '00:00') => {
+  if (!dateStr) return '';
+  // LocalDateTime 형식(YYYY-MM-DDTHH:mm:ss)으로 변환
+  const [year, month, day] = dateStr.split('-');
+  const [hours, minutes] = timeStr.split(':');
+
+  // 각 부분이 2자리 수가 되도록 보장
+  const formattedMonth = month.padStart(2, '0');
+  const formattedDay = day.padStart(2, '0');
+  const formattedHours = hours.padStart(2, '0');
+  const formattedMinutes = minutes.padStart(2, '0');
+
+  return `${year}-${formattedMonth}-${formattedDay}T${formattedHours}:${formattedMinutes}:00`;
+};
+
 async function saveEvent() {
   if (!eventForm.title) {
     alert('제목을 입력해주세요.');
     return;
   }
 
-  const formatDateTime = (dateStr) => {
-    return dateStr + 'T00:00:00';
-  };
-
   const newEvent = {
-    id: Date.now().toString(),
+    id: '',
     title: eventForm.title,
     content: eventForm.content,
-    start: eventForm.startDate,
-    end: eventForm.endDate,
+    start: formatDateTime(eventForm.startDate, eventForm.startTime),
+    end: formatDateTime(eventForm.endDate, eventForm.endTime),
     color: eventForm.color
   };
 
   try {
-    await postFetch('/schedule',
+    const response = await postFetch('/schedule',
         {
           scheduleTitle: eventForm.title,
           scheduleContent: eventForm.content,
-          scheduleStart: formatDateTime(eventForm.startDate),
-          scheduleEnd: formatDateTime(eventForm.endDate)
+          scheduleStart: newEvent.start,
+          scheduleEnd: newEvent.end
         }
     );
+
+    newEvent.id = response.data.data;
+
   } catch (error) {
     console.error('일정을 저장하는데 실패했습니다.', error);
   }
 
   events.value.push(newEvent);
+  closeModal();
+}
 
-  // 폼 초기화
-  eventForm.title = '';
-  eventForm.content = '';
-  eventForm.startDate = '';
-  eventForm.endDate = '';
-  eventForm.color = '#2196F3';
+async function updateEvent() {
+  try {
+    await putFetch(`/schedule/${eventForm.id}`, {
+      scheduleTitle: eventForm.title,
+      scheduleContent: eventForm.content,
+      scheduleStart: formatDateTime(eventForm.startDate, eventForm.startTime),
+      scheduleEnd: formatDateTime(eventForm.endDate, eventForm.endTime)
+    });
 
-  isModalOpen.value = false;
+    const index = events.value.findIndex(e => e.id === eventForm.id);
+    if (index !== -1) {
+      events.value[index] = {
+        id: eventForm.id,
+        title: eventForm.title,
+        content: eventForm.content,
+        start: formatDateTime(eventForm.startDate, eventForm.startTime),
+        end: formatDateTime(eventForm.endDate, eventForm.endTime),
+        color: eventForm.color
+      };
+    }
+    closeModal();
+  } catch (error) {
+    console.error('일정 수정에 실패했습니다.', error);
+  }
+}
+
+async function handleSubmit() {
+  if (!eventForm.title) {
+    alert('제목을 입력해주세요.');
+    return;
+  }
+
+  if (eventForm.id) {
+    await updateEvent();
+  } else {
+    await saveEvent();
+  }
 }
 
 const fetchSchedules = async () => {
   try {
     const response = await getFetch('/schedule');
     events.value = response.data.data.map(schedule => ({
+      id: schedule.scheduleId,
       title: schedule.scheduleTitle,
       content: schedule.scheduleContent,
-      start: schedule.scheduleStart,
-      end: schedule.scheduleEnd,
+      start: schedule.scheduleStart, // 이미 LocalDateTime 형식
+      end: schedule.scheduleEnd,     // 이미 LocalDateTime 형식
       color: '#2196F3'
     }));
   } catch (error) {
@@ -173,8 +278,8 @@ onMounted(() => {
     </div>
 
     <!-- 일정 추가/수정 모달 -->
-    <div v-if="isModalOpen" class="modal-overlay">
-      <div class="modal-content">
+    <div v-if="isModalOpen" class="modal-overlay" @click="closeModal">
+      <div class="modal-content" @click.stop>
         <h3>{{ eventForm.id ? '일정 수정' : '새 일정 추가' }}</h3>
         <div class="form-group">
           <label>제목</label>
@@ -185,20 +290,28 @@ onMounted(() => {
           <textarea v-model="eventForm.content" class="form-control" placeholder="일정 내용"></textarea>
         </div>
         <div class="form-group">
-          <label>시작일</label>
-          <input v-model="eventForm.startDate" type="date" class="form-control">
+          <label>시작</label>
+          <div class="datetime-group">
+            <input v-model="eventForm.startDate" type="date" class="form-control">
+            <input v-model="eventForm.startTime" type="time" class="form-control">
+          </div>
         </div>
         <div class="form-group">
-          <label>종료일</label>
-          <input v-model="eventForm.endDate" type="date" class="form-control">
+          <label>종료</label>
+          <div class="datetime-group">
+            <input v-model="eventForm.endDate" type="date" class="form-control">
+            <input v-model="eventForm.endTime" type="time" class="form-control">
+          </div>
         </div>
         <div class="form-group">
           <label>색상</label>
           <input v-model="eventForm.color" type="color" class="form-control">
         </div>
         <div class="modal-buttons">
-          <button @click="saveEvent" class="btn btn-primary">저장</button>
-          <button @click="isModalOpen = false" class="btn btn-secondary">취소</button>
+          <button @click="handleSubmit" class="btn btn-primary">
+            {{ eventForm.id ? '수정' : '저장' }}
+          </button>
+          <button @click="closeModal" class="btn btn-secondary">취소</button>
         </div>
       </div>
     </div>
@@ -298,5 +411,14 @@ onMounted(() => {
   background-color: #6c757d;
   color: white;
   border: none;
+}
+
+.datetime-group {
+  display: flex;
+  gap: 1rem;
+}
+
+.datetime-group .form-control {
+  width: 50%;
 }
 </style>
