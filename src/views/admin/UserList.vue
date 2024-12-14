@@ -1,6 +1,6 @@
 <script setup>
 import {computed, onMounted, ref} from 'vue';
-import {getFetch} from "@/stores/apiClient.js";
+import {getFetch, putFetch} from "@/stores/apiClient.js";
 import CreateUserModal from "@/components/admin/CreateUserModal.vue";
 import UpdateUserModal from "@/components/admin/UpdateUserModal.vue";
 import {FontAwesomeIcon} from "@fortawesome/vue-fontawesome";
@@ -65,9 +65,35 @@ const totalPages = computed(() => {
   return Math.ceil(filteredUsers.value.length / itemsPerPage);
 });
 
-// 직원 삭제 함수
-const deleteUser = (id) => {
-  users.value = users.value.filter(user => user.id !== id);
+const deleteUser = async (userCode, isExpired) => {
+  try {
+    if (isExpired) {
+
+      const confirmedUnexpire = confirm(`${userCode} 회원을 활성화하시겠습니까?`);
+      if (!confirmedUnexpire) return;
+
+      await putFetch('/user/unexpire',
+          {
+            userCode: userCode
+          }
+      );
+      console.log('계정이 복구되었습니다.');
+    } else {
+
+      const confirmedExpire = confirm(`${userCode} 회원을 비활성화하시겠습니까?`);
+      if (!confirmedExpire) return;
+
+      await putFetch('/user/expire',
+          {
+            userCode: userCode
+          }
+      );
+      console.log('계정이 삭제되었습니다.');
+    }
+    await fetchUserList();
+  } catch (error) {
+    console.error('작업 중 에러가 발생했습니다:', error.response ? error.response.data : error.message);
+  }
 };
 
 const addNewUser = () => {
@@ -160,7 +186,7 @@ onMounted(async () => {
             </button>
             <button
                 :class="{'delete': !user.userExpiredDate, 'rotate': user.userExpiredDate}"
-                @click="deleteUser(user.userCode)"
+                @click="deleteUser(user.userCode, user.userExpiredDate)"
             >
               <font-awesome-icon
                   :icon="user.userExpiredDate ? ['fas', 'arrow-rotate-right'] : ['far', 'trash-can']"
