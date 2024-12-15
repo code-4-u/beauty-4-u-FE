@@ -16,10 +16,24 @@
         <table class="review-table">
           <thead>
           <tr>
-            <th>리뷰 일시</th>
+            <th class="sortable-header">리뷰 일시
+              <div class="sort-arrows">
+                <button @click="handleSort('created_date', 'ASC')"
+                        :class="{ active: isCurrentSort('created_date', 'ASC') }">▲</button>
+                <button @click="handleSort('created_date', 'DESC')"
+                        :class="{ active: isCurrentSort('created_date', 'DESC') }">▼</button>
+              </div>
+            </th>
             <th>리뷰 번호</th>
             <th>제품명</th>
-            <th>평점</th>
+            <th class="sortable-header">평점
+              <div class="sort-arrows">
+                <button @click="handleSort('review_score', 'ASC')"
+                        :class="{ active: isCurrentSort('review_score', 'ASC') }">▲</button>
+                <button @click="handleSort('review_score', 'DESC')"
+                        :class="{ active: isCurrentSort('review_score', 'DESC') }">▼</button>
+              </div>
+            </th>
             <th>리뷰 내용</th>
           </tr>
           </thead>
@@ -49,6 +63,54 @@ const searchReview = ref([])
 
 const startDate = ref('');
 const endDate = ref('');
+
+// 정렬
+const currentSort = ref({
+  primarySort: 'created_date',
+  primaryOrder: 'DESC',
+  secondarySort: null,
+  secondaryOrder: null
+
+});
+
+// 정렬 처리 함수
+const handleSort = async (column, order) => {
+
+  currentSort.value = {
+    primarySort: column,
+    primaryOrder: order,
+    secondarySort: '',
+    secondaryOrder: ''
+  };
+  try{
+    const queryParams = new URLSearchParams({
+      primarySort: currentSort.value.primarySort,
+      primaryOrder: currentSort.value.primaryOrder
+    });
+
+    const response = await getFetch(`/review/list/sort?${queryParams}`);
+
+    if(response && response.data) {
+      console.log("정렬 응답: ",response.data)
+      searchReview.value = response.data;
+    }
+  } catch (error){
+    console.error("정렬 실패");
+  }
+};
+
+
+// 현재 정렬 상태 확인 함수
+const isCurrentSort = (column, order) => {
+  return currentSort.value.primarySort === column && currentSort.value.primaryOrder === order;
+};
+
+// 날짜 형식 변환 함수
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  return date.toLocaleString();
+};
+
 
 //오늘 날짜 계산
 const today = computed(() => {
@@ -118,18 +180,47 @@ watchEffect(() => {
   }
 });
 
-// onMounted(() => {
-//   console.log("컴포넌트 마운트 성공")
-//   fetchReviews()
-// });
-//
-// watch(searchReview, (newValue) => {
-//   console.log("searchReview 변경됨:", newValue);
-// }, { deep: true });
-
 </script>
 
 <style scoped>
+.sortable-header {
+  position: relative;
+  padding-right: 25px !important; /* 화살표 버튼 공간 확보 */
+}
+
+.sort-arrows {
+  position: absolute;
+  right: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sort-arrows button {
+  padding: 0;
+  background: none;
+  border: none;
+  font-size: 12px;
+  color: #666;
+  cursor: pointer;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sort-arrows button:hover {
+  color: #000;
+}
+
+.sort-arrows button.active {
+  color: #004999;
+  font-weight: bold;
+}
+
 .search-controls {
   display: flex;
   gap: 10px;
