@@ -8,7 +8,12 @@
           <input type="date" v-model="endDate" class="date-input" :min="startDate || today">
         </div>
         <button @click="searchByDate" class="search-button">날짜 조회</button>
-        <button @click="resetDate" class="reset-button">초기화</button>
+        <button @click="resetSearch" class="reset-button">초기화</button>
+        <div class="score-search">
+          <input type="number" v-model="searchScore" class="score-input" min="1" max="5" placeholder="평점 입력(1-5)">
+          <button @click="searchByScore" class="search-button">평점 조회</button>
+          <button @click="resetSearch" class="reset-button">초기화</button>
+        </div>
       </div>
     </header>
     <div class="main-content">
@@ -63,6 +68,32 @@ const searchReview = ref([])
 
 const startDate = ref('');
 const endDate = ref('');
+
+const searchScore = ref('');
+
+// 평점 검색 함수 추가
+const searchByScore = async () => {
+  try {
+    if (!searchScore.value) {
+      alert('평점을 입력해주세요.');
+      return;
+    }
+
+    const score = parseInt(searchScore.value);
+    if (score < 1 || score > 5) {
+      alert('평점은 1-5 사이의 숫자를 입력해주세요.');
+      return;
+    }
+
+    const response = await getFetch(`/review/list/score?searchScore=${score}`);
+
+    if (response && response.data) {
+      searchReview.value = response.data;
+    }
+  } catch (error) {
+    console.error('평점 검색 실패:', error);
+  }
+};
 
 // 정렬
 const currentSort = ref({
@@ -146,9 +177,10 @@ const searchByDate = async () => {
 };
 
 // 검색 초기화 함수
-const resetDate = () => {
+const resetSearch = () => {
   startDate.value = '';    // 시작일 초기화
   endDate.value = '';      // 종료일 초기화
+  searchScore.value = '';  // 평점 초기화
   fetchReviews();          // 전체 리뷰 목록 다시 조회
 };
 
