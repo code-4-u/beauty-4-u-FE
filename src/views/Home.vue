@@ -6,7 +6,7 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import HomeSideBar from "@/components/Home/HomeSideBar.vue";
 import SimpleInform from "@/components/Home/SimpleInform.vue";
-import {getFetch, postFetch, putFetch} from "@/stores/apiClient.js";
+import {getFetch, postFetch, putFetch, delFetch} from "@/stores/apiClient.js";
 
 const events = ref([]);
 provide('events', events);
@@ -64,6 +64,27 @@ const resetEventForm = () => {
   eventForm.endDate = '';
   eventForm.endTime = '00:00';
   eventForm.color = '#2196F3';
+};
+
+const handleDelete = async () => {
+  if (!confirm('이 일정을 삭제하시겠습니까?')) {
+    return;
+  }
+
+  try {
+    await delFetch(`/schedule/${eventForm.id}`);
+
+    // 로컬 events 배열에서 제거
+    const index = events.value.findIndex(e => e.id === eventForm.id);
+    if (index !== -1) {
+      events.value.splice(index, 1);
+    }
+
+    closeModal();
+  } catch (error) {
+    console.error('일정 삭제에 실패했습니다.', error);
+    alert('일정 삭제에 실패했습니다.');
+  }
 };
 
 function closeModal() {
@@ -310,6 +331,10 @@ onMounted(() => {
         <div class="modal-buttons">
           <button @click="handleSubmit" class="btn btn-primary">
             {{ eventForm.id ? '수정' : '저장' }}
+          </button>
+          <!-- 수정 모드일 때만 삭제 버튼 표시 -->
+          <button v-if="eventForm.id" @click="handleDelete" class="btn btn-danger">
+            삭제
           </button>
           <button @click="closeModal" class="btn btn-secondary">취소</button>
         </div>

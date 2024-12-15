@@ -1,5 +1,7 @@
 <script setup>
 import { ref, computed, inject } from 'vue';
+import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
+import { delFetch } from "@/stores/apiClient.js";
 
 const events = inject('events');
 
@@ -29,24 +31,38 @@ const formatDateRange = (start, end) => {
   const startDate = new Date(start);
   const endDate = new Date(end);
 
-  // 시작일과 종료일이 같은 경우
   if (start === end) {
     return new Date(start).toLocaleDateString();
   }
 
-  // 다른 경우 범위로 표시
   return `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
+};
+
+const handleDeleteEvent = async (eventId) => {
+  if (!confirm('이 일정을 삭제하시겠습니까?')) {
+    return;
+  }
+
+  try {
+    await delFetch(`/schedule/${eventId}`);
+    // 성공적으로 삭제되면 로컬 events 배열에서도 제거
+    const index = events.value.findIndex(e => e.id === eventId);
+    if (index !== -1) {
+      events.value.splice(index, 1);
+    }
+  } catch (error) {
+    console.error('일정 삭제에 실패했습니다.', error);
+    alert('일정 삭제에 실패했습니다.');
+  }
 };
 
 const filteredEvents = computed(() => {
   return events.value.filter(event => {
-    // 이벤트의 시작일이나 종료일이 선택된 월에 포함되는지 확인
     const startDate = new Date(event.start);
     const endDate = new Date(event.end || event.start);
     const startMonth = startDate.getMonth() + 1;
     const endMonth = endDate.getMonth() + 1;
 
-    // 선택된 월이 이벤트 기간에 포함되는지 확인
     const isInSelectedMonth =
         (startMonth <= selectedMonth.value && endMonth >= selectedMonth.value) ||
         startMonth === selectedMonth.value ||
@@ -57,7 +73,7 @@ const filteredEvents = computed(() => {
         (event.content && event.content.toLowerCase().includes(searchQuery.value.toLowerCase()));
 
     return isInSelectedMonth && matchesSearch;
-  }).sort((a, b) => new Date(a.start) - new Date(b.start)); // 시작일 기준으로 정렬
+  }).sort((a, b) => new Date(a.start) - new Date(b.start));
 });
 </script>
 
@@ -77,7 +93,14 @@ const filteredEvents = computed(() => {
     <h3>{{ selectedMonth }}월의 일정</h3>
     <ul>
       <li v-for="event in filteredEvents" :key="event.id" :style="{ borderLeft: `4px solid ${event.color || '#2196F3'}` }">
-        <div class="event-title">{{ event.title }}</div>
+        <div class="event-header">
+          <div class="event-title">{{ event.title }}</div>
+          <font-awesome-icon
+              :icon="['far', 'trash-can']"
+              class="delete-icon"
+              @click="handleDeleteEvent(event.id)"
+          />
+        </div>
         <div class="event-date">
           {{ formatDateRange(event.start, event.end || event.start) }}
         </div>
@@ -177,6 +200,159 @@ li:hover {
   font-weight: 600;
   color: #333;
   margin-bottom: 5px;
+}
+
+.event-date {
+  font-size: 0.9em;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+.event-content {
+  font-size: 0.9em;
+  color: #666;
+  margin-top: 5px;
+  margin-bottom: 0;
+  white-space: pre-wrap;
+}
+
+.no-events {
+  text-align: center;
+  color: #666;
+  padding: 20px;
+  font-style: italic;
+}
+
+.event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.event-title {
+  font-weight: 600;
+  color: #333;
+  flex-grow: 1;
+}
+
+.delete-icon {
+  color: #666;
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.3s;
+}
+
+.delete-icon:hover {
+  color: #dc3545;
+}
+
+.sidebar {
+  width: 300px;
+  background-color: #f9f9f9;
+  padding: 20px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+h2 {
+  color: #333;
+  font-size: 1.6em;
+  margin-bottom: 15px;
+  font-weight: 600;
+}
+
+.select-container {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+select {
+  width: 60%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 0.9em;
+}
+
+button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+input[type="text"] {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  margin-bottom: 15px;
+  opacity: 0;
+  transition: opacity 0.5s ease, transform 0.5s ease;
+  transform: translateY(-10px);
+}
+
+input[type="text"].show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.separator {
+  height: 1px;
+  background-color: #e0e0e0;
+  margin: 15px 0;
+}
+
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+li {
+  margin: 10px 0;
+  padding: 10px 10px 10px 15px;
+  border-radius: 5px;
+  transition: background-color 0.3s;
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+li:hover {
+  background-color: #f8f9fa;
+}
+
+.event-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+}
+
+.event-title {
+  font-weight: 600;
+  color: #333;
+  flex-grow: 1;
+}
+
+.delete-icon {
+  color: #666;
+  cursor: pointer;
+  padding: 4px;
+  transition: color 0.3s;
+}
+
+.delete-icon:hover {
+  color: #dc3545;
 }
 
 .event-date {
