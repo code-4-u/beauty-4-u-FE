@@ -7,7 +7,7 @@ const navItems = ref([]);
 
 navItems.value = [
   { id: 1, name: '상품 카테고리', link: '/goods/search'},
-  { id: 2, name: '리뷰 조회', link: '/goods/review'}
+  { id: 2, name: '리뷰 조회', link: '/goods/review/list'}
 ];
 
 </script>
