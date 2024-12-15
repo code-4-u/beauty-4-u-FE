@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
 import { delFetch } from "@/stores/apiClient.js";
 
 const events = inject('events');
+const selectedTypes = inject('selectedTypes');
 
 const currentDate = new Date();
 const currentMonth = currentDate.getMonth() + 1;
@@ -58,6 +59,10 @@ const handleDeleteEvent = async (eventId) => {
 
 const filteredEvents = computed(() => {
   return events.value.filter(event => {
+
+    if (event.type === 'TEAMSPACE' && !selectedTypes.teamspace) return false;
+    if (event.type === 'PROMOTION' && !selectedTypes.promotion) return false;
+
     const startDate = new Date(event.start);
     const endDate = new Date(event.end || event.start);
     const startMonth = startDate.getMonth() + 1;

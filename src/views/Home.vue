@@ -1,5 +1,5 @@
 <script setup>
-import {onMounted, provide, reactive, ref} from 'vue';
+import {computed, onMounted, provide, reactive, ref} from 'vue';
 import FullCalendar from '@fullcalendar/vue3';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -10,6 +10,21 @@ import {getFetch, postFetch, putFetch, delFetch} from "@/stores/apiClient.js";
 
 const events = ref([]);
 provide('events', events);
+
+const selectedTypes = reactive({
+  teamspace: true,
+  promotion: true
+});
+
+provide('selectedTypes', selectedTypes);
+
+const filteredEvents = computed(() => {
+  return events.value.filter(event => {
+    if (event.type === 'TEAMSPACE' && !selectedTypes.teamspace) return false;
+    if (event.type === 'PROMOTION' && !selectedTypes.promotion) return false;
+    return true;
+  });
+});
 
 const calendarOptions = reactive({
   plugins: [dayGridPlugin, interactionPlugin, timeGridPlugin],
@@ -24,7 +39,7 @@ const calendarOptions = reactive({
     timeGridWeek: { buttonText: '주별' },
     timeGridDay: { buttonText: '일별' }
   },
-  events: events,
+  events: filteredEvents,
   editable: true,
   displayEventTime: true,
   navLinks: true,
@@ -52,7 +67,8 @@ const eventForm = reactive({
   startTime: '00:00',
   endDate: '',
   endTime: '00:00',
-  color: '#2196F3'
+  color: '#2196F3',
+  type: 'TEAMSPACE'
 });
 
 const resetEventForm = () => {
@@ -64,6 +80,7 @@ const resetEventForm = () => {
   eventForm.endDate = '';
   eventForm.endTime = '00:00';
   eventForm.color = '#2196F3';
+  eventForm.type = 'TEAMSPACE';
 };
 
 const handleDelete = async () => {
@@ -258,9 +275,10 @@ const fetchSchedules = async () => {
       id: schedule.scheduleId,
       title: schedule.scheduleTitle,
       content: schedule.scheduleContent,
-      start: schedule.scheduleStart, // 이미 LocalDateTime 형식
-      end: schedule.scheduleEnd,     // 이미 LocalDateTime 형식
-      color: '#2196F3'
+      start: schedule.scheduleStart,
+      end: schedule.scheduleEnd,
+      color: schedule.scheduleType === 'TEAMSPACE' ? '#2196F3' : '#FF4081',
+      type: schedule.scheduleType
     }));
   } catch (error) {
     console.error('일정을 불러오는데 실패했습니다.', error);
@@ -279,6 +297,26 @@ onMounted(() => {
         <HomeSideBar />
       </div>
       <div class="col-md-9 main-content content-wrapper">
+        <!-- 필터 체크박스 추가 -->
+        <div class="schedule-filters">
+          <label class="filter-label">
+            <input
+                type="checkbox"
+                v-model="selectedTypes.teamspace"
+                class="filter-checkbox"
+            >
+            팀 일정
+          </label>
+          <label class="filter-label">
+            <input
+                type="checkbox"
+                v-model="selectedTypes.promotion"
+                class="filter-checkbox"
+            >
+            프로모션
+          </label>
+        </div>
+
         <div class="row">
           <div class="col-md-12">
             <FullCalendar :options="calendarOptions" class="custom-calendar" />
@@ -445,5 +483,26 @@ onMounted(() => {
 
 .datetime-group .form-control {
   width: 50%;
+}
+
+.schedule-filters {
+  display: flex;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem 0;
+}
+
+.filter-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.filter-checkbox {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
 }
 </style>
