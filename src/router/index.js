@@ -12,7 +12,6 @@ const routes = [
         component: Home
     },
     ...userRoutes,
-    ...userRoutes,
     ...customerRoutes,
     ...boards,
     ...goods
