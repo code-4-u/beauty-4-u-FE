@@ -12,8 +12,9 @@ export default [
                 component: GoodsList
             },
             {
-                path: 'review',
-                component: Review
+                path: 'review/list',
+                name: 'ReviewList',
+                component: () => import('@/views/goods/Review.vue')
             }
         ]
     }
