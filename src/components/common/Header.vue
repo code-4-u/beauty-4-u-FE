@@ -43,13 +43,15 @@ const handleLogoutClick = () => {
 <style scoped>
 .header {
   display: flex;
-  align-items: center;
+  align-items: center; /* 수직 중앙 정렬 유지 */
   justify-content: space-between;
-  padding: 1rem 2rem;
+  padding: 0 2rem; /* 상하 패딩은 제거하고 높이로 조정 */
   background-color: #ffffff;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  margin: 4px;
   user-select: none;
+  height: 60px; /* 명시적인 높이 설정 */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .logo {
@@ -59,12 +61,18 @@ const handleLogoutClick = () => {
   text-decoration: none;
   letter-spacing: 0.5px;
   user-select: none;
+  height: 100%; /* 높이 100% */
+  display: flex;
+  align-items: center; /* 로고 수직 중앙 정렬 */
 }
 
 .menu {
   display: flex;
   gap: 2rem;
   align-items: center;
+  height: 100%; /* 높이 100% */
+  margin: 0; /* 기본 마진 제거 */
+  padding: 0; /* 기본 패딩 제거 */
 }
 
 .menu-item {
@@ -75,6 +83,9 @@ const handleLogoutClick = () => {
   border-radius: 4px;
   transition: all 0.3s ease;
   user-select: none;
+  height: 100%; /* 높이 100% */
+  display: flex;
+  align-items: center; /* 메뉴 아이템 수직 중앙 정렬 */
 }
 
 .menu-item:hover {
@@ -90,11 +101,14 @@ const handleLogoutClick = () => {
 
 .logout {
   cursor: pointer;
+  height: 100%; /* 높이 100% */
+  display: flex;
+  align-items: center; /* 로그아웃 버튼 수직 중앙 정렬 */
 }
 
 @media (max-width: 768px) {
   .header {
-    padding: 1rem;
+    padding: 0 1rem;
   }
 
   .menu {

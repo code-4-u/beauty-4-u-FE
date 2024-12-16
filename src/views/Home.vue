@@ -206,7 +206,8 @@ async function saveEvent() {
     content: eventForm.content,
     start: formatDateTime(eventForm.startDate, eventForm.startTime),
     end: formatDateTime(eventForm.endDate, eventForm.endTime),
-    color: eventForm.color
+    color: eventForm.color,
+    type: 'TEAMSPACE'
   };
 
   try {
@@ -220,12 +221,14 @@ async function saveEvent() {
     );
 
     newEvent.id = response.data.data;
+    events.value.push(newEvent);
 
   } catch (error) {
     console.error('일정을 저장하는데 실패했습니다.', error);
+    alert('일정 저장에 실패했습니다.');
+    return;
   }
 
-  events.value.push(newEvent);
   closeModal();
 }
 
@@ -246,12 +249,14 @@ async function updateEvent() {
         content: eventForm.content,
         start: formatDateTime(eventForm.startDate, eventForm.startTime),
         end: formatDateTime(eventForm.endDate, eventForm.endTime),
-        color: eventForm.color
+        color: eventForm.color,
+        type: 'TEAMSPACE'
       };
     }
     closeModal();
   } catch (error) {
     console.error('일정 수정에 실패했습니다.', error);
+    alert('일정 수정에 실패했습니다.');
   }
 }
 
@@ -362,10 +367,6 @@ onMounted(() => {
             <input v-model="eventForm.endTime" type="time" class="form-control">
           </div>
         </div>
-        <div class="form-group">
-          <label>색상</label>
-          <input v-model="eventForm.color" type="color" class="form-control">
-        </div>
         <div class="modal-buttons">
           <button @click="handleSubmit" class="btn btn-primary">
             {{ eventForm.id ? '수정' : '저장' }}
@@ -382,19 +383,26 @@ onMounted(() => {
 </template>
 
 <style scoped>
+/* Base layout styles */
 .custom-calendar {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  background: #fff;
 }
 
 .sidebar {
   height: 100vh;
-  border-right: 1px solid #dee2e6;
+  border-right: 1px solid #eaeaea;
   overflow-y: auto;
   position: fixed;
   left: 0;
-  background-color: #fff;
+  background-color: #f8fafc;
   width: 300px;
+  padding: 24px;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
 }
 
 .content-wrapper {
@@ -402,78 +410,139 @@ onMounted(() => {
   width: calc(100% - 300px);
   max-width: 4000px;
   margin-left: 300px;
-  padding: 2rem;
+  padding: 2.5rem;
   overflow-x: auto;
 }
 
-.notice-section, .qa-section {
+/* Filter styles */
+.schedule-filters {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 1.5rem;
   padding: 1rem;
-  border: 1px solid #dee2e6;
-  border-radius: 5px;
-  background-color: #f8f9fa;
-  margin-bottom: 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  align-items: center;
 }
 
+.filter-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 500;
+  color: #4b5563;
+  transition: color 0.2s ease;
+}
+
+.filter-label:hover {
+  color: #1e40af;
+}
+
+.filter-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: #2563eb;
+}
+
+/* Modal styles */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.6);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  backdrop-filter: blur(4px);
 }
 
 .modal-content {
   background-color: white;
-  padding: 2rem;
-  border-radius: 8px;
+  padding: 2.5rem;
+  border-radius: 16px;
   width: 90%;
-  max-width: 500px;
+  max-width: 550px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
+/* Form styles */
 .form-group {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .form-group label {
   display: block;
-  margin-bottom: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-weight: 500;
+  color: #374151;
 }
 
 .form-control {
   width: 100%;
-  padding: 0.5rem;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  font-size: 0.95rem;
 }
 
+.form-control:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+/* Button styles */
 .modal-buttons {
   display: flex;
   justify-content: flex-end;
   gap: 1rem;
-  margin-top: 1rem;
+  margin-top: 2rem;
 }
 
 .btn {
-  padding: 0.5rem 1rem;
-  border-radius: 4px;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
   cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  border: none;
 }
 
 .btn-primary {
-  background-color: #007bff;
+  background-color: #2563eb;
   color: white;
-  border: none;
+}
+
+.btn-primary:hover {
+  background-color: #1d4ed8;
+  transform: translateY(-1px);
 }
 
 .btn-secondary {
-  background-color: #6c757d;
+  background-color: #6b7280;
   color: white;
-  border: none;
+}
+
+.btn-secondary:hover {
+  background-color: #4b5563;
+  transform: translateY(-1px);
+}
+
+.btn-danger {
+  background-color: #dc2626;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #b91c1c;
+  transform: translateY(-1px);
 }
 
 .datetime-group {
@@ -485,24 +554,197 @@ onMounted(() => {
   width: 50%;
 }
 
+/* Calendar customization */
+:deep(.fc) {
+  font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --fc-border-color: #e5e7eb;
+  --fc-today-bg-color: #f0f9ff;
+  --fc-neutral-bg-color: #ffffff;
+  --fc-list-event-hover-bg-color: #f8fafc;
+}
+
+:deep(.fc-toolbar-title) {
+  font-size: 1.75rem !important;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.025em;
+}
+
+:deep(.fc-header-toolbar) {
+  margin-bottom: 2em !important;
+}
+
+:deep(.fc-button-primary) {
+  background-color: #fff !important;
+  border-color: #e5e7eb !important;
+  color: #4b5563 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  padding: 0.5rem 1rem !important;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+:deep(.fc-button-primary:hover) {
+  background-color: #f8fafc !important;
+  border-color: #d1d5db !important;
+  color: #1e293b !important;
+}
+
+:deep(.fc-button-primary:not(:disabled).fc-button-active) {
+  background-color: #2563eb !important;
+  border-color: #2563eb !important;
+  color: #ffffff !important;
+}
+
+:deep(.fc-button-primary:not(:disabled):active) {
+  background-color: #1d4ed8 !important;
+  border-color: #1d4ed8 !important;
+  color: #ffffff !important;
+}
+
+:deep(.fc-daygrid-day-number) {
+  font-size: 0.95rem;
+  color: #4b5563;
+  padding: 0.5rem !important;
+}
+
+:deep(.fc-daygrid-day-top) {
+  justify-content: center;
+}
+
+:deep(.fc-day-past) {
+  background-color: #fafafa;
+}
+
+:deep(.fc-day-today) {
+  background-color: #f0f9ff !important;
+}
+
+:deep(.fc-day-future) {
+  background-color: #ffffff;
+}
+
+:deep(.fc-day-sat) {
+  color: #2563eb !important;
+}
+
+:deep(.fc-day-sun) {
+  color: #dc2626 !important;
+}
+
+:deep(.fc-col-header-cell) {
+  padding: 0.75rem 0 !important;
+  background-color: #f8fafc;
+  font-weight: 600;
+}
+
+:deep(.fc-event) {
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.875rem;
+  border: none;
+  margin: 2px 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: linear-gradient(45deg, var(--event-color1), var(--event-color2));
+}
+
+:deep(.fc-event.teamspace-event) {
+  --event-color1: #2563eb;
+  --event-color2: #3b82f6;
+}
+
+:deep(.fc-event.promotion-event) {
+  --event-color1: #db2777;
+  --event-color2: #ec4899;
+}
+
+:deep(.fc-event:hover) {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+:deep(.fc-event-title) {
+  font-weight: 500;
+  padding: 2px 0;
+}
+
+:deep(.fc-day-grid-event) {
+  margin: 4px 8px;
+}
+
+:deep(.fc-timegrid-slot) {
+  height: 3rem !important;
+}
+
+:deep(.fc-timegrid-slot-label) {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+:deep(.fc-scrollgrid) {
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb !important;
+}
+
+:deep(.fc-scrollgrid-section-header) {
+  background-color: #f8fafc;
+}
+
+/* Notice and QA section styles */
+.notice-section,
+.qa-section {
+  padding: 1.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background-color: #f8fafc;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
 .schedule-filters {
-  display: flex;
-  gap: 1.5rem;
-  margin-bottom: 1rem;
-  padding: 0.5rem 0;
+  background: linear-gradient(to right, #f8fafc, #f1f5f9);
+  padding: 1.25rem;
+  border: 1px solid #e5e7eb;
+  margin-bottom: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .filter-label {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  cursor: pointer;
-  user-select: none;
+  position: relative;
+  padding: 0.5rem 1rem;
+  background-color: white;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.filter-label:hover {
+  border-color: #2563eb;
+  color: #2563eb;
 }
 
 .filter-checkbox {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
+  margin-right: 0.5rem;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+/* Modal enhancements */
+.modal-content {
+  background: linear-gradient(145deg, #ffffff, #f8fafc);
+}
+
+.modal-content h3 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e5e7eb;
 }
 </style>
