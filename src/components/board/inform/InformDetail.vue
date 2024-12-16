@@ -1,7 +1,7 @@
 <script setup>
 import {onMounted, ref} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
-import {delFetch, getFetch} from "@/stores/apiClient.js";
+import {delFetch, getFetch, putFetch} from "@/stores/apiClient.js";
 import {formatDate} from "../../../stores/util.js";
 
 const router = useRouter();

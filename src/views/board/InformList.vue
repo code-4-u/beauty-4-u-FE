@@ -90,8 +90,7 @@ const updateInformViewcount = async (informId, count) => {
   const viewCount = count + 1;
   try {
     const response = await putFetch(
-        `/inform/${informId}`,
-        {
+        `/inform/${informId}/informViewcount`, {
           informViewcount: viewCount
         }
     )
@@ -108,10 +107,6 @@ const goToInformDetail = (informId, informViewcount) => {
     path: `/board/inform/${informId}`
   });
 };
-
-onBeforeMount(() => {
-  fetchInforms();
-})
 
 onMounted(() => {
   fetchInforms();
