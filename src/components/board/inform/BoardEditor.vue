@@ -1,12 +1,11 @@
 <script setup>
-import {onBeforeUnmount, ref, watch} from 'vue';
+import { onBeforeUnmount, ref, watch } from 'vue';
 import StarterKit from "@tiptap/starter-kit";
-import {EditorContent, useEditor} from "@tiptap/vue-3";
+import { EditorContent, useEditor } from "@tiptap/vue-3";
 import Image from '@tiptap/extension-image';
-import {FontAwesomeIcon} from "@fortawesome/vue-fontawesome";
-import {Heading} from '@tiptap/extension-heading'
+import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
+import { Heading } from '@tiptap/extension-heading';
 
-// Props 정의
 const props = defineProps({
   modelValue: {
     type: String,
@@ -14,12 +13,10 @@ const props = defineProps({
   },
 });
 
-// Emits 정의
 const emit = defineEmits(["update:modelValue"]);
 
-const selectedHeading = ref('none'); // 기본 선택값
+const selectedHeading = ref('none');
 
-// Reactive 데이터
 const editor = useEditor({
   content: props.modelValue,
   extensions: [StarterKit, Image, Heading],
@@ -29,130 +26,230 @@ const editor = useEditor({
 });
 
 const changeHeading = () => {
-  if (!editor) return;
+  if (!editor.value) return;
 
   if (selectedHeading.value === 'none') {
-    editor.chain().focus().setHeading('paragraph').run(); // 기본 텍스트로 전환
+    editor.value.chain().focus().setParagraph().run();
   } else {
-    editor.chain().focus().toggleHeading({ level: Number(selectedHeading.value) }).run();
+    editor.value.chain().focus().toggleHeading({ level: Number(selectedHeading.value) }).run();
   }
 };
 
-// Watcher 설정
 watch(() => props.modelValue, (value) => {
   const isSame = editor.value.getHTML() === value;
-
   if (!isSame) {
     editor.value.commands.setContent(value, false);
   }
 });
 
-// Lifecycle hooks
 onBeforeUnmount(() => {
-  editor.value.destroy();
+  editor.value?.destroy();
 });
 </script>
 
 <template>
-  <v-app>
-    <div v-if="editor">
-      <!-- 에디터 옵션 버튼 -->
-      <button
-          @click="editor.chain().focus().toggleBold().run()"
-          :disabled="!editor.can().chain().focus().toggleBold().run()"
-          :class="{ 'is-active': editor.isActive('bold') }"
-      >
-        <font-awesome-icon :icon="['fas', 'bold']" />
-      </button>
-      <button
-          @click="editor.chain().focus().toggleItalic().run()"
-          :disabled="!editor.can().chain().focus().toggleItalic().run()"
-          :class="{ 'is-active': editor.isActive('italic') }"
-      >
-        <font-awesome-icon :icon="['fas', 'italic']" />
-      </button>
-      <button
-          @click="editor.chain().focus().toggleStrike().run()"
-          :disabled="!editor.can().chain().focus().toggleStrike().run()"
-          :class="{ 'is-active': editor.isActive('strike') }"
-      >
-        <font-awesome-icon :icon="['fas', 'strikethrough']" />
-      </button>
-      <select v-model="selectedHeading" @change="changeHeading">
-        <option value="1">헤딩 1</option>
-        <option value="2">헤딩 2</option>
-        <option value="3">헤딩 3</option>
-        <option value="none">헤딩 없음</option>
-      </select>
+  <div class="editor-wrapper">
+    <div class="editor-container">
+      <div class="editor-header">
+        <h3 class="editor-title">텍스트 에디터</h3>
+      </div>
 
-      <button
-          @click="editor?.chain().focus().undo().run()"
-          :disabled="!editor?.can().chain().focus().undo().run()"
-      >
-        <v-icon>mdi-undo</v-icon>
-      </button>
+      <div class="editor-divider"></div>
 
-      <button
-          @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
-          :class="{ 'is-active': editor.isActive('heading', { level: 2 }) }"
-      >
-        <v-icon icon="mdi-format-header-2"></v-icon>
-      </button>
-      <button
-          @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
-          :class="{ 'is-active': editor.isActive('heading', { level: 3 }) }"
-      >
-        <v-icon icon="mdi-format-header-3"></v-icon>
-      </button>
-      <button
-          @click="editor.chain().focus().undo().run()"
-          :disabled="!editor.can().chain().focus().undo().run()"
-      >
-        <v-icon icon="mdi-undo"></v-icon>
-      </button>
-      <button
-          @click="editor.chain().focus().redo().run()"
-          :disabled="!editor.can().chain().focus().redo().run()"
-      >
-        <v-icon icon="mdi-redo"></v-icon>
-      </button>
+      <div class="editor-body">
+        <div v-if="editor" class="editor-toolbar">
+          <!-- 기존 버튼들 -->
+          <div class="button-group">
+            <button
+                @click="editor.chain().focus().toggleBold().run()"
+                :disabled="!editor.can().chain().focus().toggleBold().run()"
+                :class="{ 'is-active': editor.isActive('bold') }"
+            >
+              <font-awesome-icon :icon="['fas', 'bold']" />
+            </button>
+            <button
+                @click="editor.chain().focus().toggleItalic().run()"
+                :disabled="!editor.can().chain().focus().toggleItalic().run()"
+                :class="{ 'is-active': editor.isActive('italic') }"
+            >
+              <font-awesome-icon :icon="['fas', 'italic']" />
+            </button>
+            <button
+                @click="editor.chain().focus().toggleStrike().run()"
+                :disabled="!editor.can().chain().focus().toggleStrike().run()"
+                :class="{ 'is-active': editor.isActive('strike') }"
+            >
+              <font-awesome-icon :icon="['fas', 'strikethrough']" />
+            </button>
+          </div>
 
-      <div>
-        <h1>아이콘 예제</h1>
-        <v-icon icon="mdi-home">mdi-home</v-icon>
-        <v-icon icon="mdi-account">mdi-account</v-icon>
+          <div class="select-group">
+            <select v-model="selectedHeading" @change="changeHeading" class="heading-select">
+              <option value="1">헤딩 1</option>
+              <option value="2">헤딩 2</option>
+              <option value="3">헤딩 3</option>
+              <option value="none">헤딩 없음</option>
+            </select>
+          </div>
+
+          <div class="button-group">
+            <button
+                @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
+                :class="{ 'is-active': editor.isActive('heading', { level: 2 }) }"
+            >
+              <i class="fas fa-heading"></i><span class="heading-level">2</span>
+            </button>
+            <button
+                @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
+                :class="{ 'is-active': editor.isActive('heading', { level: 3 }) }"
+            >
+              <i class="fas fa-heading"></i><span class="heading-level">3</span>
+            </button>
+          </div>
+
+          <div class="button-group">
+            <button
+                @click="editor.chain().focus().undo().run()"
+                :disabled="!editor.can().chain().focus().undo().run()"
+            >
+              <i class="fas fa-undo"></i>
+            </button>
+            <button
+                @click="editor.chain().focus().redo().run()"
+                :disabled="!editor.can().chain().focus().redo().run()"
+            >
+              <i class="fas fa-redo"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="editor-content">
+          <editor-content :editor="editor" />
+        </div>
       </div>
     </div>
-
-    <!-- 에디터 영역 -->
-    <editor-content :editor="editor" />
-  </v-app>
+  </div>
 </template>
 
 <style lang="scss">
+.editor-wrapper {
+  padding: 1rem;
+}
+
+.editor-container {
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  max-width: 900px;
+  margin: 1rem auto;
+}
+
+.editor-header {
+  padding: 1rem 1.5rem;
+}
+
+.editor-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.editor-divider {
+  height: 1px;
+  background: #e0e0e0;
+  margin: 0;
+}
+
+.editor-body {
+  padding: 1rem;
+}
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  background-color: #f5f5f5;
+  border-radius: 4px;
+  padding: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.button-group {
+  display: flex;
+  gap: 4px;
+}
+
 button {
-  background-color: transparent; // 배경색 설정
-  border: none; // 테두리 제거
-  cursor: pointer; // 커서 변경
-  padding: 10px; // 패딩 추가
-  margin: 5px; // 버튼 간 간격 설정
-  color: #000; // 글자색 설정
+  background-color: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 10px;
+  margin: 5px;
+  color: #000;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  position: relative;
 
   &:hover {
-    background-color: rgba(0, 0, 0, 0.1); // 호버 시 배경색
+    background-color: rgba(0, 0, 0, 0.1);
   }
 
   &.is-active {
-    color: #1976d2; // 활성화 상태 색상
+    color: #1976d2;
+    background-color: rgba(25, 118, 210, 0.1);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .heading-level {
+    font-size: 0.8em;
+    margin-left: 2px;
   }
 }
 
+.heading-select {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  font-size: 14px;
+  cursor: pointer;
+  min-width: 120px;
+
+  &:focus {
+    outline: none;
+    border-color: #1976d2;
+    box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+  }
+}
+
+.editor-content {
+  margin-top: 1rem;
+}
+
 .ProseMirror {
-  height: 100%;
-  border: 1px solid black;
-  border-radius: 10px;
-  padding: 6px;
-  overflow: scroll;
+  min-height: 200px;
+  max-height: 500px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  padding: 16px;
+  background-color: white;
+  overflow-y: auto;
+
+  &:focus {
+    outline: none;
+    border-color: #1976d2;
+    box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
+  }
 
   > * + * {
     margin-top: 0.75em;
