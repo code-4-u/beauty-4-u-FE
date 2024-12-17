@@ -6,24 +6,19 @@ import {useRouter} from 'vue-router';
 
 const router = useRouter();
 
-const informs = ref([]);
-
+const qnas = ref([]);
 const totalCount = ref(0);
 const currentPage = ref(1);
 const itemsPerPage = ref(10);
 const startDate = ref('');
 const endDate = ref('');
-const informTitle = ref('');
+const qnaTitle = ref('');
 const sort = ref('');
 const order = ref('');
 
-const fetchInforms = async () => {
-
-  // 검색 요청을 위한 데이터 준비
+const fetchQnas = async () => {
   const searchParams = new URLSearchParams({
-    startDate: startDate.value,
-    endDate: endDate.value,
-    informTitle: informTitle.value,
+    qnaTitle: qnaTitle.value,
     publishStatus: 'PUBLISHED',
     sort: sort.value,
     order: order.value,
@@ -32,11 +27,11 @@ const fetchInforms = async () => {
   });
 
   try {
-    const response = await getFetch(`/inform/list?${searchParams}`);
-    informs.value = response.data.data.informList;
+    const response = await getFetch(`/inquiry/list?${searchParams}`);
+    qnas.value = response.data.data.qnaList;
     totalCount.value = response.data.data.totalCount;
   } catch (error) {
-    console.error("공지사항을 가져오는 데 오류가 발생했습니다:", error);
+    console.error("Q&A 목록을 가져오는 데 오류가 발생했습니다:", error);
   }
 };
 
@@ -54,108 +49,101 @@ const visiblePages = computed(() => {
   for (let i = startPage; i <= endPage; i++) {
     pages.push(i);
   }
-
   return pages;
 });
 
-// 페이지 변경 함수
 const changePage = (page) => {
   currentPage.value = page;
-  fetchInforms();
+  fetchQnas();
 };
 
 const prevPage = () => {
   if (currentPage.value > 1) {
     currentPage.value--;
-    fetchInforms();
+    fetchQnas();
   }
 };
 
 const nextPage = () => {
   if (currentPage.value < totalPages.value) {
     currentPage.value++;
-    fetchInforms();
+    fetchQnas();
   }
 };
 
-// 필터 조건 태그 삭제
 const removeTag = (key) => {
-  key.value = ''; // 해당 필터 조건 초기화
-  fetchInforms();
+  key.value = '';
+  fetchQnas();
 };
 
-const updateInformViewcount = async (informId, count) => {
+const updateQnaViewcount = async (qnaId, count) => {
   const viewCount = Number(count) + 1;
   try {
     const response = await putFetch(
-        `/inform/${informId}/informViewcount`, {
-          informViewcount: viewCount
+        `/inquiry/${qnaId}/qnaViewcount`, {
+          qnaViewcount: viewCount
         }
     )
   } catch (error) {
     console.error("조회수를 수정하는데 있어 문제가 생겼습니다.", error);
   }
-
 }
 
-// 공지사항 상세 조회 페이지로 이동
-const goToInformDetail = (informId, informViewcount) => {
-  updateInformViewcount(informId, informViewcount);
+const goToQnaDetail = (qnaId, qnaViewcount) => {
+  updateQnaViewcount(qnaId, qnaViewcount);
   router.push({
-    path: `/board/inform/${informId}`
+    path: `/board/qna/${qnaId}`
   });
 };
 
-// 공지사항 등록 페이지로 이동
-const goToInformSave = () => {
+const goToQnaSave = () => {
   router.push({
-    path: '/board/inform/save'
+    path: '/board/qna/save'
   });
 };
 
 onMounted(() => {
-  fetchInforms();
+  fetchQnas();
 });
 </script>
 
 <template>
-  <div class="inform-section">
-
+  <div class="qna-section">
     <div class="header">
-      <h2>공지사항</h2>
-      <button class="add-button" @click="goToInformSave">
-        + 공지사항 등록
+      <h2>Q&A</h2>
+      <button class="add-button" @click="goToQnaSave">
+        + 질문 등록
       </button>
     </div>
 
     <div class="search-area">
       <input
           type="text"
-          placeholder="공지사항 제목 입력"
-          v-model="informTitle"
-          @input="fetchInforms"
+          placeholder="질문 제목 입력"
+          v-model="qnaTitle"
+          @input="fetchQnas"
       />
       <div class="button-group">
-        <button class="search-btn" @click="fetchInforms" @keyup.enter="fetchInforms">검색</button>
+        <button class="search-btn" @click="fetchQnas" @keyup.enter="fetchQnas">검색</button>
 
         <label>
           시작 날짜
-          <input type="date" v-model="startDate" @click="fetchInforms"/>
+          <input type="date" v-model="startDate" @click="fetchQnas"/>
         </label>
 
         <label>
           종료 날짜
-          <input type="date" v-model="endDate" @click="fetchInforms"/>
+          <input type="date" v-model="endDate" @click="fetchQnas"/>
         </label>
 
-        <select v-model="sort" class="sort-select" @change="fetchInforms">
+        <select v-model="sort" class="sort-select" @change="fetchQnas">
           <option value="" selected>정렬 기준</option>
           <option value="title">제목명</option>
           <option value="view">조회수</option>
           <option value="date">등록일</option>
         </select>
 
-        <select v-model="order" class="order-select" @change="fetchInforms">
+        <select v-model="order" class="order-select" @change="fetchQnas">
           <option value="" selected>정렬 방향</option>
           <option value="asc">오름차순</option>
           <option value="desc">내림차순</option>
@@ -181,46 +169,51 @@ onMounted(() => {
       <thead>
       <tr class="table-header">
         <th>등록일</th>
-        <th>공지사항</th>
+        <th>질문</th>
         <th>작성자</th>
+        <th>상태</th>
         <th>조회수</th>
       </tr>
       </thead>
       <tbody>
       <tr
-          v-for="inform in informs"
-          :key="inform.informId"
+          v-for="qna in qnas"
+          :key="qna.inquiryId"
           class="table-row"
-          @click="goToInformDetail(inform.informId, inform.informViewcount)"
+          @click="goToQnaDetail(qna.inquiryId, qna.inquiryViewcount)"
       >
         <td>
-          <div>{{ formatDate(inform.createdDate) }}</div>
+          <div>{{ formatDate(qna.createdDate) }}</div>
         </td>
         <td>
-          <div>{{ inform.informTitle }}</div>
+          <div>{{ qna.inquiryTitle }}</div>
         </td>
         <td>
-          <div>{{ inform.userName }}</div>
+          <div>{{ qna.userName }}</div>
         </td>
         <td>
-          <div>{{ inform.informViewcount }}</div>
+          <div :class="['status-badge', qna.inquiryReplyYn === 'Y' ? 'answered' : 'waiting']">
+            {{ qna.inquiryReplyYn === 'Y' ? '답변완료' : '답변대기' }}
+          </div>
+        </td>
+        <td>
+          <div>{{ qna.inquiryViewcount }}</div>
         </td>
       </tr>
       </tbody>
     </table>
-    <!-- 페이지네이 -->
+
     <div class="pagination justify-content-center">
       <button class="btn btn-light" @click="prevPage" :disabled="currentPage === 1">이전</button>
       <span v-for="page in visiblePages" :key="page">
-              <button
-                  class="btn" :class="{ active: page === currentPage }"
-                  @click="changePage(page)"
-              >{{ page }}</button>
-          </span>
+        <button
+            class="btn" :class="{ active: page === currentPage }"
+            @click="changePage(page)"
+        >{{ page }}</button>
+      </span>
       <button class="btn btn-light" @click="nextPage" :disabled="currentPage === totalPages">다음</button>
     </div>
   </div>
-
 </template>
 
 <style scoped>
@@ -229,7 +222,7 @@ onMounted(() => {
   font-weight: 600;
 }
 
-.inform-section {
+.qna-section {
   margin-bottom: 24px;
 }
 
@@ -294,6 +287,24 @@ onMounted(() => {
   margin-left: 4px;
 }
 
+.status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-badge.waiting {
+  background-color: #fff3e0;
+  color: #e65100;
+}
+
+.status-badge.answered {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+}
+
 .customer-table {
   width: 100%;
   border-collapse: collapse;
@@ -307,7 +318,6 @@ onMounted(() => {
 .table-header th {
   text-align: left;
 }
-
 
 .table-row {
   cursor: pointer;
@@ -350,14 +360,12 @@ onMounted(() => {
   background-color: #f0f0f0;
 }
 
-/* 부트스트랩 스타일 덮어쓰기 */
 .table.table-striped tbody tr:hover {
   background-color: #CFF7D3 !important;
   color: white !important;
   cursor: pointer;
 }
 
-/* 선택된 행의 스타일 */
 .table.table-striped tbody tr:hover td {
   background-color: #CFF7D3 !important;
   color: black !important;

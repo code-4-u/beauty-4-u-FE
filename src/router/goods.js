@@ -9,11 +9,12 @@ export default [
         children: [
             {
                 path: 'search',
-                component: GoodsList
+                name: GoodsList,
+                component: () => import('@/views/goods/GoodsList.vue')
             },
             {
                 path: 'review/list',
-                name: 'ReviewList',
+                name: 'Review',
                 component: () => import('@/views/goods/Review.vue')
             }
         ]

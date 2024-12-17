@@ -1,89 +1,90 @@
 <script setup>
 import {onMounted, ref} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
-import {delFetch, getFetch, putFetch} from "@/stores/apiClient.js";
+import {delFetch, getFetch} from "@/stores/apiClient.js";
 import {formatDate} from "@/stores/util.js";
 
 const router = useRouter();
 const route = useRoute();
 
-const informId = route.params['informId'];
-const informDetail = ref({});
+const inquiryId = route.params['inquiryId'];
+const inquiryDetail = ref({});
 
-const fetchInformDetail = async () => {
+const fetchInquiryDetail = async () => {
   try {
-    const response = await getFetch(`/inform/${informId}`)
-
-    informDetail.value = response.data.data;
+    const response = await getFetch(`/inquiry/${inquiryId}`)
+    inquiryDetail.value = response.data.data;
   } catch (error) {
-    console.error("공지사항 세부 정보를 가져오는 데 오류가 발생했습니다:", error);
+    console.error("Q&A 세부 정보를 가져오는 데 오류가 발생했습니다:", error);
   }
-
 }
 
-// 목록으로 돌아가기
 const goBack = () => {
-  router.push('/board/inform'); // 공지사항 목록으로 이동
+  router.push('/board/qna');
 };
 
-// 수정 페이지로 이동
-const editNotice = () => {
-  router.push(
-      {
-        path: `/board/inform/${informId}/update`
-      }
-  );
+const editInquiry = () => {
+  router.push({
+    path: `/board/qna/${inquiryId}/update`
+  });
 };
 
-// 삭제 api 호출
-const deleteFetchInform = async () => {
+const deleteFetchInquiry = async () => {
   try {
-    const response = await delFetch(`/inform/${informId}`);
+    await delFetch(`/inquiry/${inquiryId}`);
   } catch (error) {
     console.error('삭제에 실패했습니다.', error);
   }
 }
 
-// 삭제 기능 (확인 대화상자 포함)
-const deleteInform = () => {
+const deleteInquiry = () => {
   if (confirm('정말로 삭제하시겠습니까?')) {
-    deleteFetchInform();
+    deleteFetchInquiry();
     alert('삭제되었습니다.');
-    router.push('/board/inform');
+    router.push('/board/qna');
   }
 };
 
 onMounted(() => {
-  fetchInformDetail();
+  fetchInquiryDetail();
 })
 </script>
 
 <template>
-  <div class="notice-detail-container">
-    <div class="notice-header">
-      <h3 class="title">{{ informDetail.informTitle }}</h3>
+  <div class="qna-detail-container">
+    <div class="qna-header">
+      <h3 class="title">{{ inquiryDetail.inquiryTitle }}</h3>
       <div class="info-section">
         <div class="info-item">
           <span class="info-label">조회수</span>
-          <span class="info-value">{{ informDetail.informViewcount }}</span>
+          <span class="info-value">{{ inquiryDetail.inquiryViewcount }}</span>
         </div>
         <div class="info-item">
           <span class="info-label">상태</span>
-          <span class="info-value">{{ informDetail.publishStatus }}</span>
+          <span
+              class="status-badge"
+              :class="inquiryDetail.inquiryReplyYn === 'Y' ? 'answered' : 'waiting'"
+          >
+            {{ inquiryDetail.inquiryReplyYn === 'Y' ? '답변완료' : '답변대기' }}
+          </span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">비밀글</span>
+          <span class="info-value">{{ inquiryDetail.inquirySecretYn === 'Y' ? '예' : '아니오' }}</span>
         </div>
         <div class="info-item">
           <span class="info-label">등록일</span>
-          <span class="info-value">{{ formatDate(informDetail.createdDate) }}</span>
+          <span class="info-value">{{ formatDate(inquiryDetail.createdDate) }}</span>
         </div>
         <div class="info-item">
           <span class="info-label">작성자</span>
-          <span class="info-value">{{ informDetail.userName }}</span>
+          <span class="info-value">{{ inquiryDetail.userName }}</span>
         </div>
       </div>
     </div>
 
     <div class="content-section">
-      <div v-html="informDetail.informContent" class="post-content"></div>
+      <div v-html="inquiryDetail.inquiryContent" class="post-content"></div>
     </div>
 
     <div class="footer-section">
@@ -93,10 +94,10 @@ onMounted(() => {
         </button>
       </div>
       <div class="right-buttons">
-        <button class="btn btn-primary" @click="editNotice">
+        <button class="btn btn-primary" @click="editInquiry">
           <span class="btn-text">수정</span>
         </button>
-        <button class="btn btn-danger" @click="deleteInform">
+        <button class="btn btn-danger" @click="deleteInquiry">
           <span class="btn-text">삭제</span>
         </button>
       </div>
@@ -105,7 +106,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
-.notice-detail-container {
+.qna-detail-container {
   max-width: 1200px;
   margin: 1.5rem auto;
   padding: 1.5rem;
@@ -114,7 +115,7 @@ onMounted(() => {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
-.notice-header {
+.qna-header {
   margin-bottom: 1.5rem;
 }
 
@@ -149,6 +150,24 @@ onMounted(() => {
 
 .info-value {
   color: #333;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.status-badge.waiting {
+  background-color: #fff3e0;
+  color: #e65100;
+}
+
+.status-badge.answered {
+  background-color: #e8f5e9;
+  color: #2e7d32;
 }
 
 .content-section {
@@ -233,7 +252,7 @@ onMounted(() => {
 }
 
 @media (max-width: 768px) {
-  .notice-detail-container {
+  .qna-detail-container {
     margin: 0.75rem;
     padding: 0.75rem;
   }

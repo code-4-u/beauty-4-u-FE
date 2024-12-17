@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { getFetch } from '@/stores/apiClient.js'
-import {formatDate} from "../../stores/util.js";
+import {formatDate} from "@/stores/util.js";
 import {useRouter} from 'vue-router';
 
 const router = useRouter();
@@ -36,12 +36,12 @@ const goToDetail = (informId) => {
 
 const toInformList = () => {
   router.push({
-    path: `/board/inform/list`
+    path: `/board/inform`
   });
 };
 
 onMounted(() => {
-  fetchNotices(); // 컴포넌트가 마운트될 때 API 호출
+  fetchNotices();
 });
 </script>
 
@@ -79,21 +79,21 @@ onMounted(() => {
 .notice-container li {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 16px; /* 간격을 넓히기 위해 값 증가 */
-  cursor: pointer; /* 커서 모양 변경 */
+  margin-bottom: 16px;
+  cursor: pointer;
 }
 
 .notice-container .more-button {
-  background-color: transparent; /* 배경 투명 */
-  border: none; /* 기본 테두리 제거 */
-  border-bottom: 1px solid rgba(204, 204, 204, 0.5); /* 아래쪽 테두리만 흐리게 */
-  border-radius: 0; /* 모서리 둥글게 제거 */
-  padding: 4px 8px; /* 패딩을 줄여서 크기 축소 */
-  display: inline-block; /* 인라인 블록으로 설정 */
+  background-color: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(204, 204, 204, 0.5);
+  border-radius: 0;
+  padding: 4px 8px;
+  display: inline-block;
 }
 
 /* 호버 스타일 제거 */
 .notice-container .more-button:hover {
-  background-color: transparent; /* 호버 시 배경색 없음 */
+  background-color: transparent;
 }
 </style>

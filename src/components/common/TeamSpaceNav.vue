@@ -1,13 +1,12 @@
 <script setup>
 import {ref} from 'vue';
 
+// Reactive references
 const searchQuery = ref('');
 const navItems = ref([]);
 
 navItems.value = [
-  { id: 1, name: '공지사항', link: '/board/inform'},
-  { id: 2, name: 'Q&A', link: '/board/qna'},
-  { id: 3, name: 'FAQ', link: '/board/faq'},
+  { id: 1, name: '스크랩', link: '/teamspace/scrap'}
 ];
 
 </script>
@@ -15,7 +14,7 @@ navItems.value = [
 <template>
   <div class="sidebar">
     <div class="header">
-      <div class="logo">WebbyFrames</div>
+      <div class="logo">사이드 메뉴</div>
       <div class="user-icon">🔔</div>
     </div>
     <div class="search-bar">

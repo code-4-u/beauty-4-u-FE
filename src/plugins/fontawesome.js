@@ -3,7 +3,10 @@ import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome';
 
 import {
     faArrowRightFromBracket,
-    faArrowRotateRight
+    faArrowRotateRight,
+    faBold,
+    faItalic,
+    faStrikethrough
 } from '@fortawesome/free-solid-svg-icons';
 
 import {
@@ -15,7 +18,10 @@ const icons = [
     faArrowRightFromBracket,
     faTrashCan,
     faPenToSquare,
-    faArrowRotateRight
+    faArrowRotateRight,
+    faBold,
+    faItalic,
+    faStrikethrough
 ];
 
 icons.forEach(icon => library.add(icon))

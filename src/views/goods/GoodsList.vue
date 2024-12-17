@@ -1,6 +1,9 @@
 <script setup>
-import { computed, onMounted, ref } from 'vue'
-import axios from 'axios'
+import {onMounted, ref} from 'vue'
+import {getFetch} from "@/stores/apiClient.js";
+
+// params 를 로컬 상태로 관리
+const searchParams = ref({});
 
 // 브랜드 검색과 관련된 상태 관리
 const brands = ref([])
@@ -11,67 +14,70 @@ const showBrandDropdown = ref(false)
 const searchTerm = ref('')
 const suggestions = ref([])
 const searchResults = ref([])
+const loading = ref(false)
 
-// 하위 카테고리 선택 시 상품 목록을 조회하는 함수
-const handleSubCategorySelect = async (subCategoryCode) => {
+// 검색어 입력 처리 함수 추가
+const handleSearchInput = async () => {
+  if (!searchTerm.value) {
+    suggestions.value = []
+    // await fetchProducts()
+    return
+  }
   try {
-    const response = await axios.get(`/api/v1/goods/category/sub/${subCategoryCode}`)
-    searchResults.value = response.data
+    const response = await getFetch(`/goods/search/${searchTerm.value}`)
+    suggestions.value = response.data.data
   } catch (error) {
-    console.error('카테고리 상품 조회 중 오류 발생:', error)
+    console.log('검색어 제안 조회 중 오류 발생:', error)
+    suggestions.value = []
   }
 }
-
-// 선택된 브랜드의 이름을 표시하기 위한 계산된 속성
-const selectedBrandName = computed(() => {
-  if (!selectedBrand.value) return ''
-  const brand = brands.value.find(b => b.brandCode === selectedBrand.value.brandCode)
-  return brand ? brand.brandName : ''
-})
 
 // 브랜드 목록을 서버에서 가져오는 함수
 const fetchBrands = async () => {
   try {
-    const response = await axios.get('/api/v1/goods/brands')
-    brands.value = response.data
+    const response = await getFetch('/goods/brands')
+    brands.value = response.data.data;
   } catch (error) {
     console.error('브랜드 목록 조회 중 오류 발생:', error)
   }
 }
 
-// 검색어 입력 시 자동 완성 목록을 가져오는 함수
-const handleSearchInput = async () => {
-  if (searchTerm.value.length > 0) {
-    try {
-      const response = await axios.get(`/api/v1/goods/search/${searchTerm.value}`)
-      suggestions.value = response.data
-    } catch (error) {
-      console.error('검색 제안 조회 중 오류 발생:', error)
-    }
-  } else {
-    suggestions.value = []
-  }
-}
-
-// 검색 실행 함수
-const search = async () => {
+// 전체 상품 목록을 가져오는 함수
+const fetchAllProducts = async () => {
+  loading.value = true
   try {
-    const response = await axios.get('/api/v1/goods/search', {
-      params: {
-        brandCode: selectedBrand.value?.brandCode || '',
-        goodsName: searchTerm.value
-      }
-    })
-    searchResults.value = response.data
+    const response = await getFetch('/goods/search');
+    if(response?.data?.data){
+      searchResults.value = response.data.data;
+    } else{
+      searchResults.value = []
+    }
   } catch (error) {
-    console.error('검색 결과 조회 중 오류 발생:', error)
+    console.log(searchResults.value)
+    console.error('상품 목록 조회 중 오류 발생:', error)
+    searchResults.value = [];
+  } finally {
+    loading.value = false;
   }
 }
 
 // 브랜드 선택 처리 함수
-const selectBrand = (brand) => {
+const selectBrand = async (brand) => {
   selectedBrand.value = brand
   showBrandDropdown.value = false
+}
+
+// 검색 조건 초기화 함수
+const clearSearch = async (type) => {
+  if (type === 'brand') {
+    selectedBrand.value = null
+    // params.value.brandCode = undefined
+    await fetchAllProducts() // 브랜드 선택 초기화 시 전체 상품 다시 로드
+  } else {
+    searchTerm.value = ''
+    // params.value.goodsName = undefined
+    suggestions.value = []
+  }
 }
 
 // 검색어 제안 선택 처리 함수
@@ -80,25 +86,59 @@ const selectSuggestion = (item) => {
   suggestions.value = []
 }
 
-// 검색 조건 초기화 함수
-const clearSearch = (type) => {
-  if (type === 'brand') {
-    selectedBrand.value = null
-  } else {
-    searchTerm.value = ''
-    suggestions.value = []
-  }
-}
+// 검색 처리 함수
+const search = async () => {
+  loading.value = true
+  try {
+    let response
+    // searchParams.value = {}
 
-// 가격을 원화 형식으로 변환하는 함수
-const formatPrice = (price) => {
-  return price.toLocaleString() + '원'
-}
+    // 브랜드만 선택한 경우
+    if (selectedBrand.value && !searchTerm.value) {
+      response = await getFetch(`/goods/brands/${selectedBrand.value.brandCode}`)
+      // searchParams.value.brandCode = selectedBrand.value.brandCode
+    }
+    // 상품명만 입력된 경우 또는 브랜드와 상품 모두 있는 경우
+    else if (searchTerm.value || (selectedBrand.value && searchTerm.value)) {
+      const queryParams = new URLSearchParams();
+      if(selectedBrand.value) queryParams.append('brandCode',selectedBrand.value.brandCode);
+      if(searchTerm.value) queryParams.append('goodsName',searchTerm.value);
+
+      response = await getFetch(`/goods/search?${queryParams.toString()}`);
+      // params.value.goodsName = searchTerm.value
+    }
+    // 아무 조건도 없는 경우
+    else {
+      await fetchAllProducts();
+      // searchResults.value = []
+      // loading.value = false
+      return;
+    }
+
+    // 검색 결과가 있는 경우에만 데이터 설정
+    if (response?.data?.data){
+      if(Array.isArray(response.data.data) && response.data.data.length > 0){
+        searchResults.value = response.data.data;
+      } else {
+      searchResults.value = [];
+      alert("해당 상품이 존재하지 않습니다.");
+    }
+  } else {
+    searchResults.value = [];
+    alert('해당 상품이 존재하지 않습니다.');
+  }
+  } catch (error) {
+    console.error('상품 검색 중 오류 발생:', error)
+    searchResults.value = []
+  } finally {
+    loading.value = false
+  }
+};
 
 // 컴포넌트 초기화 시 실행되는 함수들
-onMounted(() => {
-  fetchBrands()
-  search()
+onMounted(async () => {
+  await fetchBrands()
+  await fetchAllProducts()
 })
 </script>
 
@@ -106,80 +146,101 @@ onMounted(() => {
   <div class="product-search-page">
     <div class="main-content">
       <main>
-        <div class="search-inputs">
-          <!-- 브랜드 검색 영역 -->
-          <div class="input-group">
-            <label>브랜드명</label>
-            <div class="dropdown-container">
-              <input
-                  type="text"
-                  :value="selectedBrandName"
-                  readonly
-                  @click="showBrandDropdown = true"
-                  placeholder="브랜드 선택"
-              />
-              <button v-if="selectedBrand" @click.stop="clearSearch('brand')">X</button>
-              <div v-if="showBrandDropdown" class="dropdown-content">
-                <div
-                    v-for="brand in brands"
-                    :key="brand.brandCode"
-                    @click="selectBrand(brand)"
-                    class="dropdown-item"
-                >
-                  {{ brand.brandName }}
+        <b-container class="bv-example-row bv-example-row-flex-cols">
+          <b-row>
+            <!--왼쪽 사이드바-->
+            <b-col cols="3" align-self="baseline">
+              <b-nav vertical>
+                <b-nav-item active>스킨/케어</b-nav-item>
+                <b-nav-item>헤어</b-nav-item>
+                <b-nav-item>샴푸</b-nav-item>
+                <b-nav-item>린스</b-nav-item>
+                <b-nav-item>트리트먼트</b-nav-item>
+                <b-nav-item>바디</b-nav-item>
+              </b-nav>
+            </b-col>
+            <!--오른쪽 콘텐츠-->
+            <b-col cols="9" align-self="stretch">
+              <div class="search-inputs">
+                <!-- 브랜드 검색 영역 -->
+                <div class="input-group">
+                  <label>브랜드명</label>
+                  <div class="dropdown-container">
+                    <div class="dropdown-brand">
+                      <b-dropdown split split-variant="outline-primary" variant="primary"
+                                  :text="selectedBrand ? selectedBrand.brandName : '브랜드 선택'" class="m-2">
+                        <b-dropdown-item
+                            v-for="brand in brands"
+                            :key="brand.brandCode"
+                            @click="selectBrand(brand)">
+                          {{ brand.brandName }}
+                        </b-dropdown-item>
+                      </b-dropdown>
+                    </div>
+                    <button v-if="selectedBrand" @click.stop="clearSearch('brand')">X</button>
+                  </div>
+                </div>
+
+                <!-- 상품명 검색 영역 -->
+                <div class="input-group">
+                  <label>상품명</label>
+                  <div class="dropdown-container">
+                    <input
+                        type="text"
+                        v-model="searchTerm"
+                        @input="handleSearchInput"
+                        placeholder="상품명 검색"
+                    />
+                    <button v-if="searchTerm" @click.stop="clearSearch('product')">X</button>
+                    <div v-if="suggestions.length > 0" class="dropdown-content">
+                      <div
+                          v-for="item in suggestions"
+                          :key="item.goodsCode"
+                          @click="selectSuggestion(item)"
+                          class="dropdown-item"
+                      >
+                        {{ item.goodsName }}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="button-group">
+                  <button class="search-button" @click="search">조회</button>
+                  <button class="search-button all-products" @click="fetchAllProducts">전체조회</button>
                 </div>
               </div>
-            </div>
-          </div>
 
-          <!-- 상품명 검색 영역 -->
-          <div class="input-group">
-            <label>상품명</label>
-            <div class="dropdown-container">
-              <input
-                  type="text"
-                  v-model="searchTerm"
-                  @input="handleSearchInput"
-                  placeholder="상품명 검색"
-              />
-              <button v-if="searchTerm" @click.stop="clearSearch('product')">X</button>
-              <div v-if="suggestions.length > 0" class="dropdown-content">
-                <div
-                    v-for="item in suggestions"
-                    :key="item.id"
-                    @click="selectSuggestion(item)"
-                    class="dropdown-item"
-                >
-                  {{ item.goodsName }}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <button class="search-button" @click="search">조회</button>
-        </div>
-
-        <!-- 검색 결과 테이블 -->
-        <table class="results-table">
-          <thead>
-          <tr>
-            <th>상품코드</th>
-            <th>상품명</th>
-            <th>브랜드</th>
-            <th>피부타입</th>
-            <th>가격</th>
-          </tr>
-          </thead>
-          <tbody>
-          <tr v-for="product in searchResults" :key="product.goodsCode">
-            <td>{{ product.goodsCode }}</td>
-            <td>{{ product.goodsName }}</td>
-            <td>{{ product.brandName }}</td>
-            <td>{{ product.goodsSkintype }}</td>
-            <td>{{ formatPrice(product.goodsPrice) }}</td>
-          </tr>
-          </tbody>
-        </table>
+              <!-- 검색 결과 테이블 -->
+              <table class="results-table">
+                <thead>
+                <tr>
+                  <th>상품코드</th>
+                  <th>상품명</th>
+                  <th>브랜드</th>
+                  <th>피부타입</th>
+                  <th>가격</th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr v-if="loading">
+                  <td colspan="5" class="text-center">로딩 중...</td>
+                </tr>
+                <tr v-else-if="searchResults.length === 0">
+                  <td colspan="5" class="text-center">상품을 검색해 주세요.</td>
+                </tr>
+                <tr v-else v-for="product in searchResults" :key="product.goodsCode">
+                  <td>{{ product.goodsCode }}</td>
+                  <td>{{ product.goodsName }}</td>
+                  <td>{{ product.brandName }}</td>
+                  <td>{{ product.goodsSkintype }}</td>
+                  <td>{{ product.goodsPrice }}</td>
+                </tr>
+                </tbody>
+              </table>
+            </b-col>
+          </b-row>
+        </b-container>
       </main>
     </div>
   </div>
@@ -193,7 +254,7 @@ onMounted(() => {
 
 .product-search-page {
   font-family: Arial, sans-serif;
-  padding: 20px;  /* 패딩 추가 */
+  padding: 20px;
 }
 
 main {
@@ -299,12 +360,16 @@ main {
   font-weight: 500;
 }
 
-.results-table tr{
+.results-table tr {
   background-color: white;
 }
 
 .results-table tr:nth-child(even) {
   background-color: #f9f9f9;
+}
+
+.text-center {
+  text-align: center;
 }
 
 .pagination {

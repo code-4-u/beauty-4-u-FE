@@ -16,17 +16,34 @@ import Footer from "@/components/common/Footer.vue";
 </template>
 
 <style scoped>
-.container {
-  min-height: 100vh;
-  background-color: var(--background-color);
+.container-fluid {
   display: flex;
   flex-direction: column;
+  min-height: 100vh;
+}
+
+:deep(header) {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  background-color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  height: 60px;
 }
 
 .main-content {
   flex: 1;
-  padding: 1rem;
-  margin: 0 auto;
   width: 100%;
+  margin: 60px auto 0;
+  padding: 1rem 1rem 80px;
+}
+
+:deep(footer) {
+  width: 100%;
+  background-color: white;
+  height: 60px;
+  box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
 }
 </style>
