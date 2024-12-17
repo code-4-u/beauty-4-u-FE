@@ -1,9 +1,9 @@
 <script setup>
-import { onBeforeUnmount, ref, watch } from 'vue';
+import {onBeforeUnmount, watch} from 'vue';
 import StarterKit from "@tiptap/starter-kit";
-import { EditorContent, useEditor } from "@tiptap/vue-3";
+import {EditorContent, useEditor} from "@tiptap/vue-3";
 import Image from '@tiptap/extension-image';
-import MenuBar from '../editor/MenuBar.vue'; // MenuBar 컴포넌트 import
+import MenuBar from '../editor/MenuBar.vue';
 
 const props = defineProps({
   modelValue: {
@@ -22,11 +22,38 @@ const editor = useEditor({
   },
 });
 
+const insertImage = (url) => {
+  editor.value?.chain().focus().setImage({ src: url }).run();
+};
+
+const removeImage = (url) => {
+  if (!editor.value) return;
+
+  // 현재 에디터의 모든 이미지 노드를 찾아서 순회
+  editor.value.state.doc.descendants((node, pos) => {
+    if (node.type.name === 'image' && node.attrs.src === url) {
+      // 해당 URL을 가진 이미지 노드를 찾으면 삭제
+      editor.value.commands.deleteRange({
+        from: pos,
+        to: pos + node.nodeSize
+      });
+    }
+  });
+
+  // 컨텐츠가 업데이트되었음을 알림
+  emit("update:modelValue", editor.value.getHTML());
+};
+
 watch(() => props.modelValue, (value) => {
   const isSame = editor.value.getHTML() === value;
   if (!isSame) {
     editor.value.commands.setContent(value, false);
   }
+});
+
+defineExpose({
+  insertImage,
+  removeImage
 });
 
 onBeforeUnmount(() => {
