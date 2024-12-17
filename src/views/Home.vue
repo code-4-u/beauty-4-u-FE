@@ -4,8 +4,8 @@ import FullCalendar from '@fullcalendar/vue3';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import HomeSideBar from "@/components/Home/HomeSideBar.vue";
-import SimpleInform from "@/components/Home/SimpleInform.vue";
+import HomeSideBar from "@/components/home/HomeSideBar.vue";
+import SimpleInform from "@/components/home/SimpleInform.vue";
 import {getFetch, postFetch, putFetch, delFetch} from "@/stores/apiClient.js";
 
 const events = ref([]);
