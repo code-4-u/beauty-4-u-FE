@@ -2,105 +2,132 @@
 import {onMounted, ref} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
 import {postFetch, putFetch, getFetch} from "@/stores/apiClient.js";
+import BoardEditor from "@/components/board/inform/BoardEditor.vue";
+import ImageManagement from "@/components/board/ImageManagement.vue";
 
 const router = useRouter();
 const route = useRoute();
-
 const informId = route.params['informId'];
 
-const informDetail = ref({
-  informTitle: '',
-  informContent: ''
-});
-
-const postContent = ref(''); // 에디터 내용을 저장할 ref
+const informTitle = ref('');
+const editorContent = ref('');
+const selectedFiles = ref([]);
+const imageUrls = ref([]);
+const boardEditorRef = ref(null);
+const uploadStatus = ref('');
 
 const fetchInformDetail = async () => {
   try {
     const response = await getFetch(`/inform/${informId}`);
-    informDetail.value = response.data.data;
+    const data = response.data.data;
+    informTitle.value = data.informTitle;
+    editorContent.value = data.informContent;
 
-    // 에디터 내용 초기화
-    postContent.value = informDetail.value.informContent; // 기존 내용으로 초기화
-    document.querySelector('.editor').innerHTML = postContent.value; // 에디터에 내용 설정
+    // 본문에서 이미지 URL 추출
+    const imageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
+    const imageMatches = [...data.informContent.matchAll(imageRegex)];
+    const existingImageUrls = imageMatches.map(match => match[1]);
+
+    // 추출된 이미지를 selectedFiles에 추가
+    selectedFiles.value = existingImageUrls.map((url, index) => ({
+      id: `existing-${index}`,
+      name: url.split('/').pop() || `image-${index}`, // URL에서 파일명 추출 또는 기본값 사용
+      url: url,
+      size: 0, // 기존 이미지의 경우 size 정보를 알 수 없으므로 0으로 설정
+    }));
+
+    imageUrls.value = existingImageUrls;
   } catch (error) {
     console.error("공지사항 세부 정보를 가져오는 데 오류가 발생했습니다:", error);
   }
 }
 
+const insertImageAtCursor = (imageUrl, removeUrl) => {
+  if (boardEditorRef.value) {
+    if (removeUrl) {
+      // 이미지 제거
+      boardEditorRef.value.removeImage(removeUrl);
+    } else if (imageUrl) {
+      // 이미지 추가
+      boardEditorRef.value.insertImage(imageUrl);
+    }
+  }
+};
+
+// 이미지 관리 핸들러
+const handleUpload = (files) => {
+  uploadStatus.value = '업로드 중';
+  selectedFiles.value = [
+    ...selectedFiles.value,
+    ...files
+  ];
+  uploadStatus.value = '업로드 완료';
+};
+
+const handleRemove = (fileId) => {
+  const fileToRemove = selectedFiles.value.find(f => f.id === fileId);
+  if (fileToRemove) {
+    // 목록에서 제거
+    selectedFiles.value = selectedFiles.value.filter(f => f.id !== fileId);
+  }
+};
+
 // 목록으로 돌아가기
 const goBack = () => {
-  router.push('/board/inform'); // 공지사항 목록으로 이동
+  router.push('/board/inform');
 };
 
-// 사진 업로드
-const selectedFile = ref(null);
-const uploadStatus = ref('');
-
-const updateContent = () => {
-  // 에디터의 내용을 HTML 문자열로 저장
-  postContent.value = document.querySelector('.editor').innerHTML;
-};
-
-const onFileChange = (event) => {
-  const file = event.target.files[0];
-  if (file && file.type.startsWith('image/')) {
-    selectedFile.value = file; // 이미지 파일을 저장
-    uploadStatus.value = ''; // 상태 초기화
-  } else {
-    uploadStatus.value = 'Please select a valid image file.'; // 오류 메시지
-    selectedFile.value = null; // 파일 초기화
-  }
-};
-
-const uploadFile = async () => {
-  if (!selectedFile.value) {
-    uploadStatus.value = 'Please select an image file first.';
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append('file', selectedFile.value); // 파일을 FormData에 추가
-
-  try {
-    const response = await postFetch('/file/s3/upload', formData);
-    const imageUrl = response.data.fileUrl; // S3에서 반환된 이미지 URL
-    insertImageAtCursor(imageUrl); // 커서 위치에 이미지 삽입
-    uploadStatus.value = 'File uploaded successfully.'; // 성공 메시지
-  } catch (error) {
-    console.error('File upload failed:', error);
-    uploadStatus.value = 'File upload failed.';
-  }
-};
-
-const insertImageAtCursor = (imageUrl) => {
-  const img = document.createElement('img'); // img 태그를 추가해서 삽입
-  img.src = imageUrl;
-  img.alt = 'Uploaded Image';
-  img.style.maxWidth = '100%'; // 이미지 크기 조절 (필요 시)
-
-  const selection = window.getSelection();
-  const range = selection.getRangeAt(0);
-  range.insertNode(img); // 커서 위치에 이미지 삽입
-  range.collapse(false); // 커서를 이미지 뒤로 이동
-};
-
+// 게시글 수정
 const updateInform = async () => {
-  // informDetail의 내용을 업데이트하고 에디터의 내용을 반영
-  informDetail.value.informContent = postContent.value;
-
-  const reqInform = {
-    informTitle: informDetail.value.informTitle,
-    informContent: informDetail.value.informContent
-  }
   try {
-    const response = await putFetch(`/inform/${informId}`, reqInform); // informDetail.value로 변경
+    // 1. 모든 이미지가 업로드될 때까지 대기
+    if (uploadStatus.value === '업로드 중') {
+      await new Promise(resolve => {
+        const checkUpload = setInterval(() => {
+          if (uploadStatus.value !== '업로드 중') {
+            clearInterval(checkUpload);
+            resolve();
+          }
+        }, 500);
+      });
+    }
 
-    console.log('저장 성공');
+    // 입력값 검증
+    if (!informTitle.value.trim()) {
+      alert('제목을 입력해주세요.');
+      return;
+    }
+
+    // 2. 본문에서 이미지 URL 추출
+    const imageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
+    const content = editorContent.value;
+    const imageMatches = [...content.matchAll(imageRegex)];
+    const imageUrls = imageMatches.map(match => match[1]);
+
+    // 3. 게시글 수정
+    await putFetch(`/inform/${informId}`, {
+      informTitle: informTitle.value,
+      informContent: editorContent.value
+    });
+
+    // 4. 저장된 게시글의 ID로 이미지 저장
+    if (imageUrls.length > 0) {
+      await postFetch('/file/save', {
+        entityId: informId,
+        imageUrls: imageUrls,
+        isInform: true
+      });
+    }
+
+    // 5. 목록으로 이동
+    await router.push({
+      path: `/board/inform`
+    });
   } catch (error) {
-    console.error('저장 실패');
+    console.error('수정에 실패했습니다.', error);
+    alert('수정에 실패했습니다. 다시 시도해주세요.');
   }
-}
+};
 
 onMounted(() => {
   fetchInformDetail();
@@ -109,32 +136,46 @@ onMounted(() => {
 
 <template>
   <div class="notice-detail-container">
-    <div class="notice-title row">
-      <h2 class="col-md-1">제목 :</h2>
-      <input type="text" class="col-md-7 no-border" v-model="informDetail.informTitle" placeholder="제목을 입력하세요">
-    </div>
-
-    <div class="info-section">
-      <!-- 추가 정보 섹션 -->
-    </div>
-    <div class="content-section">
-      <div
-          contenteditable="true"
-          ref="editor"
-          class="editor"
-          @input="updateContent"
-      ></div>
-    </div>
-
-    <div class="button-group justify-content-between align-items-center">
-      <div>
-        <button @click="goBack">목록</button>
+    <div class="notice-header">
+      <div class="title-wrapper">
+        <h3 class="title-label">제목</h3>
+        <input
+            type="text"
+            class="title-input"
+            v-model="informTitle"
+            placeholder="제목을 입력하세요"
+        >
       </div>
-      <div class="d-flex gap-3 ml-auto">
-        <input type="file" @change="onFileChange" accept="image/*"/>
-        <button @click="uploadFile">Upload</button>
-        <div v-if="uploadStatus">{{ uploadStatus }}</div>
-        <button @click="updateInform">작성완료</button>
+    </div>
+
+    <div class="info-section"></div>
+
+    <image-management
+        :selected-files="selectedFiles"
+        :image-urls="imageUrls"
+        @upload="handleUpload"
+        @remove="handleRemove"
+        @insert-to-editor="insertImageAtCursor"
+    />
+
+    <div class="editor-container">
+      <board-editor
+          ref="boardEditorRef"
+          v-model="editorContent"
+      />
+    </div>
+
+    <div class="footer-section">
+      <div class="left-buttons">
+        <button class="btn btn-secondary" @click="goBack">
+          <span class="btn-text">목록으로</span>
+        </button>
+      </div>
+
+      <div class="right-buttons">
+        <button class="btn btn-primary" @click="updateInform">
+          <span class="btn-text">수정완료</span>
+        </button>
       </div>
     </div>
   </div>
@@ -142,62 +183,141 @@ onMounted(() => {
 
 <style scoped>
 .notice-detail-container {
-  padding: 20px;
-  border: 1px solid #ccc;
+  max-width: 1200px;
+  margin: 1.5rem auto;
+  padding: 1.5rem;
+  background-color: #ffffff;
   border-radius: 8px;
-  background-color: #fff;
-  max-width: 4000px;
-  margin: auto;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
-.no-border {
-  border: none; /* 테두리 제거 */
-  outline: none; /* 포커스 시 테두리 제거 */
+.notice-header {
+  margin-bottom: 1.5rem;
 }
 
-.notice-title {
-  margin-bottom: 20px;
-  font-size: 24px;
-  border-bottom: 2px solid #007bff;
-  padding-bottom: 10px;
+.title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.title-label {
+  min-width: 60px;
+  margin: 0;
+  color: #333;
+  font-weight: 600;
+}
+
+.title-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.title-input:focus {
+  outline: none;
+  border-color: #29C458;
+  box-shadow: 0 0 0 3px rgba(41, 196, 88, 0.1);
+}
+
+.title-input::placeholder {
+  color: #aaa;
 }
 
 .info-section {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  margin-bottom: 16px;
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 10px;
-  font-size: 14px;
+  margin-bottom: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.content-section {
-  margin: 20px 0;
-  min-height: 50rem; /* 최소 높이 설정 */
+.editor-container {
+  margin: 1rem 0;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
-.notice-image {
-  max-width: 100%;
-  height: auto;
-  margin-bottom: 10px;
-}
-
-.button-group {
+.footer-section {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f0f0f0;
 }
 
-button {
-  padding: 7px 10px;
+.right-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
   border: none;
-  border-radius: 5px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.btn-primary {
   background-color: #29C458;
   color: white;
-  cursor: pointer;
 }
 
-button:hover {
-  background-color: #0056b3;
+.btn-primary:hover {
+  background-color: #23a94c;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
+  transform: translateY(-1px);
+}
+
+.btn-text {
+  font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+  .notice-detail-container {
+    margin: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  .title-wrapper {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+  }
+
+  .footer-section {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .right-buttons {
+    width: 100%;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .btn {
+    width: 100%;
+  }
 }
 </style>
