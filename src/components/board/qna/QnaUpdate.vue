@@ -1,31 +1,59 @@
 <script setup>
-import {ref} from 'vue';
-import {useRouter} from 'vue-router';
-import {postFetch} from "@/stores/apiClient.js";
+import {onMounted, ref} from 'vue';
+import {useRoute, useRouter} from 'vue-router';
+import {postFetch, putFetch, getFetch} from "@/stores/apiClient.js";
 import BoardEditor from "@/components/board/editor/BoardEditor.vue";
 import ImageManagement from "@/components/board/editor/ImageManagement.vue";
 
 const router = useRouter();
-const informTitle = ref('');
-const editorContent = ref('<p>내용을 입력해주세요.</p>');
+const route = useRoute();
+const inquiryId = route.params['inquiryId'];
+
+const inquiryTitle = ref('');
+const editorContent = ref('');
 const selectedFiles = ref([]);
 const imageUrls = ref([]);
 const boardEditorRef = ref(null);
 const uploadStatus = ref('');
+const inquirySecretYn = ref('N');
+
+const fetchInquiryDetail = async () => {
+  try {
+    const response = await getFetch(`/inquiry/${inquiryId}`);
+    const data = response.data.data;
+    inquiryTitle.value = data.inquiryTitle;
+    editorContent.value = data.inquiryContent;
+    inquirySecretYn.value = data.inquirySecretYn;
+
+    // 본문에서 이미지 URL 추출
+    const imageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
+    const imageMatches = [...data.inquiryContent.matchAll(imageRegex)];
+    const existingImageUrls = imageMatches.map(match => match[1]);
+
+    // 추출된 이미지를 selectedFiles에 추가
+    selectedFiles.value = existingImageUrls.map((url, index) => ({
+      id: `existing-${index}`,
+      name: url.split('/').pop() || `image-${index}`,
+      url: url,
+      size: 0,
+    }));
+
+    imageUrls.value = existingImageUrls;
+  } catch (error) {
+    console.error("Q&A 세부 정보를 가져오는 데 오류가 발생했습니다:", error);
+  }
+}
 
 const insertImageAtCursor = (imageUrl, removeUrl) => {
   if (boardEditorRef.value) {
     if (removeUrl) {
-      // 이미지 제거
       boardEditorRef.value.removeImage(removeUrl);
     } else if (imageUrl) {
-      // 이미지 추가
       boardEditorRef.value.insertImage(imageUrl);
     }
   }
 };
 
-// 이미지 관리 핸들러
 const handleUpload = (files) => {
   uploadStatus.value = '업로드 중';
   selectedFiles.value = [
@@ -38,20 +66,16 @@ const handleUpload = (files) => {
 const handleRemove = (fileId) => {
   const fileToRemove = selectedFiles.value.find(f => f.id === fileId);
   if (fileToRemove) {
-    // 목록에서 제거
     selectedFiles.value = selectedFiles.value.filter(f => f.id !== fileId);
   }
 };
 
-// 목록으로 돌아가기
 const goBack = () => {
-  router.push('/board/inform');
+  router.push('/board/qna');
 };
 
-// 게시글 저장
-const fetchSaveInform = async () => {
+const updateInquiry = async () => {
   try {
-    // 1. 모든 이미지가 업로드될 때까지 대기
     if (uploadStatus.value === '업로드 중') {
       await new Promise(resolve => {
         const checkUpload = setInterval(() => {
@@ -64,54 +88,71 @@ const fetchSaveInform = async () => {
     }
 
     // 입력값 검증
-    if (!informTitle.value.trim()) {
+    if (!inquiryTitle.value.trim()) {
       alert('제목을 입력해주세요.');
       return;
     }
 
-    // 2. 본문에서 이미지 URL 추출
+    // 본문에서 이미지 URL 추출
     const imageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
     const content = editorContent.value;
     const imageMatches = [...content.matchAll(imageRegex)];
     const imageUrls = imageMatches.map(match => match[1]);
 
-    // 3. 게시글 저장
-    const response = await postFetch(`/inform`, {
-      informTitle: informTitle.value,
-      informContent: editorContent.value
+    // 게시글 수정
+    await putFetch(`/inquiry/${inquiryId}`, {
+      inquiryTitle: inquiryTitle.value,
+      inquiryContent: editorContent.value,
+      inquirySecretYn: inquirySecretYn.value
     });
 
-    // 4. 저장된 게시글의 ID로 이미지 저장
+    // 이미지 저장
     if (imageUrls.length > 0) {
       await postFetch('/file/save', {
-        entityId: response.data.data,
+        entityId: inquiryId,
         imageUrls: imageUrls,
-        isInform: true
+        isInform: false
       });
     }
 
-    // 5. 목록으로 이동
     await router.push({
-      path: `/board/inform`
+      path: `/board/qna`
     });
   } catch (error) {
-    console.error('저장에 실패했습니다.', error);
-    alert('저장에 실패했습니다. 다시 시도해주세요.');
+    console.error('수정에 실패했습니다.', error);
+    alert('수정에 실패했습니다. 다시 시도해주세요.');
   }
 };
+
+onMounted(() => {
+  fetchInquiryDetail();
+});
 </script>
 
 <template>
-  <div class="notice-detail-container">
-    <div class="notice-header">
+  <div class="qna-detail-container">
+    <div class="qna-header">
       <div class="title-wrapper">
         <h3 class="title-label">제목</h3>
         <input
             type="text"
             class="title-input"
-            v-model="informTitle"
-            placeholder="제목을 입력하세요"
+            v-model="inquiryTitle"
+            placeholder="질문 제목을 입력하세요"
         >
+      </div>
+
+      <div class="private-setting">
+        <label class="private-label">
+          <input
+              type="checkbox"
+              v-model="inquirySecretYn"
+              :true-value="'Y'"
+              :false-value="'N'"
+              class="private-checkbox"
+          >
+          비밀글로 작성
+        </label>
       </div>
     </div>
 
@@ -140,8 +181,8 @@ const fetchSaveInform = async () => {
       </div>
 
       <div class="right-buttons">
-        <button class="btn btn-primary" @click="fetchSaveInform">
-          <span class="btn-text">등록</span>
+        <button class="btn btn-primary" @click="updateInquiry">
+          <span class="btn-text">수정완료</span>
         </button>
       </div>
     </div>
@@ -149,7 +190,7 @@ const fetchSaveInform = async () => {
 </template>
 
 <style scoped>
-.notice-detail-container {
+.qna-detail-container {
   max-width: 1200px;
   margin: 1.5rem auto;
   padding: 1.5rem;
@@ -162,7 +203,7 @@ const fetchSaveInform = async () => {
   width: 100%;
 }
 
-.notice-header {
+.qna-header {
   margin-bottom: 1.5rem;
 }
 
@@ -172,6 +213,26 @@ const fetchSaveInform = async () => {
   gap: 0.75rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid #f0f0f0;
+}
+
+.private-setting {
+  margin-top: 1rem;
+  padding: 0.5rem 0;
+}
+
+.private-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: #666;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.private-checkbox {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
 }
 
 .title-label {
@@ -265,7 +326,7 @@ const fetchSaveInform = async () => {
 }
 
 @media (max-width: 768px) {
-  .notice-detail-container {
+  .qna-detail-container {
     margin: 0.75rem;
     padding: 0.75rem;
   }

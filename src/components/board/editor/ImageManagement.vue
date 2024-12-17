@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed, onBeforeUnmount } from 'vue';
-import { postFetch } from "@/stores/apiClient.js";
+import {computed, ref} from 'vue';
+import {postFetch} from "@/stores/apiClient.js";
 
 const props = defineProps({
   selectedFiles: {

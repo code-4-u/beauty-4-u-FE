@@ -3,96 +3,35 @@ import {ref} from 'vue';
 import {useRouter} from 'vue-router';
 import {postFetch} from "@/stores/apiClient.js";
 import BoardEditor from "@/components/board/editor/BoardEditor.vue";
-import ImageManagement from "@/components/board/editor/ImageManagement.vue";
 
 const router = useRouter();
-const informTitle = ref('');
+const faqTitle = ref('');
 const editorContent = ref('<p>내용을 입력해주세요.</p>');
-const selectedFiles = ref([]);
-const imageUrls = ref([]);
 const boardEditorRef = ref(null);
-const uploadStatus = ref('');
-
-const insertImageAtCursor = (imageUrl, removeUrl) => {
-  if (boardEditorRef.value) {
-    if (removeUrl) {
-      // 이미지 제거
-      boardEditorRef.value.removeImage(removeUrl);
-    } else if (imageUrl) {
-      // 이미지 추가
-      boardEditorRef.value.insertImage(imageUrl);
-    }
-  }
-};
-
-// 이미지 관리 핸들러
-const handleUpload = (files) => {
-  uploadStatus.value = '업로드 중';
-  selectedFiles.value = [
-    ...selectedFiles.value,
-    ...files
-  ];
-  uploadStatus.value = '업로드 완료';
-};
-
-const handleRemove = (fileId) => {
-  const fileToRemove = selectedFiles.value.find(f => f.id === fileId);
-  if (fileToRemove) {
-    // 목록에서 제거
-    selectedFiles.value = selectedFiles.value.filter(f => f.id !== fileId);
-  }
-};
 
 // 목록으로 돌아가기
 const goBack = () => {
-  router.push('/board/inform');
+  router.push('/board/faq');
 };
 
-// 게시글 저장
-const fetchSaveInform = async () => {
+// FAQ 저장
+const fetchSaveFaq = async () => {
   try {
-    // 1. 모든 이미지가 업로드될 때까지 대기
-    if (uploadStatus.value === '업로드 중') {
-      await new Promise(resolve => {
-        const checkUpload = setInterval(() => {
-          if (uploadStatus.value !== '업로드 중') {
-            clearInterval(checkUpload);
-            resolve();
-          }
-        }, 500);
-      });
-    }
-
     // 입력값 검증
-    if (!informTitle.value.trim()) {
+    if (!faqTitle.value.trim()) {
       alert('제목을 입력해주세요.');
       return;
     }
 
-    // 2. 본문에서 이미지 URL 추출
-    const imageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
-    const content = editorContent.value;
-    const imageMatches = [...content.matchAll(imageRegex)];
-    const imageUrls = imageMatches.map(match => match[1]);
-
-    // 3. 게시글 저장
-    const response = await postFetch(`/inform`, {
-      informTitle: informTitle.value,
-      informContent: editorContent.value
+    // FAQ 저장
+    await postFetch(`/inquiry/faq`, {
+      faqTitle: faqTitle.value,
+      faqContent: editorContent.value
     });
 
-    // 4. 저장된 게시글의 ID로 이미지 저장
-    if (imageUrls.length > 0) {
-      await postFetch('/file/save', {
-        entityId: response.data.data,
-        imageUrls: imageUrls,
-        isInform: true
-      });
-    }
-
-    // 5. 목록으로 이동
+    // 목록으로 이동
     await router.push({
-      path: `/board/inform`
+      path: `/board/faq`
     });
   } catch (error) {
     console.error('저장에 실패했습니다.', error);
@@ -102,28 +41,20 @@ const fetchSaveInform = async () => {
 </script>
 
 <template>
-  <div class="notice-detail-container">
-    <div class="notice-header">
+  <div class="faq-detail-container">
+    <div class="faq-header">
       <div class="title-wrapper">
         <h3 class="title-label">제목</h3>
         <input
             type="text"
             class="title-input"
-            v-model="informTitle"
-            placeholder="제목을 입력하세요"
+            v-model="faqTitle"
+            placeholder="FAQ 제목을 입력하세요"
         >
       </div>
     </div>
 
     <div class="info-section"></div>
-
-    <image-management
-        :selected-files="selectedFiles"
-        :image-urls="imageUrls"
-        @upload="handleUpload"
-        @remove="handleRemove"
-        @insert-to-editor="insertImageAtCursor"
-    />
 
     <div class="editor-container">
       <board-editor
@@ -140,7 +71,7 @@ const fetchSaveInform = async () => {
       </div>
 
       <div class="right-buttons">
-        <button class="btn btn-primary" @click="fetchSaveInform">
+        <button class="btn btn-primary" @click="fetchSaveFaq">
           <span class="btn-text">등록</span>
         </button>
       </div>
@@ -149,7 +80,7 @@ const fetchSaveInform = async () => {
 </template>
 
 <style scoped>
-.notice-detail-container {
+.faq-detail-container {
   max-width: 1200px;
   margin: 1.5rem auto;
   padding: 1.5rem;
@@ -158,11 +89,11 @@ const fetchSaveInform = async () => {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
-.editor-container, :deep(.image-management) {
+.editor-container {
   width: 100%;
 }
 
-.notice-header {
+.faq-header {
   margin-bottom: 1.5rem;
 }
 
@@ -265,7 +196,7 @@ const fetchSaveInform = async () => {
 }
 
 @media (max-width: 768px) {
-  .notice-detail-container {
+  .faq-detail-container {
     margin: 0.75rem;
     padding: 0.75rem;
   }

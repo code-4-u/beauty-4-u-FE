@@ -3,7 +3,7 @@ import {onBeforeUnmount, watch} from 'vue';
 import StarterKit from "@tiptap/starter-kit";
 import {EditorContent, useEditor} from "@tiptap/vue-3";
 import Image from '@tiptap/extension-image';
-import MenuBar from '../editor/MenuBar.vue';
+import MenuBar from './MenuBar.vue';
 
 const props = defineProps({
   modelValue: {
