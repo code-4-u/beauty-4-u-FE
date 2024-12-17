@@ -6,8 +6,8 @@ const navItems = ref([]);
 
 navItems.value = [
   { id: 1, name: '공지사항', link: '/board/inform'},
-  { id: 2, name: 'Q&A', link: '/board/QNA'},
-  { id: 3, name: 'FAQ', link: '/board/FAQ'},
+  { id: 2, name: 'Q&A', link: '/board/qna'},
+  { id: 3, name: 'FAQ', link: '/board/faq'},
 ];
 
 </script>

@@ -1,13 +1,16 @@
 import InformList from "@/views/board/InformList.vue";
 import boardHome from "@/views/board/BoardHome.vue";
-import QNAList from "@/views/board/QnaList.vue";
-import FAQList from "@/views/board/FaqList.vue";
+import QnaList from "@/views/board/QnaList.vue";
+import FaqList from "@/views/board/FaqList.vue";
 import InformDetail from "@/components/board/inform/InformDetail.vue";
 import InformSave from "@/components/board/inform/InformSave.vue";
 import InformUpdate from "@/components/board/inform/InformUpdate.vue";
 import FaqSave from "@/components/board/faq/FaqSave.vue";
 import FaqDetail from "@/components/board/faq/FaqDetail.vue";
 import FaqUpdate from "@/components/board/faq/FaqUpdate.vue";
+import QnaSave from "@/components/board/qna/QnaSave.vue";
+import QnaDetail from "@/components/board/qna/QnaDetail.vue";
+import QnaUpdate from "@/components/board/qna/QnaUpdate.vue";
 
 export default [
     {
@@ -31,12 +34,24 @@ export default [
                 component: InformUpdate
             },
             {
-                path: 'QNA',
-                component: QNAList
+                path: 'qna',
+                component: QnaList
+            },
+            {
+                path: 'qna/save',
+                component: QnaSave
+            },
+            {
+                path: 'qna/:qnaId',
+                component: QnaDetail
+            },
+            {
+                path: 'qna/:qnaId/update',
+                component: QnaUpdate
             },
             {
                 path: 'faq',
-                component: FAQList
+                component: FaqList
             },
             {
                 path: 'faq/save',
