@@ -1,6 +1,6 @@
 import InformList from "@/views/board/InformList.vue";
 import boardHome from "@/views/board/BoardHome.vue";
-import QAndAList from "@/views/board/QAndAList.vue";
+import QNAList from "@/views/board/QNAList.vue";
 import FAQList from "@/views/board/FAQList.vue";
 import informDetail from "@/components/board/inform/InformDetail.vue";
 import InformSave from "@/components/board/inform/InformSave.vue";
@@ -28,8 +28,8 @@ export default [
                 component: InformUpdate
             },
             {
-                path: 'QAndA',
-                component: QAndAList
+                path: 'QNA',
+                component: QNAList
             },
             {
                 path: 'FAQ',

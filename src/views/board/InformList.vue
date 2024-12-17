@@ -36,7 +36,6 @@ const fetchInforms = async () => {
     const response = await getFetch(`/inform/list?${searchParams}`);
     informs.value = response.data.data.informList;
     totalCount.value = response.data.data.totalCount;
-    console.log(informs.value)
   } catch (error) {
     console.error("공지사항을 가져오는 데 오류가 발생했습니다:", error);
   }
@@ -108,13 +107,28 @@ const goToInformDetail = (informId, informViewcount) => {
   });
 };
 
+// 공지사항 등록 페이지로 이동
+const goToInformSave = () => {
+  router.push({
+    path: '/board/inform/save'
+  });
+};
+
 onMounted(() => {
   fetchInforms();
 });
 </script>
 
 <template>
-  <div class="search-section">
+  <div class="inform-section">
+
+    <div class="header">
+      <h2>공지사항</h2>
+      <button class="add-button" @click="goToInformSave">
+        + 공지사항 등록
+      </button>
+    </div>
+
     <div class="search-area">
       <input
           type="text"
@@ -163,7 +177,6 @@ onMounted(() => {
     </div>
   </div>
 
-  <!-- 고객 정보 테이블 -->
   <div class="customer-table">
     <table class="table table-striped">
       <thead>
@@ -217,8 +230,24 @@ onMounted(() => {
   font-weight: 600;
 }
 
-.search-section {
+.inform-section {
   margin-bottom: 24px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.add-button {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
 }
 
 .search-area {

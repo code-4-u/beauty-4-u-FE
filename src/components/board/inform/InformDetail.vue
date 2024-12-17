@@ -2,14 +2,12 @@
 import {onMounted, ref} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
 import {delFetch, getFetch, putFetch} from "@/stores/apiClient.js";
-import {formatDate} from "../../../stores/util.js";
+import {formatDate} from "@/stores/util.js";
 
 const router = useRouter();
 const route = useRoute();
 
 const informId = route.params['informId'];
-
-// 예시 데이터 (실제 데이터는 API를 통해 가져와야 함)
 const informDetail = ref({});
 
 const fetchInformDetail = async () => {
@@ -62,81 +60,203 @@ onMounted(() => {
 
 <template>
   <div class="notice-detail-container">
-    <h2 class="notice-title">제목 : {{ informDetail.informTitle }}</h2>
-    <div class="info-section">
-      <span>조회수 : {{ informDetail.informViewcount }}</span>
-      <span>상태 : {{ informDetail.publishStatus }}</span>
-      <span>등록일 : {{ formatDate(informDetail.createdDate) }}</span>
-      <span>작성자 : {{ informDetail.userName }}</span>
+    <div class="notice-header">
+      <h3 class="title">{{ informDetail.informTitle }}</h3>
+      <div class="info-section">
+        <div class="info-item">
+          <span class="info-label">조회수</span>
+          <span class="info-value">{{ informDetail.informViewcount }}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">상태</span>
+          <span class="info-value">{{ informDetail.publishStatus }}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">등록일</span>
+          <span class="info-value">{{ formatDate(informDetail.createdDate) }}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">작성자</span>
+          <span class="info-value">{{ informDetail.userName }}</span>
+        </div>
+      </div>
     </div>
+
     <div class="content-section">
       <div v-html="informDetail.informContent" class="post-content"></div>
     </div>
-    <div class="button-group">
-      <div>
-        <button @click="goBack">목록</button>
+
+    <div class="footer-section">
+      <div class="left-buttons">
+        <button class="btn btn-secondary" @click="goBack">
+          <span class="btn-text">목록으로</span>
+        </button>
       </div>
-      <div class="d-flex gap-3">
-        <button @click="editNotice">수정</button>
-        <button @click="deleteInform">삭제</button>
+      <div class="right-buttons">
+        <button class="btn btn-primary" @click="editNotice">
+          <span class="btn-text">수정</span>
+        </button>
+        <button class="btn btn-danger" @click="deleteInform">
+          <span class="btn-text">삭제</span>
+        </button>
       </div>
     </div>
   </div>
 </template>
 
-
 <style scoped>
 .notice-detail-container {
-  padding: 20px;
-  border: 1px solid #ccc;
+  max-width: 1200px;
+  margin: 1.5rem auto;
+  padding: 1.5rem;
+  background-color: #ffffff;
   border-radius: 8px;
-  background-color: #fff;
-  max-width: 4000px;
-  margin: auto;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
-.notice-title {
-  margin-bottom: 20px;
-  font-size: 24px;
-  border-bottom: 2px solid #007bff;
-  padding-bottom: 10px;
+.notice-header {
+  margin-bottom: 1.5rem;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+  margin: 0;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #29C458;
 }
 
 .info-section {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
-  margin-bottom: 16px;
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 10px;
-  font-size: 14px;
+  gap: 2rem;
+  margin-top: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.info-label {
+  color: #666;
+  font-weight: 500;
+}
+
+.info-value {
+  color: #333;
 }
 
 .content-section {
-  margin: 20px 0;
+  margin: 2rem 0;
+  min-height: 300px;
+  padding: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #fff;
 }
 
-.notice-image {
+.post-content {
+  line-height: 1.6;
+}
+
+.post-content img {
   max-width: 100%;
   height: auto;
-  margin-bottom: 10px;
+  margin: 1rem 0;
+  border-radius: 4px;
 }
 
-.button-group {
+.footer-section {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f0f0f0;
 }
 
-button {
-  padding: 7px 10px;
+.right-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
   border: none;
-  border-radius: 5px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.btn-primary {
   background-color: #29C458;
   color: white;
-  cursor: pointer;
 }
 
-button:hover {
-  background-color: #0056b3;
+.btn-primary:hover {
+  background-color: #23a94c;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
+  transform: translateY(-1px);
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+  transform: translateY(-1px);
+}
+
+.btn-text {
+  font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+  .notice-detail-container {
+    margin: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  .info-section {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .footer-section {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .left-buttons,
+  .right-buttons {
+    width: 100%;
+    display: flex;
+    gap: 0.75rem;
+  }
+
+  .btn {
+    flex: 1;
+  }
 }
 </style>

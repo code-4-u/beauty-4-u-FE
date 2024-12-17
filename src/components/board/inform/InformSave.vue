@@ -3,220 +3,292 @@ import {ref} from 'vue';
 import {useRouter} from 'vue-router';
 import {postFetch} from "@/stores/apiClient.js";
 import BoardEditor from "@/components/board/inform/BoardEditor.vue";
+import ImageManagement from "@/components/board/ImageManagement.vue";
 
 const router = useRouter();
-
-// 사진 업로드
-const selectedFile = ref(null);
-const uploadStatus = ref('');
-const imageUrls = ref([]);
 const informTitle = ref('');
 const editorContent = ref('<p>기본 내용입니다.</p>');
+const selectedFiles = ref([]);
+const imageUrls = ref([]);
+const boardEditorRef = ref(null);
+const uploadStatus = ref('');
 
-const fileSaveDTO = ref({
-  entityId: null,
-  imageUrls: imageUrls.value,
-  isInform: true
-})
-
-// 커서 위치 표시
-const setCursorPosition = () => {
-  const selection = window.getSelection();
-  if (selection.rangeCount > 0) {
-    const range = selection.getRangeAt(0);
-    range.collapse(false); // 커서를 끝으로 이동
+const insertImageAtCursor = (imageUrl, removeUrl) => {
+  if (boardEditorRef.value) {
+    if (removeUrl) {
+      // 이미지 제거
+      boardEditorRef.value.removeImage(removeUrl);
+    } else if (imageUrl) {
+      // 이미지 추가
+      boardEditorRef.value.insertImage(imageUrl);
+    }
   }
 };
 
-const onFileChange = (event) => {
-  const file = event.target.files[0];
-  console.log(file);
-  if (file && file.type.startsWith('image/')) {
-    selectedFile.value = file; // 이미지 파일을 저장
-    console.log(selectedFile.value)
-    uploadStatus.value = ''; // 상태 초기화
-  } else {
-    uploadStatus.value = 'Please select a valid image file.'; // 오류 메시지
-    selectedFile.value = null; // 파일 초기화
-  }
+// 이미지 관리 핸들러
+const handleUpload = (files) => {
+  uploadStatus.value = '업로드 중';
+  selectedFiles.value = [
+    ...selectedFiles.value,
+    ...files
+  ];
+  uploadStatus.value = '업로드 완료';
 };
 
-const uploadFile = async () => {
-  if (!selectedFile.value) {
-    uploadStatus.value = 'Please select an image file first.';
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append('image', selectedFile.value); // 파일을 FormData에 추가
-
-  for (let [key, value] of formData.entries()) {
-    console.log(`${key}:`, value); // FormData의 각 항목 로그
-  }
-  try {
-    const response = await postFetch('/file/s3/upload', formData);
-
-    const imageUrl = response.data.data; // S3에서 반환된 이미지 URL
-    console.log(imageUrl);
-    imageUrls.value.push(imageUrl);
-    insertImageAtCursor(imageUrl); // 커서 위치에 이미지 삽입
-    uploadStatus.value = 'File uploaded successfully.'; // 성공 메시지
-  } catch (error) {
-    console.error('File upload failed:', error);
-    uploadStatus.value = 'File upload failed.';
-  }
-};
-
-// 커서 위치에 s3 업로드 url 넣기
-const insertImageAtCursor = (imageUrl) => {
-  const img = document.createElement('img'); // img 태그를 추가해서 삽입
-  img.src = imageUrl;
-  img.alt = 'Uploaded Image';
-  img.style.maxWidth = '100%'; // 이미지 크기 조절 (필요 시)
-
-  const selection = window.getSelection();
-  const range = selection.getRangeAt(0);
-  range.insertNode(img); // 커서 위치에 이미지 삽입
-  range.collapse(false); // 커서를 이미지 뒤로 이동
-
-  setCursorPosition(); // 커서 위치를 이미지 뒤로 이동
-};
-
-// DB에 저장하는 함수
-const saveImagesToDB = async () => {
-
-  console.log('saveImagesToDB 실행');
-  try {
-    await postFetch('/file/save', {
-      entityId: fileSaveDTO.value.entityId,
-      imageUrls: imageUrls.value,
-      isInform : true
-    });
-    uploadStatus.value = 'Images saved to database successfully.';
-  } catch (error) {
-    console.error('Failed to save images to database:', error);
-    uploadStatus.value = 'Failed to save images to database.';
+const handleRemove = (fileId) => {
+  const fileToRemove = selectedFiles.value.find(f => f.id === fileId);
+  if (fileToRemove) {
+    // 목록에서 제거
+    selectedFiles.value = selectedFiles.value.filter(f => f.id !== fileId);
   }
 };
 
 // 목록으로 돌아가기
 const goBack = () => {
-  router.push('/board/inform'); // 공지사항 목록으로 이동
+  router.push('/board/inform');
 };
 
+// 게시글 저장
 const fetchSaveInform = async () => {
-
   try {
+    // 1. 모든 이미지가 업로드될 때까지 대기
+    if (uploadStatus.value === '업로드 중') {
+      await new Promise(resolve => {
+        const checkUpload = setInterval(() => {
+          if (uploadStatus.value !== '업로드 중') {
+            clearInterval(checkUpload);
+            resolve();
+          }
+        }, 500);
+      });
+    }
+
+    // 입력값 검증
+    if (!informTitle.value.trim()) {
+      alert('제목을 입력해주세요.');
+      return;
+    }
+
+    // 2. 본문에서 이미지 URL 추출
+    const imageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
+    const content = editorContent.value;
+    const imageMatches = [...content.matchAll(imageRegex)];
+    const imageUrls = imageMatches.map(match => match[1]);
+
+    // 3. 게시글 저장
     const response = await postFetch(`/inform`, {
       informTitle: informTitle.value,
       informContent: editorContent.value
     });
 
-    fileSaveDTO.value.entityId = response.data.data;
-    fileSaveDTO.value.imageUrls = imageUrls.value ? imageUrls.value : null; // imageUrls 확인
-    fileSaveDTO.value.isInform = true;
+    // 4. 저장된 게시글의 ID로 이미지 저장
+    if (imageUrls.length > 0) {
+      await postFetch('/file/save', {
+        entityId: response.data.data,
+        imageUrls: imageUrls,
+        isInform: true
+      });
+    }
 
-    console.log('saveImagesToDB 실행 전');
-
-    await saveImagesToDB();
-
+    // 5. 목록으로 이동
     await router.push({
       path: `/board/inform`
-    })
+    });
   } catch (error) {
     console.error('저장에 실패했습니다.', error);
+    alert('저장에 실패했습니다. 다시 시도해주세요.');
   }
-}
+};
 </script>
 
 <template>
   <div class="notice-detail-container">
-    <div class="notice-title row">
-      <h3 class="col-md-1">제목 :</h3>
-      <input type="text" class="col-md-7 no-border" v-model="informTitle" placeholder="제목을 입력하세요">
-    </div>
-
-    <div class="info-section">
-
-    </div>
-
-    <div>
-      <board-editor v-model="editorContent"/>
-    </div>
-
-    <div class="button-group justify-content-between align-items-center">
-      <div>
-        <button @click="goBack">목록</button>
+    <div class="notice-header">
+      <div class="title-wrapper">
+        <h3 class="title-label">제목</h3>
+        <input
+            type="text"
+            class="title-input"
+            v-model="informTitle"
+            placeholder="제목을 입력하세요"
+        >
       </div>
-      <div class="d-flex gap-3 ml-auto">
-        <input type="file" @change="onFileChange" accept="image/*"/>
-        <button @click="uploadFile">Upload</button>
-        <div v-if="uploadStatus">{{ uploadStatus }}</div>
-        <button @click="fetchSaveInform">작성완료</button>
+    </div>
+
+    <div class="info-section"></div>
+
+    <image-management
+        :selected-files="selectedFiles"
+        :image-urls="imageUrls"
+        @upload="handleUpload"
+        @remove="handleRemove"
+        @insert-to-editor="insertImageAtCursor"
+    />
+
+    <div class="editor-container">
+      <board-editor
+          ref="boardEditorRef"
+          v-model="editorContent"
+      />
+    </div>
+
+    <div class="footer-section">
+      <div class="left-buttons">
+        <button class="btn btn-secondary" @click="goBack">
+          <span class="btn-text">목록으로</span>
+        </button>
+      </div>
+
+      <div class="right-buttons">
+        <button class="btn btn-primary" @click="fetchSaveInform">
+          <span class="btn-text">등록</span>
+        </button>
       </div>
     </div>
   </div>
 </template>
 
-
 <style scoped>
 .notice-detail-container {
-  padding: 20px;
-  border: 1px solid #ccc;
+  max-width: 1200px;
+  margin: 1.5rem auto;
+  padding: 1.5rem;
+  background-color: #ffffff;
   border-radius: 8px;
-  background-color: #fff;
-  max-width: 4000px;
-  margin: auto;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
-.no-border {
-  border: none; /* 테두리 제거 */
-  outline: none; /* 포커스 시 테두리 제거 */
+.editor-container, :deep(.image-management) {
+  width: 100%;
 }
 
-.notice-title {
-  margin-bottom: 20px;
-  font-size: 24px;
-  border-bottom: 2px solid #007bff;
-  padding-bottom: 10px;
+.notice-header {
+  margin-bottom: 1.5rem;
+}
+
+.title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.title-label {
+  min-width: 60px;
+  margin: 0;
+  color: #333;
+  font-weight: 600;
+}
+
+.title-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.title-input:focus {
+  outline: none;
+  border-color: #29C458;
+  box-shadow: 0 0 0 3px rgba(41, 196, 88, 0.1);
+}
+
+.title-input::placeholder {
+  color: #aaa;
 }
 
 .info-section {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  margin-bottom: 16px;
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 10px;
-  font-size: 14px;
+  margin-bottom: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f0f0f0;
 }
 
-.content-section {
-  margin: 20px 0;
-  min-height: 50rem; /* 최소 높이 설정 */
+.editor-container {
+  margin: 1rem 0;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
 }
 
-.notice-image {
-  max-width: 100%;
-  height: auto;
-  margin-bottom: 10px;
-}
-
-.button-group {
+.footer-section {
   display: flex;
   justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f0f0f0;
 }
 
-button {
-  padding: 7px 10px;
+.right-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
   border: none;
-  border-radius: 5px;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.btn-primary {
   background-color: #29C458;
   color: white;
-  cursor: pointer;
 }
 
-button:hover {
-  background-color: #0056b3;
+.btn-primary:hover {
+  background-color: #23a94c;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
+  transform: translateY(-1px);
+}
+
+.btn-text {
+  font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+  .notice-detail-container {
+    margin: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  .title-wrapper {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+  }
+
+  .footer-section {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .right-buttons {
+    width: 100%;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .btn {
+    width: 100%;
+  }
 }
 </style>

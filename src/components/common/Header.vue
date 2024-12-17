@@ -83,9 +83,6 @@ const handleLogoutClick = () => {
   border-radius: 4px;
   transition: all 0.3s ease;
   user-select: none;
-  height: 100%; /* 높이 100% */
-  display: flex;
-  align-items: center; /* 메뉴 아이템 수직 중앙 정렬 */
 }
 
 .menu-item:hover {
