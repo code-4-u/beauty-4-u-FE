@@ -42,11 +42,11 @@ export default [
                 component: QnaSave
             },
             {
-                path: 'qna/:qnaId',
+                path: 'qna/:inquiryId',
                 component: QnaDetail
             },
             {
-                path: 'qna/:qnaId/update',
+                path: 'qna/:inquiryId/update',
                 component: QnaUpdate
             },
             {
