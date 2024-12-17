@@ -10,6 +10,7 @@ import adminRoutes from './admin.js';
 import customerRoutes from './customer.js'
 import goods from "@/router/goods.js";
 import teamspaceRoutes from "./teamspace.js";
+import promotionRoutes from "./promotion.js";
 
 const routes = [
     {
@@ -26,7 +27,8 @@ const routes = [
     ...adminRoutes,
     ...chatRouters,
     ...goods,
-    ...teamspaceRoutes
+    ...teamspaceRoutes,
+    ...promotionRoutes
 ];
 
 const router = createRouter({
