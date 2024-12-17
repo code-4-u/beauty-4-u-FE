@@ -17,4 +17,13 @@ export default defineConfig({
     'global': {},
     'window.global': {}
   },
+  server: {
+    proxy: {
+      '/chat': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+        ws: true,
+      },
+    },
+  },
 })
