@@ -17,9 +17,6 @@ let stompClient = ref(null); // WebSocket 클라이언트를 일반 변수로 �
 
 const route = useRoute(); // 현재 라우트 정보 가져오기
 
-
-
-
 // WebSocket 연결
 const connectWebSocket = () => {
   const socket = new SockJS("http://localhost:8080/chat"); // 절대 경로로 설정
