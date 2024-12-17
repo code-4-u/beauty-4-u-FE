@@ -3,8 +3,7 @@ import { onBeforeUnmount, ref, watch } from 'vue';
 import StarterKit from "@tiptap/starter-kit";
 import { EditorContent, useEditor } from "@tiptap/vue-3";
 import Image from '@tiptap/extension-image';
-import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome";
-import { Heading } from '@tiptap/extension-heading';
+import MenuBar from '../editor/MenuBar.vue'; // MenuBar 컴포넌트 import
 
 const props = defineProps({
   modelValue: {
@@ -15,25 +14,13 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"]);
 
-const selectedHeading = ref('none');
-
 const editor = useEditor({
   content: props.modelValue,
-  extensions: [StarterKit, Image, Heading],
+  extensions: [StarterKit, Image],
   onUpdate: () => {
     emit("update:modelValue", editor.value.getHTML());
   },
 });
-
-const changeHeading = () => {
-  if (!editor.value) return;
-
-  if (selectedHeading.value === 'none') {
-    editor.value.chain().focus().setParagraph().run();
-  } else {
-    editor.value.chain().focus().toggleHeading({ level: Number(selectedHeading.value) }).run();
-  }
-};
 
 watch(() => props.modelValue, (value) => {
   const isSame = editor.value.getHTML() === value;
@@ -58,69 +45,7 @@ onBeforeUnmount(() => {
 
       <div class="editor-body">
         <div v-if="editor" class="editor-toolbar">
-          <!-- 기존 버튼들 -->
-          <div class="button-group">
-            <button
-                @click="editor.chain().focus().toggleBold().run()"
-                :disabled="!editor.can().chain().focus().toggleBold().run()"
-                :class="{ 'is-active': editor.isActive('bold') }"
-            >
-              <font-awesome-icon :icon="['fas', 'bold']" />
-            </button>
-            <button
-                @click="editor.chain().focus().toggleItalic().run()"
-                :disabled="!editor.can().chain().focus().toggleItalic().run()"
-                :class="{ 'is-active': editor.isActive('italic') }"
-            >
-              <font-awesome-icon :icon="['fas', 'italic']" />
-            </button>
-            <button
-                @click="editor.chain().focus().toggleStrike().run()"
-                :disabled="!editor.can().chain().focus().toggleStrike().run()"
-                :class="{ 'is-active': editor.isActive('strike') }"
-            >
-              <font-awesome-icon :icon="['fas', 'strikethrough']" />
-            </button>
-          </div>
-
-          <div class="select-group">
-            <select v-model="selectedHeading" @change="changeHeading" class="heading-select">
-              <option value="1">헤딩 1</option>
-              <option value="2">헤딩 2</option>
-              <option value="3">헤딩 3</option>
-              <option value="none">헤딩 없음</option>
-            </select>
-          </div>
-
-          <div class="button-group">
-            <button
-                @click="editor.chain().focus().toggleHeading({ level: 2 }).run()"
-                :class="{ 'is-active': editor.isActive('heading', { level: 2 }) }"
-            >
-              <i class="fas fa-heading"></i><span class="heading-level">2</span>
-            </button>
-            <button
-                @click="editor.chain().focus().toggleHeading({ level: 3 }).run()"
-                :class="{ 'is-active': editor.isActive('heading', { level: 3 }) }"
-            >
-              <i class="fas fa-heading"></i><span class="heading-level">3</span>
-            </button>
-          </div>
-
-          <div class="button-group">
-            <button
-                @click="editor.chain().focus().undo().run()"
-                :disabled="!editor.can().chain().focus().undo().run()"
-            >
-              <i class="fas fa-undo"></i>
-            </button>
-            <button
-                @click="editor.chain().focus().redo().run()"
-                :disabled="!editor.can().chain().focus().redo().run()"
-            >
-              <i class="fas fa-redo"></i>
-            </button>
-          </div>
+          <menu-bar :editor="editor" />
         </div>
 
         <div class="editor-content">
@@ -170,12 +95,12 @@ onBeforeUnmount(() => {
   align-items: center;
   flex-wrap: wrap;
   gap: 0.5rem;
-  background-color: #f5f5f5;
+  background-color: #f8f9fa;
+  border: 1px solid #e9ecef;
   border-radius: 4px;
   padding: 0.5rem;
   margin-bottom: 1rem;
 }
-
 .button-group {
   display: flex;
   gap: 4px;
