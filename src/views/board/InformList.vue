@@ -17,7 +17,6 @@ const informTitle = ref('');
 const sort = ref('');
 const order = ref('');
 
-
 const fetchInforms = async () => {
 
   // 검색 요청을 위한 데이터 준비
