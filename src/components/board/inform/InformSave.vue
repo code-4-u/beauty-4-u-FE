@@ -11,6 +11,7 @@ const editorContent = ref('<p>기본 내용입니다.</p>');
 const selectedFiles = ref([]);
 const imageUrls = ref([]);
 const boardEditorRef = ref(null);
+const uploadStatus = ref('');
 
 const insertImageAtCursor = (imageUrl, removeUrl) => {
   if (boardEditorRef.value) {
@@ -26,10 +27,12 @@ const insertImageAtCursor = (imageUrl, removeUrl) => {
 
 // 이미지 관리 핸들러
 const handleUpload = (files) => {
+  uploadStatus.value = '업로드 중';
   selectedFiles.value = [
     ...selectedFiles.value,
     ...files
   ];
+  uploadStatus.value = '업로드 완료';
 };
 
 const handleRemove = (fileId) => {
@@ -60,10 +63,16 @@ const fetchSaveInform = async () => {
       });
     }
 
+    // 입력값 검증 추가
+    if (!informTitle.value.trim()) {
+      alert('제목을 입력해주세요.');
+      return;
+    }
+
     // 2. 게시글 저장
     const response = await postFetch(`/inform`, {
       informTitle: informTitle.value,
-      informContent: editorContent.value  // 이미 실제 URL로 교체된 내용
+      informContent: editorContent.value
     });
 
     // 3. 목록으로 이동
@@ -72,6 +81,7 @@ const fetchSaveInform = async () => {
     });
   } catch (error) {
     console.error('저장에 실패했습니다.', error);
+    alert('저장에 실패했습니다. 다시 시도해주세요.');
   }
 };
 </script>
