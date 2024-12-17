@@ -9,6 +9,7 @@ import boards from './board.js';
 import adminRoutes from './admin.js';
 import customerRoutes from './customer.js'
 import goods from "@/router/goods.js";
+import analysis from "@/router/analysis.js"
 
 const routes = [
     {
@@ -24,7 +25,8 @@ const routes = [
     ...boards,
     ...adminRoutes,
     ...chatRouters,
-    ...goods
+    ...goods,
+    ...analysis
 ];
 
 const router = createRouter({
