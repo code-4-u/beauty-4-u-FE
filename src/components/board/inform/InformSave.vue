@@ -63,19 +63,34 @@ const fetchSaveInform = async () => {
       });
     }
 
-    // 입력값 검증 추가
+    // 입력값 검증
     if (!informTitle.value.trim()) {
       alert('제목을 입력해주세요.');
       return;
     }
 
-    // 2. 게시글 저장
+    // 2. 본문에서 이미지 URL 추출
+    const imageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
+    const content = editorContent.value;
+    const imageMatches = [...content.matchAll(imageRegex)];
+    const imageUrls = imageMatches.map(match => match[1]);
+
+    // 3. 게시글 저장
     const response = await postFetch(`/inform`, {
       informTitle: informTitle.value,
       informContent: editorContent.value
     });
 
-    // 3. 목록으로 이동
+    // 4. 저장된 게시글의 ID로 이미지 저장
+    if (imageUrls.length > 0) {
+      await postFetch('/file/save', {
+        entityId: response.data.data,
+        imageUrls: imageUrls,
+        isInform: true
+      });
+    }
+
+    // 5. 목록으로 이동
     await router.push({
       path: `/board/inform`
     });
@@ -141,6 +156,10 @@ const fetchSaveInform = async () => {
   background-color: #ffffff;
   border-radius: 8px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.editor-container, :deep(.image-management) {
+  width: 100%;
 }
 
 .notice-header {

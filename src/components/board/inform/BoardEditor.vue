@@ -86,13 +86,14 @@ onBeforeUnmount(() => {
 <style lang="scss">
 .editor-wrapper {
   padding: 1rem;
+  width: 100%;
 }
 
 .editor-container {
   background: #ffffff;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  max-width: 900px;
+  width: 100%;
   margin: 1rem auto;
 }
 
