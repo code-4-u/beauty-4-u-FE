@@ -2,8 +2,8 @@
 import {onMounted, ref} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
 import {postFetch, putFetch, getFetch} from "@/stores/apiClient.js";
-import BoardEditor from "@/components/board/inform/BoardEditor.vue";
-import ImageManagement from "@/components/board/ImageManagement.vue";
+import BoardEditor from "@/components/board/editor/BoardEditor.vue";
+import ImageManagement from "@/components/board/editor/ImageManagement.vue";
 
 const router = useRouter();
 const route = useRoute();

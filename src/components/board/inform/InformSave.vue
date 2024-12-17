@@ -2,12 +2,12 @@
 import {ref} from 'vue';
 import {useRouter} from 'vue-router';
 import {postFetch} from "@/stores/apiClient.js";
-import BoardEditor from "@/components/board/inform/BoardEditor.vue";
-import ImageManagement from "@/components/board/ImageManagement.vue";
+import BoardEditor from "@/components/board/editor/BoardEditor.vue";
+import ImageManagement from "@/components/board/editor/ImageManagement.vue";
 
 const router = useRouter();
 const informTitle = ref('');
-const editorContent = ref('<p>기본 내용입니다.</p>');
+const editorContent = ref('<p>내용을 입력해주세요.</p>');
 const selectedFiles = ref([]);
 const imageUrls = ref([]);
 const boardEditorRef = ref(null);

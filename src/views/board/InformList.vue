@@ -1,8 +1,8 @@
 <script setup>
-import {computed, onBeforeMount, onMounted, ref} from "vue";
+import {computed, onMounted, ref} from "vue";
 import {getFetch, putFetch} from "@/stores/apiClient.js";
 import {formatDate} from "@/stores/util.js";
-import {onBeforeRouteUpdate, useRouter} from 'vue-router';
+import {useRouter} from 'vue-router';
 
 const router = useRouter();
 
@@ -86,7 +86,7 @@ const removeTag = (key) => {
 };
 
 const updateInformViewcount = async (informId, count) => {
-  const viewCount = count + 1;
+  const viewCount = Number(count) + 1;
   try {
     const response = await putFetch(
         `/inform/${informId}/informViewcount`, {
