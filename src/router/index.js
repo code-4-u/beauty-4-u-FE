@@ -20,7 +20,8 @@ const routes = [
     },
     {
         path: '/login',
-        component: Login
+        component: Login,
+        meta: { hideHeader: true }
     },
     ...userRoutes,
     ...customerRoutes,
