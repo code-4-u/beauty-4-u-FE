@@ -46,7 +46,7 @@ const switchSection = (section) => {
 <style scoped>
 .teamspace {
   display: flex;
-  height: 100vh;
+  min-height: 100vh;
   background-color: #ffffff;
 }
 
