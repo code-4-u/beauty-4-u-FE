@@ -5,8 +5,8 @@ import PromotionHome from "@/views/promotion/PromotionHome.vue";
 export default [
     {
         path: '/promotion',
-        component: PromotionHome,
         children: [
+            {
                 path: '',
                 component: PromotionHome
             },

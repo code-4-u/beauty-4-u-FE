@@ -9,10 +9,9 @@ import boardRoutes from './board.js';
 import adminRoutes from './admin.js';
 import customerRoutes from './customer.js'
 import goodsRoutes from './goods.js';
+import teamspaceRoutes from './teamspace.js';
 import analysisRoutes from './analysis.js';
-import goods from "@/router/goods.js";
-import teamspaceRoutes from "./teamspace.js";
-import promotionRoutes from "./promotion.js";
+import promotionRoutes from './promotion.js'
 
 const routes = [
     {
@@ -32,9 +31,6 @@ const routes = [
     ...teamspaceRoutes,
     ...goodsRoutes,
     ...analysisRoutes,
-    ...chatRouters,
-    ...goods,
-    ...teamspaceRoutes,
     ...promotionRoutes
 ];
 
