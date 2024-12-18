@@ -6,7 +6,8 @@ import {
     faArrowRotateRight,
     faBold,
     faItalic,
-    faStrikethrough
+    faStrikethrough,
+    faBell
 } from '@fortawesome/free-solid-svg-icons';
 
 import {
@@ -21,7 +22,8 @@ const icons = [
     faArrowRotateRight,
     faBold,
     faItalic,
-    faStrikethrough
+    faStrikethrough,
+    faBell
 ];
 
 icons.forEach(icon => library.add(icon))
