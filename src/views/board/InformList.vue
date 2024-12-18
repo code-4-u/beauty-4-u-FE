@@ -229,7 +229,7 @@ onMounted(() => {
 <style scoped>
 .container-wrapper {
   padding: 24px;
-  background-color: #f5f5f5;
+  background-color: var(--background-color);
   min-height: 100vh;
 }
 
