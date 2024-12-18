@@ -1,14 +1,18 @@
 <script setup>
-import {RouterView} from "vue-router";
+import {RouterView, useRoute} from "vue-router";
 import '@/assets/css/resetcss.css';
 import Header from "@/components/common/Header.vue";
 import Footer from "@/components/common/Footer.vue";
+import {computed} from 'vue';
+
+const route = useRoute();
+const showHeader = computed(() => !route.meta.hideHeader);
 </script>
 
 <template>
   <div class="container-fluid">
-    <Header/>
-    <main class="main-content">
+    <Header v-if="showHeader"/>
+    <main class="main-content" :class="{ 'no-header': !showHeader }">
       <router-view/>
     </main>
     <Footer/>
@@ -40,6 +44,10 @@ import Footer from "@/components/common/Footer.vue";
   max-width: 1300px;
   margin: 60px auto 0;
   padding: 1rem 1rem 80px;
+}
+
+.main-content.no-header {
+  margin-top: 0;
 }
 
 :deep(footer) {

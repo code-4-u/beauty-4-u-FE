@@ -108,115 +108,134 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="qna-section">
-    <div class="header">
-      <h2>Q&A</h2>
-      <button class="add-button" @click="goToQnaSave">
-        + 질문 등록
-      </button>
-    </div>
+  <div class="container-wrapper">
+    <div class="content-container">
+      <div class="qna-section">
+        <div class="header">
+          <h2>Q&A</h2>
+          <button class="add-button" @click="goToQnaSave">
+            + 질문 등록
+          </button>
+        </div>
 
-    <div class="search-area">
-      <input
-          type="text"
-          placeholder="질문 제목 입력"
-          v-model="qnaTitle"
-          @input="fetchQnas"
-      />
-      <div class="button-group">
-        <button class="search-btn" @click="fetchQnas" @keyup.enter="fetchQnas">검색</button>
+        <div class="search-area">
+          <input
+              type="text"
+              placeholder="질문 제목 입력"
+              v-model="qnaTitle"
+              @input="fetchQnas"
+          />
+          <div class="button-group">
+            <button class="search-btn" @click="fetchQnas" @keyup.enter="fetchQnas">검색</button>
 
-        <label>
-          시작 날짜
-          <input type="date" v-model="startDate" @click="fetchQnas"/>
-        </label>
+            <label>
+              시작 날짜
+              <input type="date" v-model="startDate" @click="fetchQnas"/>
+            </label>
 
-        <label>
-          종료 날짜
-          <input type="date" v-model="endDate" @click="fetchQnas"/>
-        </label>
+            <label>
+              종료 날짜
+              <input type="date" v-model="endDate" @click="fetchQnas"/>
+            </label>
 
-        <select v-model="sort" class="sort-select" @change="fetchQnas">
-          <option value="" selected>정렬 기준</option>
-          <option value="title">제목명</option>
-          <option value="view">조회수</option>
-          <option value="date">등록일</option>
-        </select>
+            <select v-model="sort" class="sort-select" @change="fetchQnas">
+              <option value="" selected>정렬 기준</option>
+              <option value="title">제목명</option>
+              <option value="view">조회수</option>
+              <option value="date">등록일</option>
+            </select>
 
-        <select v-model="order" class="order-select" @change="fetchQnas">
-          <option value="" selected>정렬 방향</option>
-          <option value="asc">오름차순</option>
-          <option value="desc">내림차순</option>
-        </select>
-      </div>
-    </div>
+            <select v-model="order" class="order-select" @change="fetchQnas">
+              <option value="" selected>정렬 방향</option>
+              <option value="asc">오름차순</option>
+              <option value="desc">내림차순</option>
+            </select>
+          </div>
+        </div>
 
-    <div class="tag-area">
+        <div class="tag-area">
       <span v-if="startDate" class="tag">
         시작 기간: {{ startDate }}
         <i class="icon-close" @click="removeTag('startDate')">✕</i>
       </span>
 
-      <span v-if="endDate" class="tag">
+          <span v-if="endDate" class="tag">
         종료 기간: {{ endDate }}
         <i class="icon-close" @click="removeTag('endDate')">✕</i>
       </span>
-    </div>
-  </div>
+        </div>
+      </div>
 
-  <div class="customer-table">
-    <table class="table table-striped">
-      <thead>
-      <tr class="table-header">
-        <th>등록일</th>
-        <th>질문</th>
-        <th>작성자</th>
-        <th>상태</th>
-        <th>조회수</th>
-      </tr>
-      </thead>
-      <tbody>
-      <tr
-          v-for="qna in qnas"
-          :key="qna.inquiryId"
-          class="table-row"
-          @click="goToQnaDetail(qna.inquiryId, qna.inquiryViewcount)"
-      >
-        <td>
-          <div>{{ formatDate(qna.createdDate) }}</div>
-        </td>
-        <td>
-          <div>{{ qna.inquiryTitle }}</div>
-        </td>
-        <td>
-          <div>{{ qna.userName }}</div>
-        </td>
-        <td>
-          <div :class="['status-badge', qna.inquiryReplyYn === 'Y' ? 'answered' : 'waiting']">
-            {{ qna.inquiryReplyYn === 'Y' ? '답변완료' : '답변대기' }}
-          </div>
-        </td>
-        <td>
-          <div>{{ qna.inquiryViewcount }}</div>
-        </td>
-      </tr>
-      </tbody>
-    </table>
+      <div class="customer-table">
+        <table class="table table-striped">
+          <thead>
+          <tr class="table-header">
+            <th>등록일</th>
+            <th>질문</th>
+            <th>작성자</th>
+            <th>상태</th>
+            <th>조회수</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr
+              v-for="qna in qnas"
+              :key="qna.inquiryId"
+              class="table-row"
+              @click="goToQnaDetail(qna.inquiryId, qna.inquiryViewcount)"
+          >
+            <td>
+              <div>{{ formatDate(qna.createdDate) }}</div>
+            </td>
+            <td>
+              <div>{{ qna.inquiryTitle }}</div>
+            </td>
+            <td>
+              <div>{{ qna.userName }}</div>
+            </td>
+            <td>
+              <div :class="['status-badge', qna.inquiryReplyYn === 'Y' ? 'answered' : 'waiting']">
+                {{ qna.inquiryReplyYn === 'Y' ? '답변완료' : '답변대기' }}
+              </div>
+            </td>
+            <td>
+              <div>{{ qna.inquiryViewcount }}</div>
+            </td>
+          </tr>
+          </tbody>
+        </table>
 
-    <div class="pagination justify-content-center">
-      <button class="btn btn-light" @click="prevPage" :disabled="currentPage === 1">이전</button>
-      <span v-for="page in visiblePages" :key="page">
+        <div class="pagination justify-content-center">
+          <button class="btn btn-light" @click="prevPage" :disabled="currentPage === 1">이전</button>
+          <span v-for="page in visiblePages" :key="page">
         <button
             class="btn" :class="{ active: page === currentPage }"
             @click="changePage(page)"
         >{{ page }}</button>
       </span>
-      <button class="btn btn-light" @click="nextPage" :disabled="currentPage === totalPages">다음</button>
+          <button class="btn btn-light" @click="nextPage" :disabled="currentPage === totalPages">다음</button>
+        </div>
+      </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+.container-wrapper {
+  padding: 24px;
+  background-color: var(--background-color);
+  min-height: 100vh;
+}
+
+.content-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+}
+
 .stat-value strong {
   font-size: 24px;
   font-weight: 600;
