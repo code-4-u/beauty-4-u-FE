@@ -9,6 +9,7 @@ import {getFetch, postFetch, putFetch, delFetch} from "@/stores/apiClient.js";
 // State
 const events = ref([]);
 const isModalOpen = ref(false);
+const selectedMonth = ref(new Date().getMonth() + 1);
 const eventForm = reactive({
   id: '',
   title: '',
@@ -36,6 +37,20 @@ const filteredEvents = computed(() => {
     if (event.type === 'TEAMSPACE' && !selectedTypes.teamspace) return false;
     if (event.type === 'PROMOTION' && !selectedTypes.promotion) return false;
     return true;
+  });
+});
+
+const filteredTeamEvents = computed(() => {
+  return teamEvents.value.filter(event => {
+    const eventDate = new Date(event.start);
+    return eventDate.getMonth() + 1 === selectedMonth.value;
+  });
+});
+
+const filteredPromotionEvents = computed(() => {
+  return promotionEvents.value.filter(event => {
+    const eventDate = new Date(event.start);
+    return eventDate.getMonth() + 1 === selectedMonth.value;
   });
 });
 
@@ -342,12 +357,12 @@ onMounted(() => {
             <h3 class="card-title">일정 캘린더</h3>
             <div class="filter-group">
               <label class="filter-label">
-                <input type="checkbox" v-model="selectedTypes.teamspace">
-                <span class="filter-text">팀 일정</span>
-              </label>
-              <label class="filter-label">
                 <input type="checkbox" v-model="selectedTypes.promotion">
                 <span class="filter-text">프로모션</span>
+              </label>
+              <label class="filter-label">
+                <input type="checkbox" v-model="selectedTypes.teamspace">
+                <span class="filter-text">팀 일정</span>
               </label>
             </div>
           </div>
@@ -358,36 +373,48 @@ onMounted(() => {
 
         <!-- 일정 카드들 -->
         <div class="events-column">
-          <!-- 팀 일정 카드 -->
           <div class="event-card">
-            <h3 class="card-title">팀 일정</h3>
+            <div class="card-header">
+              <h3 class="card-title">프로모션</h3>
+              <select v-model="selectedMonth" class="month-select">
+                <option v-for="month in 12" :key="month" :value="month">
+                  {{ month }}월
+                </option>
+              </select>
+            </div>
             <div class="event-list">
-              <div v-for="event in teamEvents" :key="event.id" class="event-item">
+              <div v-for="event in filteredPromotionEvents" :key="event.id" class="event-item">
                 <div class="event-content">
                   <h4 class="event-item-title">{{ event.title }}</h4>
                   <p class="event-date">{{ formatDate(new Date(event.start)) }}</p>
                   <p v-if="event.content" class="event-desc">{{ event.content }}</p>
                 </div>
               </div>
-              <div v-if="!teamEvents.length" class="no-events">
-                팀 일정이 없습니다
+              <div v-if="!filteredPromotionEvents.length" class="no-events">
+                선택한 월의 프로모션 일정이 없습니다
               </div>
             </div>
           </div>
 
-          <!-- 프로모션 카드 -->
           <div class="event-card">
-            <h3 class="card-title">프로모션</h3>
+            <div class="card-header">
+              <h3 class="card-title">팀 일정</h3>
+              <select v-model="selectedMonth" class="month-select">
+                <option v-for="month in 12" :key="month" :value="month">
+                  {{ month }}월
+                </option>
+              </select>
+            </div>
             <div class="event-list">
-              <div v-for="event in promotionEvents" :key="event.id" class="event-item">
+              <div v-for="event in filteredTeamEvents" :key="event.id" class="event-item">
                 <div class="event-content">
                   <h4 class="event-item-title">{{ event.title }}</h4>
                   <p class="event-date">{{ formatDate(new Date(event.start)) }}</p>
                   <p v-if="event.content" class="event-desc">{{ event.content }}</p>
                 </div>
               </div>
-              <div v-if="!promotionEvents.length" class="no-events">
-                프로모션 일정이 없습니다
+              <div v-if="!filteredTeamEvents.length" class="no-events">
+                선택한 월의 팀 일정이 없습니다
               </div>
             </div>
           </div>
@@ -615,18 +642,150 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   z-index: 50;
+  padding: 1rem;
 }
 
 .modal-content {
   background: white;
-  border-radius: 1rem;
-  padding: 2rem;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
   width: 90%;
-  max-width: 500px;
+  max-width: 400px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  transform: translateY(0);
+  animation: modal-slide-up 0.3s ease-out;
 }
 
-/* calendar-card 내부에 추가 */
+.modal-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.form-group {
+  margin-bottom: 0;
+}
+
+.form-group label {
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: #4b5563;
+  margin-bottom: 0.5rem;
+}
+
+.form-group input[type="text"],
+.form-group textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+  background: #f9fafb;
+}
+
+.form-group textarea {
+  min-height: 80px;
+  resize: vertical;
+}
+
+.form-group input[type="text"]:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  background: white;
+}
+
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.datetime-inputs {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 0.5rem;
+}
+
+.datetime-inputs input {
+  padding: 0.6rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  background: #f9fafb;
+  transition: all 0.2s ease;
+}
+
+.datetime-inputs input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  background: white;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.btn {
+  padding: 0.6rem 1.25rem;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.btn-primary {
+  background: #3b82f6;
+  color: white;
+  border: none;
+}
+
+.btn-primary:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.btn-danger {
+  background: #ef4444;
+  color: white;
+  border: none;
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: white;
+  color: #4b5563;
+  border: 1px solid #e5e7eb;
+}
+
+.btn-secondary:hover {
+  background: #f9fafb;
+  border-color: #d1d5db;
+  transform: translateY(-1px);
+}
+
 .calendar-wrapper :deep(.fc) {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
@@ -643,13 +802,27 @@ onMounted(() => {
   color: #4b5563 !important;
   font-weight: 500;
   text-transform: none !important;
-  padding: 0.5rem 1rem !important;
+  padding: 0.6rem 1rem !important;
+  border-radius: 0.5rem !important;
   transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  line-height: 1 !important;
+  height: 36px !important;
+}
+
+.calendar-wrapper :deep(.fc-button-primary span) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
 }
 
 .calendar-wrapper :deep(.fc-button:hover) {
   background: #f1f5f9 !important;
   border-color: #d1d5db !important;
+  transform: translateY(-1px);
 }
 
 .calendar-wrapper :deep(.fc-button-active) {
@@ -658,37 +831,108 @@ onMounted(() => {
   box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06) !important;
 }
 
-.calendar-wrapper :deep(.fc-day-today) {
-  background-color: #f8fafc !important;
+/* 캘린더 헤더 스타일 */
+.calendar-wrapper :deep(.fc-toolbar) {
+  margin-bottom: 1.5rem !important;
 }
 
+/* 캘린더 그리드 스타일 */
+.calendar-wrapper :deep(.fc-theme-standard td, .fc-theme-standard th) {
+  border-color: #e5e7eb !important;
+}
+
+.calendar-wrapper :deep(.fc-day-today) {
+  background-color: #f0f9ff !important;  /* 연한 파란색 배경 */
+}
+
+.calendar-wrapper :deep(.fc-col-header-cell) {
+  padding: 8px 0 !important;
+  background: #f8fafc;
+  font-weight: 600;
+}
+
+/* 이벤트 스타일 */
 .calendar-wrapper :deep(.calendar-event) {
-  margin: 1px 0;
-  padding: 2px 4px;
-  border-radius: 4px;
+  margin: 1px 2px !important;
+  padding: 4px 6px !important;
+  border-radius: 6px !important;
   border: none !important;
-  font-size: 0.875rem;
+  font-size: 0.875rem !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .calendar-wrapper :deep(.team-event) {
-  background-color: #3b82f6 !important;
+  background-color: #60a5fa !important;  /* 더 부드러운 파란색 */
   color: white !important;
 }
 
 .calendar-wrapper :deep(.promotion-event) {
-  background-color: #f43f5e !important;
+  background-color: #f472b6 !important;  /* 더 부드러운 분홍색 */
   color: white !important;
 }
 
-.calendar-wrapper :deep(.fc-day) {
+/* 날짜 셀 스타일 */
+.calendar-wrapper :deep(.fc-daygrid-day) {
   transition: background-color 0.2s ease;
 }
 
-.calendar-wrapper :deep(.fc-day:hover) {
+.calendar-wrapper :deep(.fc-daygrid-day:hover) {
   background-color: #f8fafc;
 }
 
+.calendar-wrapper :deep(.fc-daygrid-day-number) {
+  font-size: 0.9rem;
+  padding: 8px !important;
+  color: #4b5563;
+}
+
+/* 더보기 버튼 스타일 */
+.calendar-wrapper :deep(.fc-more-link) {
+  background: #f3f4f6;
+  padding: 2px 4px;
+  border-radius: 4px;
+  font-size: 0.75rem !important;
+  color: #6b7280 !important;
+}
+
+/* 주말 색상 */
+.calendar-wrapper :deep(.fc-day-sun) {
+  color: #ef4444;  /* 일요일 빨간색 */
+}
+
+.calendar-wrapper :deep(.fc-day-sat) {
+  color: #3b82f6;  /* 토요일 파란색 */
+}
+
+@keyframes modal-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @media (max-width: 640px) {
+  .modal-content {
+    padding: 1.5rem;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .modal-actions {
+    flex-direction: column-reverse;
+  }
+
+  .btn {
+    width: 100%;
+    text-align: center;
+  }
+
   .calendar-wrapper :deep(.fc-toolbar) {
     flex-direction: column;
     gap: 1rem;
