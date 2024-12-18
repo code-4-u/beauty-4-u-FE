@@ -1,22 +1,28 @@
-import Review from "@/views/goods/Review.vue";
 import GoodsHome from "@/views/goods/GoodsHome.vue";
+import GoodsAnalysis from "@/views/goods/GoodsAnalysis.vue";
 import GoodsList from "@/views/goods/GoodsList.vue";
+import Review from "@/views/goods/Review.vue";
 
 export default [
     {
         path: '/goods',
-        component: GoodsHome,
         children: [
             {
-                path: 'search',
-                name: GoodsList,
-                component: () => import('@/views/goods/GoodsList.vue')
+                path: '',
+                component: GoodsHome
             },
             {
-                path: 'review/list',
-                name: 'Review',
-                component: () => import('@/views/goods/Review.vue')
-            }
+                path: 'analysis',
+                component: GoodsAnalysis
+            },
+            {
+                path: 'search',
+                component: GoodsList
+            },
+            {
+                path: 'review',
+                component: Review
+            },
         ]
     }
 ];
