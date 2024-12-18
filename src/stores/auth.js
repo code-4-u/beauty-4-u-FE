@@ -6,6 +6,18 @@ export const useAuthStore = defineStore('auth', () => {
     const refreshToken = ref(null);
     const userRole = ref(null);
     const userCode = ref(null);
+    const jobName = ref(null);
+    const deptName = ref(null);
+    const userName = ref(null);
+
+    function setUserInfo(aToken) {
+        const payload = decodeJwtPayload(aToken);
+        userRole.value = payload.auth[0].authority.slice(5);
+        userCode.value = payload.sub;
+        jobName.value = payload.jobName;
+        deptName.value = payload.deptName;
+        userName.value = payload.userName;
+    }
 
     onMounted(() => {
         const aToken = localStorage.getItem('accessToken');
@@ -15,9 +27,7 @@ export const useAuthStore = defineStore('auth', () => {
         if (aToken) {
             accessToken.value = aToken;
             refreshToken.value = rToken;
-            const payload = JSON.parse(atob(aToken.split('.')[1]));
-            userRole.value = payload.auth[0].authority.slice(5);
-            userCode.value = payload.sub;
+            setUserInfo(aToken);
         }
     });
 
@@ -26,9 +36,7 @@ export const useAuthStore = defineStore('auth', () => {
         refreshToken.value = rToken;
         localStorage.setItem('accessToken', aToken);
         localStorage.setItem('refreshToken', rToken);
-        const payload = JSON.parse(atob(aToken.split('.')[1]));
-        userRole.value = payload.auth[0].authority.slice(5);
-        userCode.value = payload.sub;
+        setUserInfo(aToken);
     }
 
     function logout() {
@@ -55,6 +63,18 @@ export const useAuthStore = defineStore('auth', () => {
         refreshToken.value = rToken;
         localStorage.removeItem('refreshToken');
         localStorage.setItem('refreshToken', rToken);
+    }
+
+    function decodeJwtPayload(token) {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(
+            atob(base64)
+                .split('')
+                .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+                .join('')
+        );
+        return JSON.parse(jsonPayload);
     }
 
     return { accessToken, refreshToken, userRole, userCode, login, logout, isAuthorized, setAccessToken, setRefreshToken };
