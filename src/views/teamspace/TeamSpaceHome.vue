@@ -1,83 +1,87 @@
 <script setup>
-import TeamSpaceNav from "@/components/common/TeamSpaceNav.vue";
+import { useRouter } from 'vue-router'
+import { computed } from 'vue'
+
+const router = useRouter()
+
+// 현재 활성화된 섹션 계산
+const activeSection = computed(() => {
+  const path = router.currentRoute.value.path
+  if (path.includes('/chat')) return 'chat'
+  if (path.includes('/board')) return 'board'
+  return 'chat' // 기본값
+})
+
+// 섹션 전환 함수
+const switchSection = (section) => {
+  router.push(`/teamspace/${section}`)
+}
 </script>
 
 <template>
-  <div>
-    <div class="row">
-      <div class="col-md-2 sidebar">
-        <team-space-nav/>
+  <div class="teamspace">
+    <div class="sidebar">
+      <div class="section-buttons">
+        <button
+            :class="{ active: activeSection === 'chat' }"
+            @click="switchSection('chat')"
+        >
+          팀 채팅
+        </button>
+        <button
+            :class="{ active: activeSection === 'board' }"
+            @click="switchSection('board')"
+        >
+          팀 게시판
+        </button>
       </div>
-      <div class="col-md-9 pl-1 main-content">
-        <div class="content-wrapper">
-          <router-view/>
-        </div>
-      </div>
+    </div>
+
+    <div class="main-content">
+      <router-view />
     </div>
   </div>
 </template>
 
 <style scoped>
-.row {
-  margin: 0;
-  width: 100%;
+.teamspace {
   display: flex;
+  min-height: 100vh;
+  background-color: #ffffff;
 }
 
 .sidebar {
-  height: 100vh;
-  border-right: 1px solid #dee2e6;
-  overflow-y: auto;
-  position: fixed;
-  left: 0;
-  background-color: #fff;
+  width: 200px;
+  background-color: var(--background-color);
+  padding: 1rem;
+  border-right: 1px solid #e0e0e0;
 }
 
 .main-content {
   flex: 1;
-  min-height: 100vh;
-  overflow-y: auto;
-  margin-left: 350px;
-  padding-left: 2px;
   display: flex;
+  flex-direction: column;
 }
 
-.content-wrapper {
-  background-color: #fff;
-  padding: 2rem;
-  width: 100%;
-  max-width: 4000px;
-  margin: 1%;
+.section-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-@media (max-width: 768px) {
-  .row {
-    flex-direction: column;
-  }
+.section-buttons button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  background-color: #ffffff;
+  color: #333333;
+  cursor: pointer;
+  transition: all 0.2s;
+}
 
-  .sidebar {
-    position: relative;
-    width: 100%;
-    max-width: 100%;
-    height: auto;
-    min-height: auto;
-    border-right: none;
-    border-bottom: 1px solid #dee2e6;
-  }
-
-  .main-content {
-    position: relative;
-    margin-left: 0;
-    width: 100%;
-    height: auto;
-    min-height: 50vh;
-    margin-top: 1rem;
-    padding-top: 60px;
-  }
-
-  .content-wrapper {
-    margin: 1rem;
-    padding: 1rem;
-  }
+.section-buttons button.active {
+  background-color: #4a90e2;
+  color: #ffffff;
+  border-color: #4a90e2;
 }
 </style>
