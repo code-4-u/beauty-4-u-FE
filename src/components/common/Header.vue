@@ -1,11 +1,11 @@
 <script setup>
 import {useAuthStore} from "@/stores/auth.js";
 import {FontAwesomeIcon} from '@fortawesome/vue-fontawesome';
-import {ref} from "vue";
+import {computed, ref} from "vue";
 import userProfile from '@/assets/icons/profile.svg';
 
 const authStore = useAuthStore();
-
+const isAdmin = computed(() => authStore.isAuthorized('ADMIN'));
 const headerItems = ref([]);
 
 headerItems.value = [
@@ -59,6 +59,13 @@ const handleLogoutClick = () => {
       <router-link to="/mypage" class="user-info">
         <img :src="userProfile" alt="프로필" class="profile-image"/>
         <span class="user-name">{{ authStore.userName }} 님</span>
+      </router-link>
+      <router-link
+          v-if="isAdmin"
+          to="/admin"
+          class="admin-link"
+      >
+        <font-awesome-icon :icon="['fas', 'cog']"/>
       </router-link>
       <div class="notification">
         <font-awesome-icon :icon="['fas', 'bell']"/>
@@ -242,6 +249,22 @@ const handleLogoutClick = () => {
 .submenu-item:hover {
   background-color: rgba(46, 125, 50, 0.1);
   color: var(--menu-green);
+}
+
+.admin-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  padding: 0.5rem;
+  border-radius: 4px;
+}
+
+.admin-link:hover {
+  color: var(--menu-green);
+  background-color: rgba(46, 125, 50, 0.1);
 }
 
 @media (max-width: 768px) {

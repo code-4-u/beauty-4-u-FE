@@ -7,7 +7,8 @@ import {
     faBold,
     faItalic,
     faStrikethrough,
-    faBell
+    faBell,
+    faCog
 } from '@fortawesome/free-solid-svg-icons';
 
 import {
@@ -23,7 +24,8 @@ const icons = [
     faBold,
     faItalic,
     faStrikethrough,
-    faBell
+    faBell,
+    faCog
 ];
 
 icons.forEach(icon => library.add(icon))
