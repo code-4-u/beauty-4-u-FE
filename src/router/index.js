@@ -1,4 +1,5 @@
 import {createRouter, createWebHistory} from "vue-router";
+import {useAuthStore} from "@/stores/auth.js";
 
 import Home from "@/views/Home.vue";
 import Login from "@/views/user/Login.vue";
@@ -7,10 +8,10 @@ import userRoutes from './user.js';
 import boardRoutes from './board.js';
 import adminRoutes from './admin.js';
 import customerRoutes from './customer.js'
-import goodsRoutes from "@/router/goods.js";
-import teamspaceRoutes from "./teamspace.js";
-import analysisRoutes from "@/router/analysis.js"
-import {useAuthStore} from "@/stores/auth.js";
+import goodsRoutes from './goods.js';
+import teamspaceRoutes from './teamspace.js';
+import analysisRoutes from './analysis.js';
+import promotionRoutes from './promotion.js'
 
 const routes = [
     {
@@ -29,7 +30,8 @@ const routes = [
     ...adminRoutes,
     ...teamspaceRoutes,
     ...goodsRoutes,
-    ...analysisRoutes
+    ...analysisRoutes,
+    ...promotionRoutes
 ];
 
 const router = createRouter({
