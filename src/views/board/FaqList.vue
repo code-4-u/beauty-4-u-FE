@@ -113,83 +113,102 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="faq-section">
-    <div class="header">
-      <h2>FAQ</h2>
-      <button class="add-button" @click="goToFaqSave">
-        + FAQ 등록
-      </button>
-    </div>
+  <div class="container-wrapper">
+    <div class="content-container">
+      <div class="faq-section">
+        <div class="header">
+          <h2>FAQ</h2>
+          <button class="add-button" @click="goToFaqSave">
+            + FAQ 등록
+          </button>
+        </div>
 
-    <div class="search-area">
-      <input
-          type="text"
-          v-model="searchQuery"
-          placeholder="FAQ 제목 입력"
-          @keyup.enter="handleSearch"
-      />
-      <div class="button-group">
-        <button class="search-btn" @click="handleSearch">검색</button>
+        <div class="search-area">
+          <input
+              type="text"
+              v-model="searchQuery"
+              placeholder="FAQ 제목 입력"
+              @keyup.enter="handleSearch"
+          />
+          <div class="button-group">
+            <button class="search-btn" @click="handleSearch">검색</button>
 
-        <select v-model="sort" class="sort-select" @change="handleSearch">
-          <option value="" selected>정렬 기준</option>
-          <option value="title">제목명</option>
-          <option value="view">조회수</option>
-        </select>
+            <select v-model="sort" class="sort-select" @change="handleSearch">
+              <option value="" selected>정렬 기준</option>
+              <option value="title">제목명</option>
+              <option value="view">조회수</option>
+            </select>
 
-        <select v-model="order" class="order-select" @change="handleSearch">
-          <option value="" selected>정렬 방향</option>
-          <option value="asc">오름차순</option>
-          <option value="desc">내림차순</option>
-        </select>
-      </div>
-    </div>
+            <select v-model="order" class="order-select" @change="handleSearch">
+              <option value="" selected>정렬 방향</option>
+              <option value="asc">오름차순</option>
+              <option value="desc">내림차순</option>
+            </select>
+          </div>
+        </div>
 
-    <div class="customer-table">
-      <table class="table table-striped">
-        <thead>
-        <tr class="table-header">
-          <th>번호</th>
-          <th>제목</th>
-          <th>조회수</th>
-        </tr>
-        </thead>
-        <tbody>
-        <tr
-            v-for="(faq, index) in faqs"
-            :key="faq.faqId"
-            class="table-row"
-            @click="goToFaqDetail(faq.faqId, faq.faqViewcount)"
-        >
-          <td>
-            <div>{{ (currentPage - 1) * itemsPerPage + index + 1 }}</div>
-          </td>
-          <td>
-            <div>{{ faq.faqTitle }}</div>
-          </td>
-          <td>
-            <div>{{ faq.faqViewcount }}</div>
-          </td>
-        </tr>
-        </tbody>
-      </table>
+        <div class="customer-table">
+          <table class="table table-striped">
+            <thead>
+            <tr class="table-header">
+              <th>번호</th>
+              <th>제목</th>
+              <th>조회수</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr
+                v-for="(faq, index) in faqs"
+                :key="faq.faqId"
+                class="table-row"
+                @click="goToFaqDetail(faq.faqId, faq.faqViewcount)"
+            >
+              <td>
+                <div>{{ (currentPage - 1) * itemsPerPage + index + 1 }}</div>
+              </td>
+              <td>
+                <div>{{ faq.faqTitle }}</div>
+              </td>
+              <td>
+                <div>{{ faq.faqViewcount }}</div>
+              </td>
+            </tr>
+            </tbody>
+          </table>
 
-      <div class="pagination justify-content-center">
-        <button class="btn btn-light" @click="prevPage" :disabled="currentPage === 1">이전</button>
-        <span v-for="page in visiblePages" :key="page">
-          <button
-              class="btn"
-              :class="{ active: page === currentPage }"
-              @click="changePage(page)"
-          >{{ page }}</button>
-        </span>
-        <button class="btn btn-light" @click="nextPage" :disabled="currentPage === totalPages">다음</button>
+          <div class="pagination justify-content-center">
+            <button class="btn btn-light" @click="prevPage" :disabled="currentPage === 1">이전</button>
+            <span v-for="page in visiblePages" :key="page">
+              <button
+                  class="btn"
+                  :class="{ active: page === currentPage }"
+                  @click="changePage(page)"
+              >{{ page }}</button>
+            </span>
+            <button class="btn btn-light" @click="nextPage" :disabled="currentPage === totalPages">다음</button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+.container-wrapper {
+  padding: 24px;
+  background-color: #f5f5f5;
+  min-height: 100vh;
+}
+
+.content-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+}
+
 .faq-section {
   margin-bottom: 24px;
 }

@@ -119,111 +119,129 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="inform-section">
+  <div class="container-wrapper">
+    <div class="content-container">
+      <div class="inform-section">
+        <div class="header">
+          <h2>공지사항</h2>
+          <button class="add-button" @click="goToInformSave">
+            + 공지사항 등록
+          </button>
+        </div>
 
-    <div class="header">
-      <h2>공지사항</h2>
-      <button class="add-button" @click="goToInformSave">
-        + 공지사항 등록
-      </button>
-    </div>
+        <div class="search-area">
+          <input
+              type="text"
+              placeholder="공지사항 제목 입력"
+              v-model="informTitle"
+              @input="fetchInforms"
+          />
+          <div class="button-group">
+            <button class="search-btn" @click="fetchInforms" @keyup.enter="fetchInforms">검색</button>
 
-    <div class="search-area">
-      <input
-          type="text"
-          placeholder="공지사항 제목 입력"
-          v-model="informTitle"
-          @input="fetchInforms"
-      />
-      <div class="button-group">
-        <button class="search-btn" @click="fetchInforms" @keyup.enter="fetchInforms">검색</button>
+            <label>
+              시작 날짜
+              <input type="date" v-model="startDate" @click="fetchInforms"/>
+            </label>
 
-        <label>
-          시작 날짜
-          <input type="date" v-model="startDate" @click="fetchInforms"/>
-        </label>
+            <label>
+              종료 날짜
+              <input type="date" v-model="endDate" @click="fetchInforms"/>
+            </label>
 
-        <label>
-          종료 날짜
-          <input type="date" v-model="endDate" @click="fetchInforms"/>
-        </label>
+            <select v-model="sort" class="sort-select" @change="fetchInforms">
+              <option value="" selected>정렬 기준</option>
+              <option value="title">제목명</option>
+              <option value="view">조회수</option>
+              <option value="date">등록일</option>
+            </select>
 
-        <select v-model="sort" class="sort-select" @change="fetchInforms">
-          <option value="" selected>정렬 기준</option>
-          <option value="title">제목명</option>
-          <option value="view">조회수</option>
-          <option value="date">등록일</option>
-        </select>
+            <select v-model="order" class="order-select" @change="fetchInforms">
+              <option value="" selected>정렬 방향</option>
+              <option value="asc">오름차순</option>
+              <option value="desc">내림차순</option>
+            </select>
+          </div>
+        </div>
 
-        <select v-model="order" class="order-select" @change="fetchInforms">
-          <option value="" selected>정렬 방향</option>
-          <option value="asc">오름차순</option>
-          <option value="desc">내림차순</option>
-        </select>
+        <div class="tag-area">
+          <span v-if="startDate" class="tag">
+            시작 기간: {{ startDate }}
+            <i class="icon-close" @click="removeTag('startDate')">✕</i>
+          </span>
+
+          <span v-if="endDate" class="tag">
+            종료 기간: {{ endDate }}
+            <i class="icon-close" @click="removeTag('endDate')">✕</i>
+          </span>
+        </div>
+      </div>
+
+      <div class="customer-table">
+        <table class="table table-striped">
+          <thead>
+          <tr class="table-header">
+            <th>등록일</th>
+            <th>공지사항</th>
+            <th>작성자</th>
+            <th>조회수</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr
+              v-for="inform in informs"
+              :key="inform.informId"
+              class="table-row"
+              @click="goToInformDetail(inform.informId, inform.informViewcount)"
+          >
+            <td>
+              <div>{{ formatDate(inform.createdDate) }}</div>
+            </td>
+            <td>
+              <div>{{ inform.informTitle }}</div>
+            </td>
+            <td>
+              <div>{{ inform.userName }}</div>
+            </td>
+            <td>
+              <div>{{ inform.informViewcount }}</div>
+            </td>
+          </tr>
+          </tbody>
+        </table>
+
+        <div class="pagination justify-content-center">
+          <button class="btn btn-light" @click="prevPage" :disabled="currentPage === 1">이전</button>
+          <span v-for="page in visiblePages" :key="page">
+            <button
+                class="btn"
+                :class="{ active: page === currentPage }"
+                @click="changePage(page)"
+            >{{ page }}</button>
+          </span>
+          <button class="btn btn-light" @click="nextPage" :disabled="currentPage === totalPages">다음</button>
+        </div>
       </div>
     </div>
-
-    <div class="tag-area">
-      <span v-if="startDate" class="tag">
-        시작 기간: {{ startDate }}
-        <i class="icon-close" @click="removeTag('startDate')">✕</i>
-      </span>
-
-      <span v-if="endDate" class="tag">
-        종료 기간: {{ endDate }}
-        <i class="icon-close" @click="removeTag('endDate')">✕</i>
-      </span>
-    </div>
   </div>
-
-  <div class="customer-table">
-    <table class="table table-striped">
-      <thead>
-      <tr class="table-header">
-        <th>등록일</th>
-        <th>공지사항</th>
-        <th>작성자</th>
-        <th>조회수</th>
-      </tr>
-      </thead>
-      <tbody>
-      <tr
-          v-for="inform in informs"
-          :key="inform.informId"
-          class="table-row"
-          @click="goToInformDetail(inform.informId, inform.informViewcount)"
-      >
-        <td>
-          <div>{{ formatDate(inform.createdDate) }}</div>
-        </td>
-        <td>
-          <div>{{ inform.informTitle }}</div>
-        </td>
-        <td>
-          <div>{{ inform.userName }}</div>
-        </td>
-        <td>
-          <div>{{ inform.informViewcount }}</div>
-        </td>
-      </tr>
-      </tbody>
-    </table>
-    <!-- 페이지네이 -->
-    <div class="pagination justify-content-center">
-      <button class="btn btn-light" @click="prevPage" :disabled="currentPage === 1">이전</button>
-      <span v-for="page in visiblePages" :key="page">
-              <button
-                  class="btn" :class="{ active: page === currentPage }"
-                  @click="changePage(page)"
-              >{{ page }}</button>
-          </span>
-      <button class="btn btn-light" @click="nextPage" :disabled="currentPage === totalPages">다음</button>
-    </div>
-  </div>
-
 </template>
 
 <style scoped>
+.container-wrapper {
+  padding: 24px;
+  background-color: #f5f5f5;
+  min-height: 100vh;
+}
+
+.content-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 24px;
+}
+
 .stat-value strong {
   font-size: 24px;
   font-weight: 600;
@@ -307,7 +325,6 @@ onMounted(() => {
 .table-header th {
   text-align: left;
 }
-
 
 .table-row {
   cursor: pointer;
