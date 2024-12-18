@@ -11,11 +11,13 @@ import customerRoutes from './customer.js'
 import goods from "@/router/goods.js";
 import teamspaceRoutes from "./teamspace.js";
 import analysis from "@/router/analysis.js"
+import {useAuthStore} from "@/stores/auth.js";
 
 const routes = [
     {
         path: '/',
-        component: Home
+        component: Home,
+        meta: { requiresAuth: true }
     },
     {
         path: '/login',
@@ -34,6 +36,19 @@ const routes = [
 const router = createRouter({
     history: createWebHistory(),
     routes
+});
+
+router.beforeEach((to, from, next) => {
+    const authStore = useAuthStore();
+
+    if (to.meta.requiresAuth && !authStore.accessToken) {
+        next({ path: '/login' });
+    }
+    else if (authStore.accessToken && (to.path === '/login')) {
+        next({ path: '/' });
+    } else {
+        next();
+    }
 });
 
 export default router;
