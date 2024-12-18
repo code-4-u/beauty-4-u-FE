@@ -20,6 +20,7 @@ import Footer from "@/components/common/Footer.vue";
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  background-color: var(--background-color);
 }
 
 :deep(header) {
@@ -36,6 +37,7 @@ import Footer from "@/components/common/Footer.vue";
 .main-content {
   flex: 1;
   width: 100%;
+  max-width: 1300px;
   margin: 60px auto 0;
   padding: 1rem 1rem 80px;
 }
