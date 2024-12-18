@@ -1,7 +1,9 @@
 import TeamSpaceHome from "@/views/teamspace/TeamSpaceHome.vue";
-import Scrap from "@/views/teamspace/Scrap.vue";
 import ChatTest from "@/views/chat/ChatTest.vue";
 import ChatHome from "@/views/chat/ChatHome.vue";
+import TeamBoardList from "@/components/teamspace/TeamBoardList.vue";
+import TeamBoardSave from "@/components/teamspace/TeamBoardSave.vue";
+import TeamBoardUpdate from "@/components/teamspace/TeamBoardUpdate.vue";
 
 export default [
     {
@@ -9,8 +11,15 @@ export default [
         component: TeamSpaceHome,
         children: [
             {
-                path: 'scrap',
-                component: Scrap
+                path: 'board',
+                component: TeamBoardList
+            },
+            {
+                path: 'board/save',
+                component: TeamBoardSave
+            },{
+                path: 'board/update',
+                component: TeamBoardUpdate
             },
             {
                 path: ':teamspaceId/chat',
