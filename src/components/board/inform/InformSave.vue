@@ -86,7 +86,7 @@ const fetchSaveInform = async () => {
       await postFetch('/file/save', {
         entityId: response.data.data,
         imageUrls: imageUrls,
-        isInform: true
+        entityType: "inform"
       });
     }
 
