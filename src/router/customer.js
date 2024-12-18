@@ -4,7 +4,7 @@ import CustomerInquiry from "@/views/customer/CustomerInquiry.vue";
 import CustomerNoti from "@/views/customer/CustomerNoti.vue";
 import CustomerHome from "@/views/customer/CustomerHome.vue";
 import CustomerCommonDetail from "@/views/customer/CustomerCommonDetail.vue";
-import CustomerDetailComponent from "@/components/Customer/CustomerDetailComponent.vue";
+import CustomerDetailComponent from "@/components/customer/CustomerDetailComponent.vue";
 
 export default [
     {
@@ -25,7 +25,7 @@ export default [
                     }, 
                     {
                         path: 'purchaseHistory',
-                        component: () => import('@/components/Customer/CustomerPurchaseComponent.vue')
+                        component: () => import('@/components/customer/CustomerPurchaseComponent.vue')
                     }
                 ]
             },

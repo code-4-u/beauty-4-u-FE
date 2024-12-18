@@ -2,7 +2,7 @@
 import {computed, ref} from "vue";
 import {getFetch} from "@/stores/apiClient.js";
 import {formatDate} from "@/stores/util.js";
-import CustomerOrderListFilterModal from "@/components/Customer/CustomerOrderListFilterModal.vue";
+import CustomerOrderListFilterModal from "@/components/customer/CustomerOrderListFilterModal.vue";
 
 const props = defineProps({
   customerCode: {
