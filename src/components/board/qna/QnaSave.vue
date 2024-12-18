@@ -41,7 +41,7 @@ const handleRemove = (fileId) => {
 };
 
 const goBack = () => {
-  router.push('/board/qna');
+  router.push('/qna');
 };
 
 const fetchSaveQna = async () => {
@@ -88,7 +88,7 @@ const fetchSaveQna = async () => {
     }
 
     await router.push({
-      path: `/board/qna`
+      path: `/qna`
     });
   } catch (error) {
     console.error('저장에 실패했습니다.', error);

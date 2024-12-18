@@ -92,13 +92,13 @@ const updateQnaViewcount = async (qnaId, count) => {
 const goToQnaDetail = (qnaId, qnaViewcount) => {
   updateQnaViewcount(qnaId, qnaViewcount);
   router.push({
-    path: `/board/qna/${qnaId}`
+    path: `/qna/${qnaId}`
   });
 };
 
 const goToQnaSave = () => {
   router.push({
-    path: '/board/qna/save'
+    path: '/qna/save'
   });
 };
 

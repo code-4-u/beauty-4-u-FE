@@ -20,12 +20,12 @@ const fetchInquiryDetail = async () => {
 }
 
 const goBack = () => {
-  router.push('/board/qna');
+  router.push('/qna');
 };
 
 const editInquiry = () => {
   router.push({
-    path: `/board/qna/${inquiryId}/update`
+    path: `/qna/${inquiryId}/update`
   });
 };
 
@@ -41,7 +41,7 @@ const deleteInquiry = () => {
   if (confirm('정말로 삭제하시겠습니까?')) {
     deleteFetchInquiry();
     alert('삭제되었습니다.');
-    router.push('/board/qna');
+    router.push('/qna');
   }
 };
 

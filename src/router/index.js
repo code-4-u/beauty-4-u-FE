@@ -4,18 +4,19 @@ import Home from "@/views/Home.vue";
 import Login from "@/views/user/Login.vue";
 
 import userRoutes from './user.js';
-import chatRouters from './chat.js';
-import boards from './board.js';
+import boardRoutes from './board.js';
 import adminRoutes from './admin.js';
 import customerRoutes from './customer.js'
-import goods from "@/router/goods.js";
+import goodsRoutes from "@/router/goods.js";
 import teamspaceRoutes from "./teamspace.js";
-import analysis from "@/router/analysis.js"
+import analysisRoutes from "@/router/analysis.js"
+import {useAuthStore} from "@/stores/auth.js";
 
 const routes = [
     {
         path: '/',
-        component: Home
+        component: Home,
+        meta: { requiresAuth: true }
     },
     {
         path: '/login',
@@ -23,17 +24,29 @@ const routes = [
     },
     ...userRoutes,
     ...customerRoutes,
-    ...boards,
+    ...boardRoutes,
     ...adminRoutes,
-    ...chatRouters,
     ...teamspaceRoutes,
-    ...goods,
-    ...analysis
+    ...goodsRoutes,
+    ...analysisRoutes
 ];
 
 const router = createRouter({
     history: createWebHistory(),
     routes
+});
+
+router.beforeEach((to, from, next) => {
+    const authStore = useAuthStore();
+
+    if (to.meta.requiresAuth && !authStore.accessToken) {
+        next({ path: '/login' });
+    }
+    else if (authStore.accessToken && (to.path === '/login')) {
+        next({ path: '/' });
+    } else {
+        next();
+    }
 });
 
 export default router;

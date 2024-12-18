@@ -7,6 +7,7 @@ export const useAuthStore = defineStore('auth', () => {
     const userRole = ref(null);
     const userCode = ref(null);
     const jobName = ref(null);
+    const deptCode = ref(null);
     const deptName = ref(null);
     const userName = ref(null);
 
@@ -15,6 +16,7 @@ export const useAuthStore = defineStore('auth', () => {
         userRole.value = payload.auth[0].authority.slice(5);
         userCode.value = payload.sub;
         jobName.value = payload.jobName;
+        deptCode.value = payload.deptCode;
         deptName.value = payload.deptName;
         userName.value = payload.userName;
     }
@@ -77,5 +79,5 @@ export const useAuthStore = defineStore('auth', () => {
         return JSON.parse(jsonPayload);
     }
 
-    return { accessToken, refreshToken, userRole, userCode, login, logout, isAuthorized, setAccessToken, setRefreshToken };
+    return { accessToken, refreshToken, userRole, userCode, jobName, deptCode, deptName, userName, login, logout, isAuthorized, setAccessToken, setRefreshToken };
 });

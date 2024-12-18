@@ -1,7 +1,7 @@
 <script setup>
 import {computed, onMounted, ref} from 'vue'
 import {getFetch} from '@/stores/apiClient'
-import CustomerListFilterModal from '@/components/Customer/CustomerListFilterModal.vue'
+import CustomerListFilterModal from '@/components/customer/CustomerListFilterModal.vue'
 import router from "@/router/index.js";
 import {formatDate} from "@/stores/util.js"
 import {useCustomerStore} from "@/stores/customerPinia.js";

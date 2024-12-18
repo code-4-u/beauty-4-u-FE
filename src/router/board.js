@@ -1,5 +1,4 @@
 import InformList from "@/views/board/InformList.vue";
-import boardHome from "@/views/board/BoardHome.vue";
 import QnaList from "@/views/board/QnaList.vue";
 import FaqList from "@/views/board/FaqList.vue";
 import InformDetail from "@/components/board/inform/InformDetail.vue";
@@ -14,55 +13,64 @@ import QnaUpdate from "@/components/board/qna/QnaUpdate.vue";
 
 export default [
     {
-        path: '/board',
-        component: boardHome,
+        path: '/inform',
         children: [
             {
-                path: 'inform',
+                path: '',
                 component: InformList
             },
             {
-                path: 'inform/save',
+                path: 'save',
                 component: InformSave
             },
             {
-                path: 'inform/:informId',
+                path: ':informId',
                 component: InformDetail
             },
             {
-                path: 'inform/:informId/update',
+                path: ':informId/update',
                 component: InformUpdate
             },
+        ],
+    },
+    {
+        path: '/qna',
+        children: [
             {
-                path: 'qna',
+                path: '',
                 component: QnaList
             },
             {
-                path: 'qna/save',
+                path: 'save',
                 component: QnaSave
             },
             {
-                path: 'qna/:inquiryId',
+                path: ':inquiryId',
                 component: QnaDetail
             },
             {
-                path: 'qna/:inquiryId/update',
+                path: ':inquiryId/update',
                 component: QnaUpdate
             },
+        ]
+    },
+    {
+        path: '/faq',
+        children: [
             {
-                path: 'faq',
+                path: '',
                 component: FaqList
             },
             {
-                path: 'faq/save',
+                path: 'save',
                 component: FaqSave
             },
             {
-                path: 'faq/:faqId',
+                path: ':faqId',
                 component: FaqDetail
             },
             {
-                path: 'faq/:faqId/update',
+                path: ':faqId/update',
                 component: FaqUpdate
             },
         ]

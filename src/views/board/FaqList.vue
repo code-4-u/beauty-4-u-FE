@@ -36,7 +36,7 @@ const performSearch = async () => {
 // FAQ 등록 페이지로 이동
 const goToFaqSave = () => {
   router.push({
-    path: '/board/faq/save'
+    path: '/faq/save'
   });
 };
 
@@ -57,7 +57,7 @@ const updateFaqViewcount = async (faqId, count) => {
 const goToFaqDetail = (faqId, faqViewcount) => {
   updateFaqViewcount(faqId, faqViewcount);
   router.push({
-    path: `/board/faq/${faqId}`
+    path: `/faq/${faqId}`
   });
 };
 
