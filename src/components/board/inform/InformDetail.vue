@@ -1,7 +1,7 @@
 <script setup>
 import {onMounted, ref} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
-import {delFetch, getFetch, putFetch} from "@/stores/apiClient.js";
+import {delFetch, getFetch} from "@/stores/apiClient.js";
 import {formatDate} from "@/stores/util.js";
 
 const router = useRouter();
@@ -23,14 +23,14 @@ const fetchInformDetail = async () => {
 
 // 목록으로 돌아가기
 const goBack = () => {
-  router.push('/board/inform'); // 공지사항 목록으로 이동
+  router.push('/inform'); // 공지사항 목록으로 이동
 };
 
 // 수정 페이지로 이동
 const editNotice = () => {
   router.push(
       {
-        path: `/board/inform/${informId}/update`
+        path: `/inform/${informId}/update`
       }
   );
 };
@@ -49,7 +49,7 @@ const deleteInform = () => {
   if (confirm('정말로 삭제하시겠습니까?')) {
     deleteFetchInform();
     alert('삭제되었습니다.');
-    router.push('/board/inform');
+    router.push('/inform');
   }
 };
 

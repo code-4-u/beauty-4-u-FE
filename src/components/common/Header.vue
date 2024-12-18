@@ -15,11 +15,11 @@ headerItems.value = [
   {
     id: 4,
     name: '고객센터',
-    link: '/board/inform',
+    link: '',
     subItems: [
-      {id: 41, name: '공지사항', link: '/board/inform'},
-      {id: 42, name: '자주 묻는 질문', link: '/board/faq'},
-      {id: 43, name: 'Q&A', link: '/board/qna'},
+      {id: 41, name: '공지사항', link: '/inform'},
+      {id: 42, name: '자주 묻는 질문', link: '/faq'},
+      {id: 43, name: 'Q&A', link: '/qna'},
     ]
   },
 ];

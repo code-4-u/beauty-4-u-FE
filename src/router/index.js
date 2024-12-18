@@ -4,13 +4,12 @@ import Home from "@/views/Home.vue";
 import Login from "@/views/user/Login.vue";
 
 import userRoutes from './user.js';
-import chatRouters from './chat.js';
-import boards from './board.js';
+import boardRoutes from './board.js';
 import adminRoutes from './admin.js';
 import customerRoutes from './customer.js'
-import goods from "@/router/goods.js";
+import goodsRoutes from "@/router/goods.js";
 import teamspaceRoutes from "./teamspace.js";
-import analysis from "@/router/analysis.js"
+import analysisRoutes from "@/router/analysis.js"
 import {useAuthStore} from "@/stores/auth.js";
 
 const routes = [
@@ -25,12 +24,11 @@ const routes = [
     },
     ...userRoutes,
     ...customerRoutes,
-    ...boards,
+    ...boardRoutes,
     ...adminRoutes,
-    ...chatRouters,
     ...teamspaceRoutes,
-    ...goods,
-    ...analysis
+    ...goodsRoutes,
+    ...analysisRoutes
 ];
 
 const router = createRouter({

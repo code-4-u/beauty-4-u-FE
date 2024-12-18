@@ -25,7 +25,7 @@ const fetchFaqDetail = async () => {
 
 // 목록으로 돌아가기
 const goBack = () => {
-  router.push('/board/faq');
+  router.push('/faq');
 };
 
 // FAQ 수정
@@ -45,7 +45,7 @@ const updateFaq = async () => {
 
     // 목록으로 이동
     await router.push({
-      path: `/board/faq`
+      path: `/faq`
     });
   } catch (error) {
     console.error('수정에 실패했습니다.', error);

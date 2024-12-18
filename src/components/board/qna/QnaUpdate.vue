@@ -1,7 +1,7 @@
 <script setup>
 import {onMounted, ref} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
-import {postFetch, putFetch, getFetch} from "@/stores/apiClient.js";
+import {getFetch, postFetch, putFetch} from "@/stores/apiClient.js";
 import BoardEditor from "@/components/board/editor/BoardEditor.vue";
 import ImageManagement from "@/components/board/editor/ImageManagement.vue";
 
@@ -71,7 +71,7 @@ const handleRemove = (fileId) => {
 };
 
 const goBack = () => {
-  router.push('/board/qna');
+  router.push('/qna');
 };
 
 const updateInquiry = async () => {
@@ -116,7 +116,7 @@ const updateInquiry = async () => {
     }
 
     await router.push({
-      path: `/board/qna`
+      path: `/qna`
     });
   } catch (error) {
     console.error('수정에 실패했습니다.', error);

@@ -45,7 +45,7 @@ const handleRemove = (fileId) => {
 
 // 목록으로 돌아가기
 const goBack = () => {
-  router.push('/board/inform');
+  router.push('/inform');
 };
 
 // 게시글 저장
@@ -92,7 +92,7 @@ const fetchSaveInform = async () => {
 
     // 5. 목록으로 이동
     await router.push({
-      path: `/board/inform`
+      path: `/inform`
     });
   } catch (error) {
     console.error('저장에 실패했습니다.', error);

@@ -74,7 +74,7 @@ const handleRemove = (fileId) => {
 
 // 목록으로 돌아가기
 const goBack = () => {
-  router.push('/board/inform');
+  router.push('/inform');
 };
 
 // 게시글 수정
@@ -121,7 +121,7 @@ const updateInform = async () => {
 
     // 5. 목록으로 이동
     await router.push({
-      path: `/board/inform`
+      path: `/inform`
     });
   } catch (error) {
     console.error('수정에 실패했습니다.', error);

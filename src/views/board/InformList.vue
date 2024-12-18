@@ -102,14 +102,14 @@ const updateInformViewcount = async (informId, count) => {
 const goToInformDetail = (informId, informViewcount) => {
   updateInformViewcount(informId, informViewcount);
   router.push({
-    path: `/board/inform/${informId}`
+    path: `/inform/${informId}`
   });
 };
 
 // 공지사항 등록 페이지로 이동
 const goToInformSave = () => {
   router.push({
-    path: '/board/inform/save'
+    path: '/inform/save'
   });
 };
 

@@ -21,13 +21,13 @@ const fetchFaqDetail = async () => {
 
 // 목록으로 돌아가기
 const goBack = () => {
-  router.push('/board/faq');
+  router.push('/faq');
 };
 
 // 수정 페이지로 이동
 const editFaq = () => {
   router.push({
-    path: `/board/faq/${faqId}/update`
+    path: `/faq/${faqId}/update`
   });
 };
 
@@ -45,7 +45,7 @@ const deleteFaq = () => {
   if (confirm('정말로 삭제하시겠습니까?')) {
     deleteFetchFaq();
     alert('삭제되었습니다.');
-    router.push('/board/faq');
+    router.push('/faq');
   }
 };
 
