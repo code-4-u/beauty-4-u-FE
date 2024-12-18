@@ -1,0 +1,319 @@
+<script setup>
+import {onMounted, ref} from 'vue';
+import {useRoute, useRouter} from 'vue-router';
+import {getFetch, postFetch, putFetch} from "@/stores/apiClient.js";
+import BoardEditor from "@/components/board/editor/BoardEditor.vue";
+import ImageManagement from "@/components/board/editor/ImageManagement.vue";
+
+const router = useRouter();
+const route = useRoute();
+const teamBoardId = route.params['teamBoardId'];
+
+const teamBoardTitle = ref('');
+const editorContent = ref('');
+const selectedFiles = ref([]);
+const imageUrls = ref([]);
+const boardEditorRef = ref(null);
+const uploadStatus = ref('');
+
+const fetchTeamBoardDetail = async () => {
+  try {
+    const response = await getFetch(`/teamspace/board/${teamBoardId}`);
+    const data = response.data.data.teamBoardDetailDTO;
+    teamBoardTitle.value = data.teamBoardTitle;
+    editorContent.value = data.teamBoardContent;
+
+    // 본문에서 이미지 URL 추출
+    const imageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
+    const imageMatches = [...data.teamBoardContent.matchAll(imageRegex)];
+    const existingImageUrls = imageMatches.map(match => match[1]);
+
+    // 추출된 이미지를 selectedFiles에 추가
+    selectedFiles.value = existingImageUrls.map((url, index) => ({
+      id: `existing-${index}`,
+      name: url.split('/').pop() || `image-${index}`,
+      url: url,
+      size: 0,
+    }));
+
+    imageUrls.value = existingImageUrls;
+  } catch (error) {
+    console.error("게시글 세부 정보를 가져오는 데 오류가 발생했습니다:", error);
+  }
+}
+
+const insertImageAtCursor = (imageUrl, removeUrl) => {
+  if (boardEditorRef.value) {
+    if (removeUrl) {
+      boardEditorRef.value.removeImage(removeUrl);
+    } else if (imageUrl) {
+      boardEditorRef.value.insertImage(imageUrl);
+    }
+  }
+};
+
+const handleUpload = (files) => {
+  uploadStatus.value = '업로드 중';
+  selectedFiles.value = [
+    ...selectedFiles.value,
+    ...files
+  ];
+  uploadStatus.value = '업로드 완료';
+};
+
+const handleRemove = (fileId) => {
+  const fileToRemove = selectedFiles.value.find(f => f.id === fileId);
+  if (fileToRemove) {
+    selectedFiles.value = selectedFiles.value.filter(f => f.id !== fileId);
+  }
+};
+
+const goBack = () => {
+  router.push('/teamspace/board');
+};
+
+const updateTeamBoard = async () => {
+  try {
+    if (uploadStatus.value === '업로드 중') {
+      await new Promise(resolve => {
+        const checkUpload = setInterval(() => {
+          if (uploadStatus.value !== '업로드 중') {
+            clearInterval(checkUpload);
+            resolve();
+          }
+        }, 500);
+      });
+    }
+
+    // 입력값 검증
+    if (!teamBoardTitle.value.trim()) {
+      alert('제목을 입력해주세요.');
+      return;
+    }
+
+    // 본문에서 이미지 URL 추출
+    const imageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
+    const content = editorContent.value;
+    const imageMatches = [...content.matchAll(imageRegex)];
+    const imageUrls = imageMatches.map(match => match[1]);
+
+    // 게시글 수정
+    await putFetch(`/teamspace/board/${teamBoardId}`, {
+      teamBoardTitle: teamBoardTitle.value,
+      teamBoardContent: editorContent.value
+    });
+
+    // 이미지 저장
+    if (imageUrls.length > 0) {
+      await postFetch('/file/save', {
+        entityId: teamBoardId,
+        imageUrls: imageUrls,
+        entityType: "teamBoard"
+      });
+    }
+
+    await router.push({
+      path: `/teamspace/board`
+    });
+  } catch (error) {
+    console.error('수정에 실패했습니다.', error);
+    alert('수정에 실패했습니다. 다시 시도해주세요.');
+  }
+};
+
+onMounted(() => {
+  fetchTeamBoardDetail();
+});
+</script>
+
+<template>
+  <div class="board-detail-container">
+    <div class="board-header">
+      <div class="title-wrapper">
+        <h3 class="title-label">제목</h3>
+        <input
+            type="text"
+            class="title-input"
+            v-model="teamBoardTitle"
+            placeholder="제목을 입력하세요"
+        >
+      </div>
+    </div>
+
+    <div class="info-section"></div>
+
+    <image-management
+        :selected-files="selectedFiles"
+        :image-urls="imageUrls"
+        @upload="handleUpload"
+        @remove="handleRemove"
+        @insert-to-editor="insertImageAtCursor"
+    />
+
+    <div class="editor-container">
+      <board-editor
+          ref="boardEditorRef"
+          v-model="editorContent"
+      />
+    </div>
+
+    <div class="footer-section">
+      <div class="left-buttons">
+        <button class="btn btn-secondary" @click="goBack">
+          <span class="btn-text">목록으로</span>
+        </button>
+      </div>
+
+      <div class="right-buttons">
+        <button class="btn btn-primary" @click="updateTeamBoard">
+          <span class="btn-text">수정완료</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.board-detail-container {
+  max-width: 1200px;
+  margin: 1.5rem auto;
+  padding: 1.5rem;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.editor-container, :deep(.image-management) {
+  width: 100%;
+}
+
+.board-header {
+  margin-bottom: 1.5rem;
+}
+
+.title-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.title-label {
+  min-width: 60px;
+  margin: 0;
+  color: #333;
+  font-weight: 600;
+}
+
+.title-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  font-size: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+}
+
+.title-input:focus {
+  outline: none;
+  border-color: #29C458;
+  box-shadow: 0 0 0 3px rgba(41, 196, 88, 0.1);
+}
+
+.title-input::placeholder {
+  color: #aaa;
+}
+
+.info-section {
+  margin-bottom: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.editor-container {
+  margin: 1rem 0;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.footer-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f0f0f0;
+}
+
+.right-buttons {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.btn-primary {
+  background-color: #29C458;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #23a94c;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
+  transform: translateY(-1px);
+}
+
+.btn-text {
+  font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+  .board-detail-container {
+    margin: 0.75rem;
+    padding: 0.75rem;
+  }
+
+  .title-wrapper {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+  }
+
+  .footer-section {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .right-buttons {
+    width: 100%;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .btn {
+    width: 100%;
+  }
+}
+</style>
