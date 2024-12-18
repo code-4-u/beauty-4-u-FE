@@ -1,8 +1,18 @@
-import PromotionRegister from "@/views/promotion/PromotionRegister.vue";
+import PromotionSave from "@/views/promotion/PromotionSave.vue";
+import PromotionAnalysis from "@/views/promotion/PromotionAnalysis.vue";
 
 export default [
     {
         path: '/promotion',
-        component: PromotionRegister
+        children: [
+            {
+                path: 'save',
+                component: PromotionSave
+            },
+            {
+                path: 'analysis',
+                component: PromotionAnalysis
+            },
+        ]
     }
 ];

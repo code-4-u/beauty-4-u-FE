@@ -10,7 +10,7 @@ const headerItems = ref([]);
 
 headerItems.value = [
   {id: 1, name: '상품', link: '/goods/search'},
-  {id: 2, name: '프로모션', link: '/promotion'},
+  {id: 2, name: '프로모션', link: '/promotion/analysis'},
   {id: 3, name: '팀 스페이스', link: '/teamspace'},
   {
     id: 4,
