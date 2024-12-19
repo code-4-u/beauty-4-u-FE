@@ -1,12 +1,13 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { getFetch, putFetch } from "@/stores/apiClient.js"
+import {getFetch, postFetch, putFetch} from "@/stores/apiClient.js"
+import PromotionGoodsAddModal from "@/components/promotion/PromotionGoodsAddModal.vue";
 
 const route = useRoute()
 const router = useRouter()
 const promotionId = route.params['promotionId']
-
+const showProductSearch = ref(false)
 const promotion = ref(null)
 const promotionGoods = ref([])
 const promotionTypes = ref([]) // 프로모션 타입 목록 저장
@@ -50,6 +51,14 @@ const calculateFinalPrice = (price, discountRate) => {
   if (!price) return '0'
   const discount = discountRate ?? 0
   return Math.round(price * (100 - discount) / 100).toLocaleString()
+}
+
+const addProduct = (product) => {
+  editedGoods.value.push({
+    promotionGoodsId: null,  // 새로 추가된 상품은 promotionGoodsId가 없음
+    ...product
+  })
+  showProductSearch.value = false
 }
 
 const fetchPromotionDetail = async () => {
@@ -138,15 +147,39 @@ const saveBasicInfo = async () => {
 // 상품 목록 수정 저장
 const saveGoods = async () => {
   try {
-    const promotionGoodsReqData = {
-      promotionGoodsList: editedGoods.value.map(goods => ({
-        promotionGoodsId: goods.promotionGoodsId,
-        discountRate: goods.discountRate
-      }))
+    // 1. 기존 상품의 할인율 수정
+    const updatePromotionGoodsReqData = {
+      promotionGoodsList: editedGoods.value
+          .filter(goods => goods.promotionGoodsId) // 기존 상품만 필터링
+          .map(goods => ({
+            promotionGoodsId: goods.promotionGoodsId,
+            discountRate: goods.discountRate
+          }))
     }
 
-    // API 호출
-    await putFetch(`/promotionGoods`, promotionGoodsReqData)
+    // 2. 새로 추가된 상품 등록
+    const newGoodsReqData = {
+      promotionId: promotionId,
+      saveGoodsDiscountDTOS: editedGoods.value
+          .filter(goods => !goods.promotionGoodsId) // 새로 추가된 상품만 필터링
+          .map(goods => ({
+            goodsCode: goods.goodsCode,
+            discountRate: goods.discountRate
+          }))
+    }
+
+    // 두 API 요청 동시 실행
+    await Promise.all([
+      // 기존 상품 할인율 수정
+      updatePromotionGoodsReqData.promotionGoodsList.length > 0
+          ? putFetch(`/promotionGoods`, updatePromotionGoodsReqData)
+          : Promise.resolve(),
+
+      // 새로운 상품 추가
+      newGoodsReqData.saveGoodsDiscountDTOS.length > 0
+          ? postFetch(`/promotionGoods`, newGoodsReqData)
+          : Promise.resolve()
+    ])
 
     // 성공 시 상태 업데이트
     promotionGoods.value = editedGoods.value
@@ -368,6 +401,9 @@ onMounted(() => {
                      :key="goods.goodsCode"
                      class="goods-card editing">
                   <div class="goods-info">
+                    <!-- 신규 추가 뱃지 -->
+                    <div v-if="!goods.promotionGoodsId" class="new-badge">신규 추가</div>
+
                     <div class="goods-name">{{ goods.goodsName }}</div>
                     <div class="goods-brand">{{ goods.brandName }}</div>
                     <div class="price-info">
@@ -391,6 +427,20 @@ onMounted(() => {
                     </div>
                   </div>
                 </div>
+
+                <button
+                    class="add-button"
+                    @click="showProductSearch = true"
+                >
+                  + 상품 추가
+                </button>
+
+                <PromotionGoodsAddModal
+                    :is-open="showProductSearch"
+                    :existing-product-codes="editedGoods.map(g => g.goodsCode)"
+                    @close="showProductSearch = false"
+                    @select="addProduct"
+                />
               </template>
             </div>
           </section>
@@ -726,6 +776,21 @@ onMounted(() => {
 
 .discount-unit {
   color: #6b7280;
+}
+
+.new-badge {
+  display: inline-block;
+  background-color: #4CAF50;
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+.goods-card.editing {
+  position: relative;
 }
 
 /* 반응형 스타일 */
