@@ -1,13 +1,48 @@
 <script setup>
-import {ref} from 'vue';
+import {ref, onMounted } from 'vue';
+import { useAuthStore } from '@/stores/auth.js'; // 사용자 인증 정보 스토어
+import { useRoute } from 'vue-router';
+import axios from 'axios';
 
 // Reactive references
 const searchQuery = ref('');
 const navItems = ref([]);
+const route = useRoute();
+const useAuth = useAuthStore();
 
-navItems.value = [
-  { id: 1, name: '스크랩', link: '/teamspace/scrap'}
-];
+// 사용자의 팀스페이스 ID와 부서 코드
+const deptCode = useAuth.deptCode;
+const teamspaceId = ref(null); // 팀스페이스 ID
+
+// API 호출로 팀스페이스 ID 조회
+const fetchTeamSpaceId = async () => {
+  try {
+    const response = await axios.get('http://localhost:8080/api/v1/teamspace', {
+      params: { deptCode: deptCode },
+      headers: {
+        Authorization: `Bearer ${useAuth.accessToken}`
+      }
+    });
+    console.log(response.data);
+    teamspaceId.value = response.data; // 서버에서 반환한 팀스페이스 ID
+  } catch (error) {
+    console.error('팀스페이스 ID 조회 실패:', error);
+    alert('팀스페이스 정보를 불러오는 데 실패했습니다.');
+  }
+};
+
+const updateNavItems = () => {
+  navItems.value = [
+    { id: 1, name: '채팅방', link: `/teamspace/${teamspaceId.value}/chat` },
+    { id: 2, name: '스크랩', link: '/teamspace/scrap' }
+  ];
+};
+
+
+onMounted(async () => {
+  await fetchTeamSpaceId(); // 팀스페이스 ID 조회
+  updateNavItems();
+});
 
 </script>
 
