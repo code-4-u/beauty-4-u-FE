@@ -1,7 +1,7 @@
 <script setup>
 import {ref, onMounted, reactive, computed} from 'vue'
 import {useRouter} from "vue-router";
-import {getFetch} from "@/stores/apiClient.js";
+import {delFetch, getFetch} from "@/stores/apiClient.js";
 
 const router = useRouter();
 
@@ -60,6 +60,25 @@ const fetchPromotions = async () => {
   } catch (e) {
     error.value = '프로모션 목록을 불러오는데 실패했습니다.'
     console.error('Error fetching promotions:', e)
+  } finally {
+    loading.value = false
+  }
+}
+
+const handleDelete = async (promotionId) => {
+  if (!confirm('정말 이 프로모션을 삭제하시겠습니까?')) {
+    return;
+  }
+
+  try {
+    loading.value = true
+    await delFetch(`/promotion/${promotionId}`);
+
+    // 삭제 성공 후 목록 새로고침
+    await fetchPromotions()
+  } catch (e) {
+    error.value = '프로모션 삭제에 실패했습니다.'
+    console.error('Error deleting promotion:', e)
   } finally {
     loading.value = false
   }
@@ -226,7 +245,7 @@ onMounted(() => {
             <td>
               <div class="action-buttons">
                 <button class="edit" @click="handleEdit(promotion.promotionId)">수정</button>
-                <button class="delete">삭제</button>
+                <button class="delete" @click="handleDelete(promotion.promotionId)">삭제</button>
               </div>
             </td>
           </tr>
