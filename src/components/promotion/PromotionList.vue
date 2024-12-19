@@ -1,69 +1,12 @@
 <script setup>
 import {ref, onMounted, reactive, computed} from 'vue'
 import {useRouter} from "vue-router";
+import {getFetch} from "@/stores/apiClient.js";
 
 const router = useRouter();
 
-// 더미 데이터
-const dummyPromotions = [
-  {
-    promotionId: 1,
-    promotionTypeId: 1,
-    promotionTypeName: "신년",
-    promotionTitle: "신년맞이 50% 할인",
-    promotionStartDate: "2024-01-01T00:00:00.000Z",
-    promotionEndDate: "2024-01-31T23:59:59.999Z",
-    promotionStatus: "ONGOING"
-  },
-  {
-    promotionId: 2,
-    promotionTypeId: 1,
-    promotionTypeName: "신년",
-    promotionTitle: "신년 럭키백 이벤트",
-    promotionStartDate: "2024-01-15T00:00:00.000Z",
-    promotionEndDate: "2024-01-31T23:59:59.999Z",
-    promotionStatus: "ONGOING"
-  },
-  {
-    promotionId: 3,
-    promotionTypeId: 2,
-    promotionTypeName: "크리스마스",
-    promotionTitle: "크리스마스 특별 할인",
-    promotionStartDate: "2023-12-20T00:00:00.000Z",
-    promotionEndDate: "2023-12-25T23:59:59.999Z",
-    promotionStatus: "ENDED"
-  },
-  {
-    promotionId: 4,
-    promotionTypeId: 2,
-    promotionTypeName: "크리스마스",
-    promotionTitle: "크리스마스 선물 이벤트",
-    promotionStartDate: "2023-12-01T00:00:00.000Z",
-    promotionEndDate: "2023-12-24T23:59:59.999Z",
-    promotionStatus: "ENDED"
-  },
-  {
-    promotionId: 5,
-    promotionTypeId: 3,
-    promotionTypeName: "새학기",
-    promotionTitle: "새학기 문구류 할인전",
-    promotionStartDate: "2024-03-01T00:00:00.000Z",
-    promotionEndDate: "2024-03-15T23:59:59.999Z",
-    promotionStatus: "BEFORE"
-  },
-  {
-    promotionId: 6,
-    promotionTypeId: 3,
-    promotionTypeName: "새학기",
-    promotionTitle: "신입생 응원 이벤트",
-    promotionStartDate: "2024-03-02T00:00:00.000Z",
-    promotionEndDate: "2024-03-31T23:59:59.999Z",
-    promotionStatus: "BEFORE"
-  }
-];
-
 // 상태 관리
-const promotions = ref([...dummyPromotions])
+const promotions = ref([])
 const loading = ref(false)
 const error = ref(null)
 
@@ -108,47 +51,12 @@ const fetchPromotions = async () => {
       promotionStatus: filters.promotionStatus,
       sort: filters.sort,
       order: filters.order,
-      page: filters.page - 1, // API는 0-based pagination 사용
+      page: 1,
       count: filters.count
     })
 
-    // API 호출 (현재는 더미데이터 사용)
-    // const response = await axios.get(`/api/promotions?${queryParams}`)
-    // promotions.value = response.data
-
-    // 더미데이터 필터링 (실제 구현 시에는 제거)
-    let filteredData = [...dummyPromotions]
-    if (filters.promotionTitle) {
-      filteredData = filteredData.filter(p =>
-          p.promotionTitle.toLowerCase().includes(filters.promotionTitle.toLowerCase())
-      )
-    }
-    if (filters.promotionStatus) {
-      filteredData = filteredData.filter(p =>
-          p.promotionStatus === filters.promotionStatus
-      )
-    }
-    if (filters.promotionStartDate) {
-      filteredData = filteredData.filter(p =>
-          new Date(p.promotionStartDate) >= new Date(filters.promotionStartDate)
-      )
-    }
-    if (filters.promotionEndDate) {
-      filteredData = filteredData.filter(p =>
-          new Date(p.promotionEndDate) <= new Date(filters.promotionEndDate)
-      )
-    }
-    if (filters.sort) {
-      filteredData.sort((a, b) => {
-        const aValue = a[filters.sort]
-        const bValue = b[filters.sort]
-        return filters.order === 'asc'
-            ? aValue > bValue ? 1 : -1
-            : aValue < bValue ? 1 : -1
-      })
-    }
-
-    promotions.value = filteredData
+    const response = await getFetch(`/promotion?${queryParams}`)
+    promotions.value = response.data.data
   } catch (e) {
     error.value = '프로모션 목록을 불러오는데 실패했습니다.'
     console.error('Error fetching promotions:', e)
