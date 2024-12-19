@@ -1,7 +1,7 @@
 <script setup>
 import {onMounted, reactive, ref} from 'vue'
 import {useRouter} from 'vue-router'
-import {getFetch, postFetch} from "@/stores/apiClient.js"
+import {delFetch, getFetch, postFetch} from "@/stores/apiClient.js"
 
 const router = useRouter()
 
@@ -200,34 +200,53 @@ const handleSubmit = async () => {
     return
   }
 
+  let promotionId = null
+
   try {
 
-    // API 요청 데이터 구성
-    const requestData = {
+    // 1. 프로모션 기본 정보 등록
+    const promotionReqData = {
       promotionTypeId: Number(promotionData.value.promotionTypeId),
       promotionTitle: promotionData.value.promotionTitle,
       promotionContent: promotionData.value.promotionContent,
       promotionStartDate: promotionData.value.promotionStartDate,
       promotionEndDate: promotionData.value.promotionEndDate,
       promotionStatus: promotionData.value.promotionStatus
-      // promotionType: {
-      //   id: promotionType.id,
-      //   promotionTypeName: promotionType.promotionTypeName
-      // },
-      // promotionGoods: promotionData.value.selectedProducts.map(product => ({
-      //   goodsCode: product.goodsCode,
-      //   discountRate: product.discountRate
-      // }))
     }
 
-    // API 호출
-    const response = await postFetch('/promotion', requestData)
+    // 프로모션 등록 API 호출
+    const promotionResponse = await postFetch('/promotion', promotionReqData)
 
-    if (response.status === 200 || response.status === 201) {
-      alert('프로모션이 등록되었습니다.')
-      router.push('/promotion/manage')
+    if (promotionResponse.status === 200 || promotionResponse.status === 201) {
+      // 2. 프로모션 상품 등록
+
+      promotionId = promotionResponse.data.data  // 응답에서 받은 프로모션 ID
+
+      const promotionGoodsData = {
+        promotionId: promotionId,
+        saveGoodsDiscountDTOS: promotionData.value.selectedProducts.map(product => ({
+          goodsCode: product.goodsCode,
+          discountRate: product.discountRate
+        }))
+      }
+
+      // 프로모션 상품 등록 API 호출
+      const goodsResponse = await postFetch(`/promotionGoods`, promotionGoodsData)
+
+      if (goodsResponse.status === 200 || goodsResponse.status === 201) {
+        alert('프로모션이 등록되었습니다.')
+        router.push('/promotion/manage')
+      } else {
+        if (promotionId) {
+          await delFetch(`/promotion/${promotionId}`)
+        }
+        alert('프로모션 상품 등록에 실패했습니다.')
+      }
     }
   } catch (error) {
+    if (promotionId) {
+      await delFetch(`/promotion/${promotionId}`)
+    }
     console.error('프로모션 등록 중 오류 발생:', error)
     alert('프로모션 등록에 실패했습니다.')
   }
