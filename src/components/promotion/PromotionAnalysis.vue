@@ -1,11 +1,37 @@
 <script setup>
 import { ref } from 'vue';
 
+import { Chart as ChartJS,
+  ArcElement,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js';
+import { Pie, Bar } from 'vue-chartjs';
+
+// Register ChartJS components
+ChartJS.register(
+    ArcElement,
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    Title,
+    Tooltip,
+    Legend
+);
+
 const isSearchOpen = ref(false);
 
 const toggleSearch = () => {
   isSearchOpen.value = !isSearchOpen.value;
 };
+
+
+
+
 </script>
 
 <template>
@@ -96,6 +122,28 @@ const toggleSearch = () => {
           </div>
 
           <button class="search-btn">검색</button>
+          <div class="promotion-history">
+            <h4>프로모션 내역</h4>
+            <div class="promotion-scroll-container">
+              <div class="promotion-group">
+                <button class="search-promotion-result">봄학기 할인 프로모션</button>
+                <div class="promotion-items">
+                  <label>2022 봄학기 새내기 할민 프로모션</label>
+                  <label>2023 봄학기 새내기 할인 프로모션</label>
+                  <label>2024 봄학기 새내기 할인 프로모션</label>
+                </div>
+              </div>
+
+              <div class="promotion-group">
+                <button class="search-promotion-result">봄학기 할인 프로모션</button>
+                <div class="promotion-items">
+                  <label>2022 봄학기 새내기 할민 프로모션</label>
+                  <label>2023 봄학기 새내기 할인 프로모션</label>
+                  <label>2024 봄학기 새내기 할인 프로모션</label>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -103,6 +151,78 @@ const toggleSearch = () => {
 </template>
 
 <style scoped>
+.promotion-history {
+  padding: 16px;
+}
+
+.promotion-history h4 {
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+.promotion-scroll-container {
+  max-height: 300px; /* 원하는 높이로 조절 가능 */
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 16px;
+}
+
+.promotion-group {
+  margin-bottom: 20px;
+}
+
+.promotion-group:last-child {
+  margin-bottom: 0;
+}
+
+.search-promotion-result {
+  width: 100%;
+  text-align: left;
+  padding: 8px;
+  background-color: #f5f5f5;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.promotion-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-left: 16px;
+}
+
+.promotion-items label {
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.promotion-items label:hover {
+  background-color: #f8f8f8;
+  border-radius: 4px;
+}
+
+/* 스크롤바 스타일링 */
+.promotion-scroll-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.promotion-scroll-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.promotion-scroll-container::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.promotion-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
+}
+
 .container-wrapper {
   position: relative;
   min-height: 100vh;
@@ -203,6 +323,16 @@ const toggleSearch = () => {
 }
 
 .search-btn {
+  margin-top: 20px;
+  padding: 12px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.search-promotion-result {
   margin-top: 20px;
   padding: 12px;
   background: #4CAF50;
