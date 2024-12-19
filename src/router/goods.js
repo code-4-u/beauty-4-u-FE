@@ -1,7 +1,8 @@
 import GoodsHome from "@/views/goods/GoodsHome.vue";
-import GoodsAnalysis from "@/views/goods/GoodsAnalysis.vue";
-import GoodsList from "@/views/goods/GoodsList.vue";
-import Review from "@/views/goods/Review.vue";
+import GoodsAnalysis from "@/components/goods/GoodsAnalysis.vue";
+import GoodsSearch from "@/components/goods/GoodsSearch.vue";
+import Review from "@/components/goods/Review.vue";
+import GoodsList from "@/components/goods/GoodsList.vue";
 
 export default [
     {
@@ -12,12 +13,16 @@ export default [
                 component: GoodsHome
             },
             {
+                path: 'manage',
+                component: GoodsList
+            },
+            {
                 path: 'analysis',
                 component: GoodsAnalysis
             },
             {
                 path: 'search',
-                component: GoodsList
+                component: GoodsSearch
             },
             {
                 path: 'review',
