@@ -14,10 +14,6 @@ const openCreatePage = () => {
   router.push('/promotion/save')
 }
 
-const handleEdit = (promotionId) => {
-  router.push(`/promotion/save/${promotionId}`)
-}
-
 // 필터링 조건
 const filters = reactive({
   promotionTitle: '',
@@ -134,6 +130,15 @@ const formatDate = (dateString) => {
   }).format(date)
 }
 
+// 행 클릭 핸들러 추가
+const handleRowClick = (event, promotionId) => {
+  // 관리 버튼 영역 클릭 시 상세 페이지 이동 방지
+  if (event.target.closest('.action-buttons')) {
+    return
+  }
+  router.push(`/promotion/${promotionId}`)
+}
+
 // 컴포넌트 마운트 시 데이터 로드
 onMounted(() => {
   fetchPromotions()
@@ -230,7 +235,10 @@ onMounted(() => {
           <tr v-else-if="error">
             <td colspan="6" class="text-center text-red-500">{{ error }}</td>
           </tr>
-          <tr v-else v-for="promotion in promotions" :key="promotion.promotionId">
+          <tr v-else v-for="promotion in promotions"
+              :key="promotion.promotionId"
+              @click="handleRowClick($event, promotion.promotionId)"
+              class="promotion-row">
             <td>{{ promotion.promotionTitle }}</td>
             <td>
               <span class="badge type">{{ promotion.promotionTypeName }}</span>
@@ -238,13 +246,12 @@ onMounted(() => {
             <td>{{ formatDate(promotion.promotionStartDate) }}</td>
             <td>{{ formatDate(promotion.promotionEndDate) }}</td>
             <td>
-                <span :class="['badge', promotion.promotionStatus.toLowerCase()]">
-                  {{ getStatusText(promotion.promotionStatus) }}
-                </span>
+              <span :class="['badge', promotion.promotionStatus.toLowerCase()]">
+                {{ getStatusText(promotion.promotionStatus) }}
+              </span>
             </td>
             <td>
               <div class="action-buttons">
-                <button class="edit" @click="handleEdit(promotion.promotionId)">수정</button>
                 <button class="delete" @click="handleDelete(promotion.promotionId)">삭제</button>
               </div>
             </td>
@@ -444,12 +451,6 @@ td {
   transition: all 0.2s;
 }
 
-.action-buttons .edit {
-  background-color: white;
-  border: 1px solid #e5e7eb;
-  color: #374151;
-}
-
 .action-buttons .delete {
   background-color: white;
   border: 1px solid #ef4444;
@@ -525,6 +526,20 @@ td {
 .add-button:active {
   transform: translateY(0);
   box-shadow: none;
+}
+
+.promotion-row {
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.promotion-row:hover {
+  background-color: #f9fafb;
+}
+
+/* 버튼 호버 시 행 배경색 변경 방지 */
+.promotion-row:hover .action-buttons {
+  background-color: transparent;
 }
 
 @media (max-width: 768px) {
