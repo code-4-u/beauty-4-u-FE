@@ -201,14 +201,15 @@ const handleMonthClick = ({ year, month }) => {
 
         <!-- 가운데 차트 영역 -->
         <div class="chart-section">
-          <div class="chart-container">
+          <div class="comparison-container">
             <h3>비교</h3>
-<!--            <GoodsCompare-->
-<!--                :selectedYear="selectedYear"-->
-<!--                :selectedMonth="selectedMonth"-->
-<!--                :goodsCode="selectedGoodsCode"-->
-<!--            />-->
-
+            <GoodsCompare
+                :selectedYear="selectedYear"
+                :selectedMonth="selectedMonth"
+                :goodsCode="selectedGoodsCode"
+            />
+          </div>
+          <div class="sales-container">
             <h3>매출 차트</h3>
             <GoodsChart
                 v-if="selectedGoodsCode"
@@ -373,13 +374,23 @@ const handleMonthClick = ({ year, month }) => {
   border-radius: 8px;
 }
 
-/* 가운데 차트 섹션 스타일 */
 .chart-section {
   background: white;
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   height: calc(100vh - 72px);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.comparison-container,
+.sales-container {
+  flex: 1;
+  background: #f8f9fa;
+  border-radius: 4px;
+  padding: 16px;
 }
 
 .chart-container {
