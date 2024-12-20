@@ -5,6 +5,9 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import {getFetch, postFetch, putFetch, delFetch} from "@/stores/apiClient.js";
+import {useAuthStore} from "@/stores/auth.js";
+
+const authStore = useAuthStore();
 
 // 매출 상승, 하락 상품
 const increaseTop5 = ref([]);
@@ -214,12 +217,19 @@ const saveEvent = async () => {
   }
 
   try {
-    const response = await postFetch('/schedule', {
-      scheduleTitle: eventForm.title,
-      scheduleContent: eventForm.content,
-      scheduleStart: formatDateTime(eventForm.startDate, eventForm.startTime),
-      scheduleEnd: formatDateTime(eventForm.endDate, eventForm.endTime)
-    });
+
+    const createScheduleReqData = {
+      scheduleType: 'TEAMSPACE',
+      scheduleUrl: `/teamspace/${authStore.deptCode}`,
+      scheduleReqDTO: {
+        scheduleTitle: eventForm.title,
+        scheduleContent: eventForm.content,
+        scheduleStart: formatDateTime(eventForm.startDate, eventForm.startTime),
+        scheduleEnd: formatDateTime(eventForm.endDate, eventForm.endTime)
+      }
+    }
+
+    const response = await postFetch('/schedule', createScheduleReqData);
 
     events.value.push({
       id: response.data.data,
