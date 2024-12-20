@@ -185,30 +185,45 @@ onBeforeUnmount(() => {
 <template>
 
   <div class="chat-container">
-    <h1>{{ TeamSpaceName }}</h1>
+    <h1>{{ TeamSpaceName }} 팀스페이스</h1>
     <div class="chat-wrapper">
-      <!-- 채팅 메시지 리스트 -->
-      <div class="message-list" @scroll="handleScroll">
+
+      <div class="message-list">
         <div
             v-for="(message, index) in messages"
             :key="index"
             :class="['message-item', message.self ? 'self' : 'other']"
         >
-          <strong>{{ message.self ? userName : message.userName || '알 수 없음' }}:</strong>
-          {{ message.messageContent }}
-          <small>({{ formatDate(message.messageCreatedTime) }})</small>
+          <!-- 사용자명 -->
+          <div class="user-name">
+            {{ message.self ? userName : message.userName || '알 수 없음' }}
+          </div>
+
+          <!-- 메시지 내용 -->
+          <div class="message-bubble">
+            {{ message.messageContent }}
+          </div>
+
+          <!-- 생성 시간 -->
+          <div class="timestamp">
+            {{ formatDate(message.messageCreatedTime) }}
+          </div>
         </div>
       </div>
 
       <!-- 참여자 목록 -->
       <div class="participant-list">
-        <h2>참여자</h2>
+        <h2>참여자 목록</h2>
         <ul>
-          <li v-for="(participant, index) in participants" :key="index">
-            {{ participant.userName }}
+          <li v-for="(participant, index) in participants" :key="index" class="participant-item">
+            <div class="participant-name">{{ participant.userName }}</div>
+            <button v-if="participant.canRemove" class="remove-btn" @click="removeParticipant(index)">
+              X
+            </button>
           </li>
         </ul>
       </div>
+
     </div>
 
     <!-- 새 메시지 알림 -->
@@ -221,9 +236,9 @@ onBeforeUnmount(() => {
       <input
           v-model="messageContent"
           @keyup.enter="sendMessage"
-          placeholder="Type your message..."
+          placeholder="메세지 입력"
       />
-      <button @click="sendMessage">Send</button>
+      <button @click="sendMessage">전송</button>
     </div>
   </div>
 </template>
@@ -231,8 +246,8 @@ onBeforeUnmount(() => {
 <style scoped>
 .chat-container {
   width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
+  max-width: 1000px;
+  margin: 30px auto 0; /* 상단 20px, 좌우 자동 정렬, 하단 0 */
   padding: 20px;
   border: none;
   border-radius: 12px;
@@ -254,57 +269,67 @@ h1 {
 }
 
 .message-list {
-  flex: 3;
-  max-height: 500px;
-  overflow-y: auto;
-  border: none;
-  padding: 20px;
-  background-color: #f8f9fa;
-  border-radius: 12px;
+  flex:4;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 15px; /* 메시지 간 간격 */
+  max-height: 500px;
+  overflow-y: auto; /* 세로 스크롤만 허용 */
+  overflow-x: hidden; /* 가로 스크롤 제거 */
+  padding: 20px;
+  background-color: #e3f2fd;
+  border-radius: 12px;
   box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
+  word-wrap: break-word; /* 긴 단어를 줄바꿈 */
+}
+
+.message-item {
+  display: flex;
+  flex-direction: column; /* 사용자명, 메시지, 생성 시간을 세로로 정렬 */
+  max-width: 60%; /* 메시지의 최대 가로 길이 */
+  align-self: flex-start; /* 기본적으로 왼쪽 정렬 */
 }
 
 .message-item.self {
-  background-color: #007bff;
-  color: #fff;
-  align-self: flex-end;
+  align-self: flex-end; /* 자신의 메시지는 오른쪽 정렬 */
 }
 
-.message-item.other {
-  background-color: #e9ecef;
-  align-self: flex-start;
-}
-
-
-.message-item {
-  background-color: #e9ecef;
-  padding: 15px;
-  border-radius: 12px;
+.user-name {
+  margin-left: 5px;
   font-size: 0.9em;
+  font-weight: bold;
+  color: #333; /* 진한 회색 */
+  margin-bottom: 5px; /* 메시지와 사용자명 간 간격 */
+}
+
+.message-bubble {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 10px 15px;
+  font-size: 1em;
   color: #495057;
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  max-width: 100%; /* 메시지의 최대 가로 길이를 부모 컨테이너에 맞춤 */
+  word-wrap: break-word; /* 긴 단어가 있을 경우 줄바꿈 */
+  white-space: pre-wrap; /* 공백과 줄바꿈을 유지하면서 텍스트를 줄바꿈 */
 }
 
-.message-item strong {
-  color: #343a40;
-  font-size: 0.95em;
+.message-item.self .message-bubble {
+  background-color: #007bff; /* 자신의 메시지 박스 색상 (파랑) */
+  color: white; /* 텍스트 색상 (흰색) */
 }
 
-.message-item small {
-  font-size: 0.8em;
-  color: #868e96;
-  text-align: right;
+.timestamp {
+  font-size: 0.8em; /* 생성 시간의 작은 텍스트 크기 */
+  color: #868e96; /* 연한 회색 */
+  text-align: right; /* 생성 시간을 우측 정렬 */
+  margin-top: 5px; /* 메시지와 시간 간 간격 */
+  margin-right: 5px;
 }
 
 .participant-list {
   flex: 1;
-  border: none;
-  background-color: #f1f3f5;
+  background-color: #e3f2fd; /* 채팅 화면과 동일한 배경색 */
   padding: 15px;
   border-radius: 12px;
   max-height: 500px;
@@ -326,7 +351,10 @@ h1 {
   margin: 0;
 }
 
-.participant-list li {
+.participant-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   padding: 10px;
   background-color: #ffffff;
   border-radius: 8px;
@@ -335,6 +363,26 @@ h1 {
   color: #495057;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
+
+.participant-name {
+  font-weight: bold;
+  font-size: 1em;
+  color: #333;
+}
+
+.remove-btn {
+  background-color: transparent;
+  border: none;
+  color: #ff4d4f;
+  font-size: 1em;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.remove-btn:hover {
+  color: #d32f2f;
+}
+
 
 .new-message-alert {
   position: fixed;
@@ -364,7 +412,7 @@ h1 {
 
 .message-input input {
   flex: 1;
-  padding: 15px;
+  padding: 10px;
   border: 1px solid #dee2e6;
   border-radius: 12px;
   font-size: 1em;
@@ -379,7 +427,7 @@ h1 {
 }
 
 .message-input button {
-  padding: 10px 20px;
+  padding: 25px 20px;
   border: none;
   border-radius: 12px;
   background-color: #007bff;
