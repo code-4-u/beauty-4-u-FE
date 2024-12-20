@@ -120,13 +120,13 @@ const search = async () => {
       if(Array.isArray(response.data.data) && response.data.data.length > 0){
         searchResults.value = response.data.data;
       } else {
+        searchResults.value = [];
+        alert("해당 상품이 존재하지 않습니다.");
+      }
+    } else {
       searchResults.value = [];
-      alert("해당 상품이 존재하지 않습니다.");
+      alert('해당 상품이 존재하지 않습니다.');
     }
-  } else {
-    searchResults.value = [];
-    alert('해당 상품이 존재하지 않습니다.');
-  }
   } catch (error) {
     console.error('상품 검색 중 오류 발생:', error)
     searchResults.value = []

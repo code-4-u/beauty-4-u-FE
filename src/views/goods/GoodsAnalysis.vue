@@ -3,6 +3,7 @@
 import {onMounted, onUnmounted, ref, watch} from "vue";
 import {getFetch} from "@/stores/apiClient.js";
 import PromotionList from "@/components/goods/PromotionList.vue";
+import Review from "@/views/goods/Review.vue";
 import GoodsChart from "@/components/goods/GoodsChart.vue";
 import GoodsCompare from "@/components/goods/GoodsCompare.vue";
 
@@ -203,11 +204,11 @@ const handleMonthClick = ({ year, month }) => {
         <div class="chart-section">
           <div class="chart-container">
             <h3>비교</h3>
-<!--            <GoodsCompare-->
-<!--                :selectedYear="selectedYear"-->
-<!--                :selectedMonth="selectedMonth"-->
-<!--                :goodsCode="selectedGoodsCode"-->
-<!--            />-->
+            <GoodsCompare
+                :selectedYear="selectedYear"
+                :selectedMonth="selectedMonth"
+                :goodsCode="selectedGoodsCode"
+            />
 
             <h3>매출 차트</h3>
             <GoodsChart
