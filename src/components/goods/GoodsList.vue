@@ -25,12 +25,12 @@ const filters = reactive({
 
 // 스킨타입 옵션
 const skinTypes = [
-  { value: '', label: '전체' },
-  { value: 'DRY', label: '건성' },
-  { value: 'OILY', label: '지성' },
-  { value: 'NORMAL', label: '중성' },
-  { value: 'COMBINATION', label: '복합성' },
-  { value: 'SENSITIVE', label: '민감성' }
+  {value: '', label: '전체'},
+  {value: 'DRY', label: '건성'},
+  {value: 'OILY', label: '지성'},
+  {value: 'NORMAL', label: '중성'},
+  {value: 'COMBINATION', label: '복합성'},
+  {value: 'SENSITIVE', label: '민감성'}
 ]
 
 // API 호출 함수
@@ -121,9 +121,6 @@ onMounted(() => {
     <div class="product-management">
       <div class="header">
         <h2>상품 관리</h2>
-        <button class="add-button">
-          + 신규 상품 등록
-        </button>
       </div>
 
       <!-- 필터링 섹션 -->
@@ -198,15 +195,14 @@ onMounted(() => {
                   {{ filters.order === 'asc' ? '↑' : '↓' }}
                 </span>
             </th>
-            <th>관리</th>
           </tr>
           </thead>
           <tbody>
           <tr v-if="loading">
-            <td colspan="6" class="text-center">로딩중...</td>
+            <td colspan="5" class="text-center">로딩중...</td>
           </tr>
           <tr v-else-if="error">
-            <td colspan="6" class="text-center text-red-500">{{ error }}</td>
+            <td colspan="5" class="text-center text-red-500">{{ error }}</td>
           </tr>
           <tr v-else v-for="product in products" :key="product.goodsCode">
             <td>{{ product.goodsCode }}</td>
@@ -218,12 +214,6 @@ onMounted(() => {
               <span class="badge skin-type">{{ product.goodsSkintype }}</span>
             </td>
             <td>{{ formatPrice(product.goodsPrice) }}원</td>
-            <td>
-              <div class="action-buttons">
-                <button class="edit">수정</button>
-                <button class="delete">삭제</button>
-              </div>
-            </td>
           </tr>
           </tbody>
         </table>
@@ -373,66 +363,6 @@ td {
   color: #92400e;
 }
 
-.action-buttons {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.action-buttons button {
-  padding: 0.25rem 0.75rem;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.action-buttons .edit {
-  background-color: white;
-  border: 1px solid #e5e7eb;
-  color: #374151;
-}
-
-.action-buttons .delete {
-  background-color: white;
-  border: 1px solid #ef4444;
-  color: #ef4444;
-}
-
-.action-buttons .edit:hover {
-  border-color: #4CAF50;
-  background-color: #f0fdf4;
-}
-
-.action-buttons .delete:hover {
-  border-color: #dc2626;
-  background-color: #fef2f2;
-}
-
-.add-button {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.add-button:hover {
-  background-color: #45a049;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.add-button:active {
-  transform: translateY(0);
-  box-shadow: none;
-}
-
 @media (max-width: 768px) {
   .container {
     padding: 1rem;
@@ -450,10 +380,6 @@ td {
 
   .search-bar {
     grid-template-columns: 1fr;
-  }
-
-  .action-buttons {
-    flex-direction: column;
   }
 }
 </style>

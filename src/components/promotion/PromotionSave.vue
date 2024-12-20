@@ -230,6 +230,19 @@ const handleSubmit = async () => {
         }))
       }
 
+      const createScheduleReqData = {
+        scheduleType: 'PROMOTION',
+        scheduleUrl: `/promotion/${promotionId}`,
+        scheduleReqDTO: {
+          scheduleTitle: promotionData.value.promotionTitle,
+          scheduleContent: promotionData.value.promotionContent,
+          scheduleStart: promotionData.value.promotionStartDate,
+          scheduleEnd: promotionData.value.promotionEndDate
+        }
+      }
+
+      await postFetch('/schedule', createScheduleReqData);
+
       // 프로모션 상품 등록 API 호출
       const goodsResponse = await postFetch(`/promotionGoods`, promotionGoodsData)
 
