@@ -3,7 +3,6 @@
 import {onMounted, onUnmounted, ref, watch} from "vue";
 import {getFetch} from "@/stores/apiClient.js";
 import PromotionList from "@/components/goods/PromotionList.vue";
-import Review from "@/views/goods/Review.vue";
 import GoodsChart from "@/components/goods/GoodsChart.vue";
 import GoodsCompare from "@/components/goods/GoodsCompare.vue";
 
