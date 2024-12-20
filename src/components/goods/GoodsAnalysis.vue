@@ -203,11 +203,11 @@ const handleMonthClick = ({ year, month }) => {
         <div class="chart-section">
           <div class="chart-container">
             <h3>비교</h3>
-            <GoodsCompare
-                :selectedYear="selectedYear"
-                :selectedMonth="selectedMonth"
-                :goodsCode="selectedGoodsCode"
-            />
+<!--            <GoodsCompare-->
+<!--                :selectedYear="selectedYear"-->
+<!--                :selectedMonth="selectedMonth"-->
+<!--                :goodsCode="selectedGoodsCode"-->
+<!--            />-->
 
             <h3>매출 차트</h3>
             <GoodsChart
