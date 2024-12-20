@@ -75,20 +75,29 @@ const formatCurrency = (value) => {
     <div v-else-if="compareData">
       <div class="comparison-data">
         <div class="stats-container">
-          <div class="stat-box current-year">
+          <div class="stat-box">
             <h4>{{ selectedYear }}년 {{ selectedMonth }}월</h4>
-            <div class="amount">{{ formatCurrency(compareData.currentYearMonthlySales) }}</div>
+            <div class="amount-display">
+              {{ formatCurrency(compareData.currentYearMonthlySales) }}
+              <i v-if="compareData.currentYearMonthlySales > compareData.lastYearMonthlySales"
+                 class="fas fa-arrow-up trend-arrow up"></i>
+            </div>
           </div>
 
           <div class="comparison-arrows">
-            <div class="percent-change" :class="compareData.percent > 0 ? 'increase' : 'decrease'">
+            <div class="percent-change"
+                 :class="{ 'increase': compareData.percent > 0, 'decrease': compareData.percent < 0 }">
               {{ compareData.percent }}%
             </div>
           </div>
 
-          <div class="stat-box previous-year">
+          <div class="stat-box">
             <h4>{{ selectedYear - 1 }}년 {{ selectedMonth }}월</h4>
-            <div class="amount">{{ formatCurrency(compareData.lastYearMonthlySales) }}</div>
+            <div class="amount-display">
+              {{ formatCurrency(compareData.lastYearMonthlySales) }}
+              <i v-if="compareData.lastYearMonthlySales < compareData.currentYearMonthlySales"
+                 class="fas fa-arrow-down trend-arrow down"></i>
+            </div>
           </div>
         </div>
       </div>
@@ -99,9 +108,12 @@ const formatCurrency = (value) => {
   </div>
 </template>
 
-<style>
+<style scoped>
 .comparison-data {
   padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .stats-container {
@@ -123,12 +135,29 @@ const formatCurrency = (value) => {
   margin: 0 0 10px 0;
   color: #666;
   font-size: 14px;
+  font-weight: 500;
 }
 
-.amount {
+.amount-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   font-size: 24px;
-  font-weight: bold;
+  font-weight: 600;
   color: #333;
+}
+
+.trend-arrow {
+  font-size: 16px;
+}
+
+.trend-arrow.up {
+  color: #dc3545;  /* 빨간색 */
+}
+
+.trend-arrow.down {
+  color: #0d6efd;  /* 파란색 */
 }
 
 .comparison-arrows {
@@ -138,19 +167,25 @@ const formatCurrency = (value) => {
 }
 
 .percent-change {
-  font-size: 18px;
-  font-weight: bold;
+  font-size: 16px;
+  font-weight: 600;
   padding: 8px 16px;
   border-radius: 20px;
 }
 
 .increase {
-  color: #28a745;
+  color: #2e7d32;
   background-color: #e8f5e9;
 }
 
 .decrease {
-  color: #dc3545;
+  color: #c62828;
   background-color: #fde8e8;
+}
+
+.loading, .error, .no-data {
+  text-align: center;
+  padding: 20px;
+  color: #666;
 }
 </style>

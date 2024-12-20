@@ -13,7 +13,7 @@ export default [
         component: TeamSpaceHome,
         children: [
             {
-                path: 'board',
+                path: ':teamspaceId/board',
                 component: TeamBoardList
             },
             {
