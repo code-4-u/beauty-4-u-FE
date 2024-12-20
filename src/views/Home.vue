@@ -6,6 +6,43 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import {getFetch, postFetch, putFetch, delFetch} from "@/stores/apiClient.js";
 
+// 매출 상승, 하락 상품
+const increaseTop5 = ref([]);
+const decreaseTop5 = ref([]);
+
+const periods = [
+  { type: 'DAILY', label: '일간' },
+  { type: 'WEEKLY', label: '주간' },
+  { type: 'MONTHLY', label: '월간' },
+  { type: 'QUARTER', label: '3개월' },
+  { type: 'HALF', label: '6개월' },
+  { type: 'YEARLY', label: '1년' }
+];
+
+const selectedPeriod = ref('DAILY'); // 기본값
+
+// 기간 변경 함수
+const changePeriod = async (periodType) => {
+  selectedPeriod.value = periodType;
+  try {
+    const params = new URLSearchParams({
+      periodType: periodType
+    });
+    const response = await getFetch(`goodsRate/list?${params.toString()}`);
+
+    const { increase, decrease } = response.data.data;
+    increaseTop5.value = increase;
+    decreaseTop5.value = decrease;
+  } catch (error) {
+    console.error("Error 매출 상승,하락률: ", error);
+  }
+};
+
+// fetchGoodsRate 함수 수정
+const fetchGoodsRate = async () => {
+  await changePeriod(selectedPeriod.value);
+};
+
 // State
 const events = ref([]);
 const isModalOpen = ref(false);
@@ -305,6 +342,7 @@ const fetchSchedules = async () => {
 
 onMounted(() => {
   fetchSchedules();
+  fetchGoodsRate();
 });
 </script>
 
@@ -312,39 +350,26 @@ onMounted(() => {
   <div class="page-container">
     <div class="main-content">
       <!-- 상단 통계 카드 -->
+      <div class="period-tabs">
+        <button v-for="period in periods" :key="period.type" :class="['tab-button',{ active: selectedPeriod === period.type }]" @click="changePeriod(period.type)">{{ period.label }}</button>
+      </div>
       <div class="stats-row">
         <div class="stats-card">
-          <h3 class="card-title">매출 상승 TOP 3</h3>
+          <h3 class="card-title">매출 상승 TOP 5</h3>
           <div class="stats-content">
-            <div class="stats-item">
-              <span class="stats-label">1. 수분 크림</span>
-              <span class="stats-value increase">+32.5%</span>
-            </div>
-            <div class="stats-item">
-              <span class="stats-label">2. 썬크림</span>
-              <span class="stats-value increase">+28.7%</span>
-            </div>
-            <div class="stats-item">
-              <span class="stats-label">3. 립밤</span>
-              <span class="stats-value increase">+25.2%</span>
+            <div v-for="(item, index) in increaseTop5" :key="index" class="stats-item">
+              <span class="stats-label">{{ index + 1 }}. {{ item.goodsName }} ({{ item.brandName }})</span>
+              <span class="stats-value increase">{{ item.rateChange }}</span>
             </div>
           </div>
         </div>
 
         <div class="stats-card">
-          <h3 class="card-title">매출 하락 TOP 3</h3>
+          <h3 class="card-title">매출 하락 TOP 5</h3>
           <div class="stats-content">
-            <div class="stats-item">
-              <span class="stats-label">1. 회색 마스크팩</span>
-              <span class="stats-value decrease">-15.8%</span>
-            </div>
-            <div class="stats-item">
-              <span class="stats-label">2. 노란색 틴트</span>
-              <span class="stats-value decrease">-12.4%</span>
-            </div>
-            <div class="stats-item">
-              <span class="stats-label">3. 반짝 아이브로우</span>
-              <span class="stats-value decrease">-8.9%</span>
+            <div v-for="(item, index) in decreaseTop5" :key="index" class="stats-item">
+              <span class="stats-label">{{ index + 1 }}. {{ item.goodsName }} ({{ item.brandName }})</span>
+              <span class="stats-value decrease">{{ item.rateChange }}</span>
             </div>
           </div>
         </div>
@@ -967,6 +992,52 @@ onMounted(() => {
 
   .events-column {
     grid-template-columns: 1fr;
+  }
+}
+
+/* 기간 선택 탭 스타일 */
+.period-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  background: white;
+  padding: 0.5rem;
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  border: 1px solid #e5e7eb;
+}
+
+.tab-button {
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #4b5563;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.tab-button:hover {
+  background: #f3f4f6;
+}
+
+.tab-button.active {
+  background: #87d1d4;
+  color: white;
+}
+
+/* 반응형 스타일 추가 */
+@media (max-width: 768px) {
+  .period-tabs {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .tab-button {
+    min-width: calc(33.333% - 0.5rem);
+    text-align: center;
   }
 }
 </style>
