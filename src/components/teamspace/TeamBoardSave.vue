@@ -6,7 +6,7 @@ import BoardEditor from "@/components/board/editor/BoardEditor.vue";
 import ImageManagement from "@/components/board/editor/ImageManagement.vue";
 
 const router = useRouter();
-const informTitle = ref('');
+const teamBoardTitle = ref('');
 const editorContent = ref('<p>내용을 입력해주세요.</p>');
 const selectedFiles = ref([]);
 const imageUrls = ref([]);
@@ -45,11 +45,11 @@ const handleRemove = (fileId) => {
 
 // 목록으로 돌아가기
 const goBack = () => {
-  router.push('/inform');
+  router.push('/teamspace/board');
 };
 
 // 게시글 저장
-const fetchSaveInform = async () => {
+const fetchSaveTeamBoard = async () => {
   try {
     // 1. 모든 이미지가 업로드될 때까지 대기
     if (uploadStatus.value === '업로드 중') {
@@ -64,7 +64,7 @@ const fetchSaveInform = async () => {
     }
 
     // 입력값 검증
-    if (!informTitle.value.trim()) {
+    if (!teamBoardTitle.value.trim()) {
       alert('제목을 입력해주세요.');
       return;
     }
@@ -76,9 +76,9 @@ const fetchSaveInform = async () => {
     const imageUrls = imageMatches.map(match => match[1]);
 
     // 3. 게시글 저장
-    const response = await postFetch(`/inform`, {
-      informTitle: informTitle.value,
-      informContent: editorContent.value
+    const response = await postFetch(`/teamspace/board`, {
+      teamBoardTitle: teamBoardTitle.value,
+      teamBoardContent: editorContent.value
     });
 
     // 4. 저장된 게시글의 ID로 이미지 저장
@@ -86,13 +86,13 @@ const fetchSaveInform = async () => {
       await postFetch('/file/save', {
         entityId: response.data.data,
         imageUrls: imageUrls,
-        entityType: "inform"
+        entityType: "teamBoard"
       });
     }
 
     // 5. 목록으로 이동
     await router.push({
-      path: `/inform`
+      path: `/teamspace/board`
     });
   } catch (error) {
     console.error('저장에 실패했습니다.', error);
@@ -102,14 +102,14 @@ const fetchSaveInform = async () => {
 </script>
 
 <template>
-  <div class="notice-detail-container">
-    <div class="notice-header">
+  <div class="board-detail-container">
+    <div class="board-header">
       <div class="title-wrapper">
         <h3 class="title-label">제목</h3>
         <input
             type="text"
             class="title-input"
-            v-model="informTitle"
+            v-model="teamBoardTitle"
             placeholder="제목을 입력하세요"
         >
       </div>
@@ -140,7 +140,7 @@ const fetchSaveInform = async () => {
       </div>
 
       <div class="right-buttons">
-        <button class="btn btn-primary" @click="fetchSaveInform">
+        <button class="btn btn-primary" @click="fetchSaveTeamBoard">
           <span class="btn-text">등록</span>
         </button>
       </div>
@@ -149,7 +149,7 @@ const fetchSaveInform = async () => {
 </template>
 
 <style scoped>
-.notice-detail-container {
+.board-detail-container {
   max-width: 1200px;
   margin: 1.5rem auto;
   padding: 1.5rem;
@@ -162,7 +162,7 @@ const fetchSaveInform = async () => {
   width: 100%;
 }
 
-.notice-header {
+.board-header {
   margin-bottom: 1.5rem;
 }
 
@@ -265,7 +265,7 @@ const fetchSaveInform = async () => {
 }
 
 @media (max-width: 768px) {
-  .notice-detail-container {
+  .board-detail-container {
     margin: 0.75rem;
     padding: 0.75rem;
   }

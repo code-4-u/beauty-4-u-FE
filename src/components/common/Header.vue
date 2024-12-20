@@ -1,16 +1,35 @@
 <script setup>
 import {useAuthStore} from "@/stores/auth.js";
 import {FontAwesomeIcon} from '@fortawesome/vue-fontawesome';
-import {computed, ref} from "vue";
+import {computed, ref, inject, onMounted, onUnmounted} from "vue";
+import {getFetch, putFetch} from "@/stores/apiClient.js";
 import userProfile from '@/assets/icons/profile.svg';
 
 const authStore = useAuthStore();
 const isAdmin = computed(() => authStore.isAuthorized('ADMIN'));
 const headerItems = ref([]);
+const showNotis = ref(false);
+const notis = ref([]);
 
 headerItems.value = [
-  {id: 1, name: '상품', link: '/goods/analysis'},
-  {id: 2, name: '프로모션', link: '/promotion/analysis'},
+  {
+    id: 1,
+    name: '상품',
+    link: '',
+    subItems: [
+      {id: 11, name: '상품 관리', link: '/goods/manage'},
+      {id: 12, name: '상품 분석', link: '/goods/analysis'},
+    ]
+  },
+  {
+    id: 2,
+    name: '프로모션',
+    link: '',
+    subItems: [
+      {id: 21, name: '프로모션 관리', link: '/promotion/manage'},
+      {id: 22, name: '프로모션 분석', link: '/promotion/analysis'},
+    ]
+  },
   {id: 3, name: '팀 스페이스', link: '/teamspace'},
   {
     id: 4,
@@ -24,11 +43,69 @@ headerItems.value = [
   },
 ];
 
+const fetchMyNotReadNotiList = async () => {
+  try {
+    const response = await getFetch('/noti');
+    notis.value = response.data.data.filter(noti => noti.notiReadYn === 'N');
+  } catch (error) {
+    console.error('알림 목록을 불러오는 중 에러가 발생했습니다.', error);
+  }
+};
+
+const handleNotiClick = async (noti) => {
+  try {
+    await putFetch(`/noti/${noti.notiId}`,
+        {
+          notiId: noti.notiId
+        });
+    await fetchMyNotReadNotiList();
+  } catch (error) {
+    console.error('알림 읽음 상태 변경 중 에러가 발생했습니다.', error);
+  }
+};
+
+const toggleNotis = async () => {
+  showNotis.value = !showNotis.value;
+  if (showNotis.value) {
+    await fetchMyNotReadNotiList();
+  }
+};
+
+const closeNotis = (event) => {
+  const dropdown = document.querySelector('.notifications-dropdown');
+  const notiBtn = document.querySelector('.notification');
+
+  if (dropdown && !dropdown.contains(event.target) && !notiBtn.contains(event.target)) {
+    showNotis.value = false;
+  }
+};
+
+const formatDate = (dateString) => {
+  const date = new Date(dateString);
+  return date.toLocaleString('ko-KR', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit'
+  });
+};
+
 const handleLogoutClick = () => {
   authStore.logout();
   alert('로그아웃 성공');
   window.location.reload();
 };
+
+onMounted(() => {
+  fetchMyNotReadNotiList();
+  document.addEventListener('click', closeNotis);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', closeNotis);
+});
 </script>
 
 <template>
@@ -67,8 +144,22 @@ const handleLogoutClick = () => {
       >
         <font-awesome-icon :icon="['fas', 'cog']"/>
       </router-link>
-      <div class="notification">
+      <div class="notification" @click="toggleNotis">
         <font-awesome-icon :icon="['fas', 'bell']"/>
+        <div v-if="showNotis" class="notifications-dropdown">
+          <div v-if="notis.length" class="notifications-list">
+            <div v-for="noti in notis"
+                 :key="noti.notiId"
+                 class="notification-item"
+                 @click="handleNotiClick(noti)">
+              <span class="notification-message">{{ noti.notiContent }}</span>
+              <span class="notification-date">{{ formatDate(noti.createdDate) }}</span>
+            </div>
+          </div>
+          <div v-else class="no-notifications">
+            새로운 알림이 없습니다.
+          </div>
+        </div>
       </div>
       <div @click="handleLogoutClick" class="logout">
         <font-awesome-icon :icon="['fas', 'arrow-right-from-bracket']"/>
@@ -80,13 +171,13 @@ const handleLogoutClick = () => {
 <style scoped>
 .header {
   display: flex;
-  align-items: center; /* 수직 중앙 정렬 유지 */
+  align-items: center;
   justify-content: space-between;
-  padding: 0 2rem; /* 상하 패딩은 제거하고 높이로 조정 */
+  padding: 0 2rem;
   background-color: #ffffff;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   user-select: none;
-  height: 60px; /* 명시적인 높이 설정 */
+  height: 60px;
   width: 100%;
   box-sizing: border-box;
 }
@@ -98,9 +189,9 @@ const handleLogoutClick = () => {
   text-decoration: none;
   letter-spacing: 0.5px;
   user-select: none;
-  height: 100%; /* 높이 100% */
+  height: 100%;
   display: flex;
-  align-items: center; /* 로고 수직 중앙 정렬 */
+  align-items: center;
 }
 
 .user-section {
@@ -149,6 +240,7 @@ const handleLogoutClick = () => {
   cursor: pointer;
   color: #666;
   transition: color 0.3s ease;
+  position: relative;
 }
 
 .notification:hover {
@@ -195,9 +287,9 @@ const handleLogoutClick = () => {
 
 .logout {
   cursor: pointer;
-  height: 100%; /* 높이 100% */
+  height: 100%;
   display: flex;
-  align-items: center; /* 로그아웃 버튼 수직 중앙 정렬 */
+  align-items: center;
 }
 
 .menu-li {
@@ -265,6 +357,58 @@ const handleLogoutClick = () => {
 .admin-link:hover {
   color: var(--menu-green);
   background-color: rgba(46, 125, 50, 0.1);
+}
+
+.notifications-dropdown {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  background-color: white;
+  border: 1px solid #eee;
+  border-radius: 4px;
+  width: 300px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.notifications-list {
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.notification-item {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.notification-item:last-child {
+  border-bottom: none;
+}
+
+.notification-item:hover {
+  background-color: rgba(46, 125, 50, 0.1);
+}
+
+.notification-message {
+  color: #333;
+  font-size: 0.875rem;
+}
+
+.notification-date {
+  color: #666;
+  font-size: 0.75rem;
+}
+
+.no-notifications {
+  padding: 12px;
+  text-align: center;
+  color: #666;
+  font-size: 0.875rem;
 }
 
 @media (max-width: 768px) {

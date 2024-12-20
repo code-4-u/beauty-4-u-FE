@@ -83,7 +83,7 @@ const fetchSaveQna = async () => {
       await postFetch('/file/save', {
         entityId: response.data.data,
         imageUrls: imageUrls,
-        isInform: false
+        entityType: "inquiry"
       });
     }
 
