@@ -13,7 +13,9 @@ const useAuth = useAuthStore();
 const userCode = ref(useAuth.userCode); // 현재 사용자 코드
 const autoScrollEnabled = ref(true); // 자동 스크롤 활성화 여부
 const newMessage = ref(null); // 새 메시지 알림
-const DeptCode = ref(null);
+const DeptCode = ref(useAuth.deptCode);
+const TeamSpaceName = ref(null);
+const userName = ref(useAuth.userName);
 const participants = ref([]); // 참여자 목록
 
 let stompClient = null; // WebSocket 클라이언트
@@ -26,25 +28,6 @@ const authObjectInfo = {
 
 // 날짜 포맷 함수
 const formatDate = (date) => new Date(date).toLocaleString();
-
-// 부서 코드 찾기
-const getTeamSpaceDeptCode = async (teamspaceId) => {
-  try {
-    const response = await axios.get(
-        `http://localhost:8080/api/vi/teamspace/${teamspaceId}/dept`,
-        {
-          headers: {
-            Authorization: `Bearer ${authObjectInfo.accessToken}`
-          }
-        }
-    );
-    console.log("TeamSpace DeptCode:", response.data);
-    return response.data; // 서버에서 반환된 데이터를 리턴
-  } catch (error) {
-    console.error("Failed to fetch TeamSpace deptCode:", error);
-    throw error; // 에러를 호출한 곳으로 전달
-  }
-};
 
 // 스크롤 최하단으로 이동
 const scrollToBottom = async (smooth = false) => {
@@ -78,39 +61,34 @@ const handleScroll = () => {
   }
 };
 
-// 채팅 참여자 로드
-const loadTeamSpaceUsersByDeptCode = async (deptCode) => {
+// 팀스페이스 정보 로드
+const loadTeamSpaceDetails = async (teamspaceId, deptCode) => {
   try {
-    const response = await axios.get("http://localhost:8080/api/vi/teamspace/users", {
+    console.log("loadTeamSpaceDetails called");
+    const response = await axios.get(`http://localhost:8080/api/v1/teamspace/${teamspaceId}/details`, {
       params: { deptCode },
       headers: {
         Authorization: `Bearer ${authObjectInfo.accessToken}`
       }
     });
-    return response.data;
-  } catch (error) {
-    console.error("Failed to fetch TeamSpace users:", error);
-    throw error;
-  }
-};
 
-// 채팅 메시지 로드
-const loadChatMessages = async () => {
-  try {
-    const response = await axios.get(
-        `http://localhost:8080/api/vi/teamspace/${teamspaceId.value}`,
-        {
-          headers: {
-            Authorization: `Bearer ${authObjectInfo.accessToken}`
-          }
-        }
-    );
-    console.log("Loaded chat messages:", response.data);
+    // 응답 데이터 구조에 맞게 상태 업데이트
+    const data = response.data;
+    TeamSpaceName.value = data.deptName;
+    participants.value = data.participants;
+    messages.value = data.messages;
 
-    messages.value = response.data.flat();
+    // 메시지에 self 속성 추가
+    messages.value = data.messages.map((msg) => ({
+      ...msg,
+      self: msg.userCode === userCode.value,
+    }));
+
+    console.log("TeamSpace details loaded:", data);
     await scrollToBottom();
   } catch (error) {
-    console.error("Failed to load chat messages:", error);
+    console.error("Failed to load TeamSpace details:", error);
+    throw error;
   }
 };
 
@@ -128,6 +106,9 @@ const connectWebSocket = () => {
           try {
             const receivedMessage = JSON.parse(message.body);
             if (receivedMessage.userCode === userCode.value) return;
+
+            // self 속성 추가
+            receivedMessage.self = receivedMessage.userCode === userCode.value;
 
             messages.value.push(receivedMessage);
 
@@ -158,12 +139,17 @@ const sendMessage = async () => {
   if (messageContent.value.trim()) {
     const chatMessage = {
       userCode: userCode.value,
+      userName: userName.value,
       messageContent: messageContent.value,
-      messageCreatedTime: new Date().toISOString()
+      messageCreatedTime: new Date().toISOString(),
     };
 
     stompClient.send(`/pub/${teamspaceId.value}`, {}, JSON.stringify(chatMessage));
-    messages.value.push(chatMessage);
+    // 클라이언트에 self 필드를 추가해 메시지 표시
+    messages.value.push({
+      ...chatMessage,
+      self: true, // 클라이언트에서만 사용하는 필드
+    });
     messageContent.value = "";
     await scrollToBottom(true);
   }
@@ -181,12 +167,9 @@ onMounted(async () => {
   }
 
   teamspaceId.value = id;
-  DeptCode.value = await getTeamSpaceDeptCode(teamspaceId.value);
 
-  participants.value = await loadTeamSpaceUsersByDeptCode(DeptCode.value);
-  console.log("Participants:", participants.value);
-
-  await loadChatMessages();
+  // 통합 API 호출
+  await loadTeamSpaceDetails(teamspaceId.value, DeptCode.value);
   connectWebSocket();
 });
 
@@ -198,15 +181,20 @@ onBeforeUnmount(() => {
 });
 </script>
 
+
 <template>
 
   <div class="chat-container">
-    <h1>Teamspace Chat</h1>
+    <h1>{{ TeamSpaceName }}</h1>
     <div class="chat-wrapper">
       <!-- 채팅 메시지 리스트 -->
       <div class="message-list" @scroll="handleScroll">
-        <div v-for="(message, index) in messages" :key="index" class="message-item">
-          <strong>{{ message.userCode === userCode ? "나" : message.userCode || "Unknown" }}:</strong>
+        <div
+            v-for="(message, index) in messages"
+            :key="index"
+            :class="['message-item', message.self ? 'self' : 'other']"
+        >
+          <strong>{{ message.self ? userName : message.userName || '알 수 없음' }}:</strong>
           {{ message.messageContent }}
           <small>({{ formatDate(message.messageCreatedTime) }})</small>
         </div>
@@ -243,87 +231,125 @@ onBeforeUnmount(() => {
 <style scoped>
 .chat-container {
   width: 100%;
-  max-width: 600px;
+  max-width: 800px;
   margin: 0 auto;
   padding: 20px;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  background-color: #f9f9f9;
+  border: none;
+  border-radius: 12px;
+  background-color: #ffffff;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
   position: relative;
 }
 
-/* 채팅 참여자 */
+h1 {
+  text-align: center;
+  font-size: 1.8em;
+  color: #333;
+  margin-bottom: 20px;
+}
+
 .chat-wrapper {
   display: flex;
   gap: 20px;
 }
 
 .message-list {
-  flex: 3; /* 채팅 내역이 더 넓게 표시되도록 설정 */
-  max-height: 400px;
+  flex: 3;
+  max-height: 500px;
   overflow-y: auto;
-  border: 1px solid #ddd;
-  padding: 10px;
-  background-color: #fff;
-  border-radius: 4px;
+  border: none;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
+}
+
+.message-item.self {
+  background-color: #007bff;
+  color: #fff;
+  align-self: flex-end;
+}
+
+.message-item.other {
+  background-color: #e9ecef;
+  align-self: flex-start;
+}
+
+
+.message-item {
+  background-color: #e9ecef;
+  padding: 15px;
+  border-radius: 12px;
+  font-size: 0.9em;
+  color: #495057;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.message-item strong {
+  color: #343a40;
+  font-size: 0.95em;
+}
+
+.message-item small {
+  font-size: 0.8em;
+  color: #868e96;
+  text-align: right;
 }
 
 .participant-list {
-  flex: 1; /* 참여자 목록 비율 */
-  border: 1px solid #ccc;
-  background-color: #f1f1f1;
-  padding: 10px;
-  border-radius: 4px;
-  max-height: 400px;
+  flex: 1;
+  border: none;
+  background-color: #f1f3f5;
+  padding: 15px;
+  border-radius: 12px;
+  max-height: 500px;
   overflow-y: auto;
+  box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
 }
 
 .participant-list h2 {
   margin-top: 0;
   font-size: 1.2em;
   text-align: center;
+  color: #495057;
+  margin-bottom: 15px;
 }
 
 .participant-list ul {
   list-style: none;
   padding: 0;
+  margin: 0;
 }
 
 .participant-list li {
-  padding: 5px 0;
-  border-bottom: 1px solid #ddd;
-}
-
-h1 {
-  text-align: center;
-  margin-bottom: 20px;
-}
-
-.message-list {
-  max-height: 400px;
-  overflow-y: auto;
-  border: 1px solid #ddd;
   padding: 10px;
+  background-color: #ffffff;
+  border-radius: 8px;
   margin-bottom: 10px;
-  background-color: #fff;
-  border-radius: 4px;
-  position: relative;
-}
-
-.message-item {
-  margin-bottom: 10px;
+  font-size: 0.9em;
+  color: #495057;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
 .new-message-alert {
-  position: absolute;
-  bottom: 10px;
-  left: 10px;
-  padding: 8px 15px;
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
   background-color: #007bff;
   color: white;
   border-radius: 20px;
   cursor: pointer;
   z-index: 1000;
+  font-size: 0.9em;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.2s ease;
 }
 
 .new-message-alert:hover {
@@ -333,25 +359,37 @@ h1 {
 .message-input {
   display: flex;
   gap: 10px;
+  margin-top: 20px;
 }
 
-input {
+.message-input input {
   flex: 1;
-  padding: 10px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  padding: 15px;
+  border: 1px solid #dee2e6;
+  border-radius: 12px;
+  font-size: 1em;
+  background-color: #ffffff;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-button {
+.message-input input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+}
+
+.message-input button {
   padding: 10px 20px;
   border: none;
-  border-radius: 4px;
+  border-radius: 12px;
   background-color: #007bff;
   color: #fff;
+  font-size: 1em;
   cursor: pointer;
+  transition: background-color 0.2s ease;
 }
 
-button:hover {
+.message-input button:hover {
   background-color: #0056b3;
 }
 </style>
