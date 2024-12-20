@@ -6,7 +6,9 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import {getFetch, postFetch, putFetch, delFetch} from "@/stores/apiClient.js";
 import {useAuthStore} from "@/stores/auth.js";
+import {useRouter} from "vue-router";
 
+const router = useRouter();
 const authStore = useAuthStore();
 
 // 매출 상승, 하락 상품
@@ -159,6 +161,9 @@ const handleEventClick = (info) => {
   const event = events.value.find(e => e.id === Number(info.event.id));
   if (!event) return;
 
+  // 프로모션 타입인 경우 모달을 열지 않음
+  if (event.type === 'PROMOTION') return;
+
   const startDateTime = new Date(event.start);
   const endDateTime = new Date(event.end);
 
@@ -170,7 +175,8 @@ const handleEventClick = (info) => {
     startTime: formatTime(startDateTime),
     endDate: formatDate(endDateTime),
     endTime: formatTime(endDateTime),
-    color: event.color
+    color: event.color,
+    type: event.type
   });
 
   isModalOpen.value = true;
@@ -322,6 +328,12 @@ const calendarOptions = reactive({
   },
   dateClick: handleDateClick,
   eventClick: handleEventClick,
+  eventDidMount: (info) => {
+    if (info.event.extendedProps.type === 'PROMOTION') {
+      info.el.setAttribute('data-tooltip', '프로모션 일정은 수정할 수 없습니다');
+      info.el.classList.add('has-tooltip');
+    }
+  },
   eventDrop: handleEventDrop,
   locale: 'ko',
   height: 'auto',
@@ -333,6 +345,12 @@ const calendarOptions = reactive({
   }
 });
 
+const handlePromotionClick = (event) => {
+  if (event.scheduleUrl) {
+    router.push(`${event.scheduleUrl}`);
+  }
+};
+
 const fetchSchedules = async () => {
   try {
     const response = await getFetch('/schedule');
@@ -343,7 +361,8 @@ const fetchSchedules = async () => {
       start: schedule.scheduleStart,
       end: schedule.scheduleEnd,
       color: schedule.scheduleType === 'TEAMSPACE' ? '#2196F3' : '#FF4081',
-      type: schedule.scheduleType
+      type: schedule.scheduleType,
+      scheduleUrl: schedule.scheduleUrl
     }));
   } catch (error) {
     console.error('일정 로드 실패:', error);
@@ -418,7 +437,10 @@ onMounted(() => {
               </select>
             </div>
             <div class="event-list">
-              <div v-for="event in filteredPromotionEvents" :key="event.id" class="event-item">
+              <div v-for="event in filteredPromotionEvents"
+                   :key="event.id"
+                   class="event-item promotion-item"
+                   @click="handlePromotionClick(event)">
                 <div class="event-content">
                   <h4 class="event-item-title">{{ event.title }}</h4>
                   <p class="event-date">{{ formatDate(new Date(event.start)) }}</p>
@@ -937,6 +959,50 @@ onMounted(() => {
 
 .calendar-wrapper :deep(.fc-day-sat) {
   color: #3b82f6;  /* 토요일 파란색 */
+}
+
+/* 툴팁 스타일 */
+.calendar-wrapper :deep(.has-tooltip) {
+  position: relative;
+}
+
+.calendar-wrapper :deep(.has-tooltip:hover::before) {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0.5rem;
+  background-color: var(--small-gray);
+  color: white;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  z-index: 10;
+  margin-bottom: 0.25rem;
+}
+
+.calendar-wrapper :deep(.has-tooltip:hover::after) {
+  content: '';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 0.25rem;
+  border-style: solid;
+  border-color: var(--small-gray) transparent transparent transparent;
+  bottom: 100%;
+  margin-bottom: -0.25rem;
+}
+
+.promotion-item {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.promotion-item:hover {
+  background: #fdf2f8;  /* 연한 핑크색 배경 */
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 @keyframes modal-slide-up {
