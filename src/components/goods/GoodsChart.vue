@@ -1,9 +1,28 @@
 <script setup>
-import { Chart, LineController, CategoryScale, LinearScale, PointElement, LineElement } from 'chart.js';
-import { ref, onMounted, watch, defineProps } from 'vue';
-import {getFetch} from "@/stores/apiClient.js";
+import {
+  Chart,
+  LineController,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Tooltip,
+  Legend,
+  Filler
+} from 'chart.js';
+import { ref, onMounted, watch, nextTick } from 'vue';
+import { getFetch } from "@/stores/apiClient.js";
 
-Chart.register(LineController, CategoryScale, LinearScale, PointElement, LineElement);
+Chart.register(
+    LineController,
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Tooltip,
+    Legend,
+    Filler
+);
 
 const props = defineProps({
   chartId: {
@@ -17,22 +36,11 @@ const props = defineProps({
   label: {
     type: String,
     default: '매출액'
-  },
-  borderColor: {
-    type: String,
-    default: 'rgb(75, 192, 192)'
-  },
-  tension: {
-    type: Number,
-    default: 0.4
   }
 });
 
 const emit = defineEmits(['monthClick']);
 
-
-
-// 연도 옵션
 const yearOptions = [
   { value: '2024', label: '2024년' },
   { value: '2023', label: '2023년' },
@@ -40,157 +48,290 @@ const yearOptions = [
 ];
 
 const chart = ref(null);
-const chartLabels = ref(['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']); // 월별 레이블
-const chartData = ref([]);
-const year = ref(2024);
+const currentYearData = ref([]);
+const previousYearData = ref([]);
+const year = ref('2024');
+const loading = ref(false);
+const error = ref(null);
 
-onMounted(() => {
-  fetchData()
+const formatNumber = (value) => {
+  return new Intl.NumberFormat('ko-KR').format(value);
+};
 
-});
-
-const loading = ref(false); // 로딩 상태
-const error = ref(null); // 에러 메시지
-
-watch(() => props.goodsCode, async (newGoodsCode) => {
-  if (newGoodsCode) {
-    loading.value = true; // 로딩 시작
-    error.value = null; // 에러 초기화
-    try {
-      await fetchData();
-      createChart();
-    } catch (err) {
-      error.value = '데이터를 불러오는 중 오류가 발생했습니다.'; // 에러 메시지 설정
-      console.error(err);
-    } finally {
-      loading.value = false; // 로딩 종료
+const processMonthlySales = (apiData) => {
+  const monthlySales = Array(12).fill(0);
+  apiData.forEach(item => {
+    if (item.sales != null) {
+      monthlySales[item.month] = item.sales;
     }
-  }
-});
+  });
+  return monthlySales;
+};
 
-watch(() => year.value, async () => {
+const createChart = async () => {
+  await nextTick();
+
+  const canvas = document.getElementById(props.chartId);
+  if (!canvas) {
+    console.error('Canvas element not found');
+    return;
+  }
+
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    console.error('Canvas context not found');
+    return;
+  }
+
+  // 그라데이션 설정
+  const currentYearGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  currentYearGradient.addColorStop(0, 'rgba(53, 162, 235, 0.3)');
+  currentYearGradient.addColorStop(1, 'rgba(53, 162, 235, 0)');
+
+  const previousYearGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+  previousYearGradient.addColorStop(0, 'rgba(255, 99, 132, 0.3)');
+  previousYearGradient.addColorStop(1, 'rgba(255, 99, 132, 0)');
+
+  if (chart.value) {
+    chart.value.destroy();
+  }
+
+  chart.value = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월'],
+      datasets: [
+        {
+          label: `${year.value}년 ${props.label}`,
+          data: currentYearData.value,
+          borderColor: 'rgb(53, 162, 235)',
+          backgroundColor: currentYearGradient,
+          tension: 0.4,
+          fill: true,
+          borderWidth: 2,
+          pointBackgroundColor: 'white',
+          pointBorderColor: 'rgb(53, 162, 235)',
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6
+        },
+        {
+          label: `${Number(year.value) - 1}년 ${props.label}`,
+          data: previousYearData.value,
+          borderColor: 'rgb(255, 99, 132)',
+          backgroundColor: previousYearGradient,
+          tension: 0.4,
+          fill: true,
+          borderWidth: 2,
+          pointBackgroundColor: 'white',
+          pointBorderColor: 'rgb(255, 99, 132)',
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 6
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: {
+        intersect: false,
+        mode: 'index'
+      },
+      plugins: {
+        tooltip: {
+          backgroundColor: 'white',
+          titleColor: '#333',
+          bodyColor: '#666',
+          borderColor: '#ddd',
+          borderWidth: 1,
+          padding: 10,
+          displayColors: true,
+          callbacks: {
+            label: (context) => {
+              return `${context.dataset.label}: ${formatNumber(context.raw)}원`;
+            }
+          }
+        },
+        legend: {
+          position: 'bottom',
+          labels: {
+            usePointStyle: true,
+            padding: 20,
+            font: {
+              family: "'Noto Sans KR', sans-serif"
+            }
+          }
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: true,
+          ticks: {
+            callback: (value) => formatNumber(value) + '원'
+          }
+        }
+      },
+      onClick: (event, elements) => {
+        if (elements && elements.length > 0) {
+          const clickedElement = elements[0];
+          emit('monthClick', {
+            year: year.value,
+            month: clickedElement.index
+          });
+        }
+      }
+    }
+  });
+};
+
+const fetchData = async () => {
+  if (!props.goodsCode || !year.value) return;
+
   loading.value = true;
   error.value = null;
+
   try {
-    await fetchData();
-    createChart();
+    const [currentYearRes, previousYearRes] = await Promise.all([
+      getFetch(`/goods/sales/list/${props.goodsCode}?year=${year.value}`),
+      getFetch(`/goods/sales/list/${props.goodsCode}?year=${Number(year.value) - 1}`)
+    ]);
+
+    if (currentYearRes?.data?.data) {
+      currentYearData.value = processMonthlySales(currentYearRes.data.data);
+    }
+    if (previousYearRes?.data?.data) {
+      previousYearData.value = processMonthlySales(previousYearRes.data.data);
+    }
+
+    await createChart();
   } catch (err) {
     error.value = '데이터를 불러오는 중 오류가 발생했습니다.';
     console.error(err);
   } finally {
     loading.value = false;
   }
+};
+
+watch(() => props.goodsCode, fetchData);
+watch(() => year.value, fetchData);
+
+onMounted(() => {
+  fetchData();
 });
-
-const fetchData = async () => {
-  try {
-    const response = await getFetch(`/goods/sales/list/${props.goodsCode}?year=${year.value}`); // API 호출, /your-api-endpoint/{goodsCode} 부분을 실제 API 엔드포인트로 바꿔야 합니다.
-    if (response?.data) {
-      const apiData = response.data.data;
-      // 데이터 가공 (월별 매출액 데이터로 변환)
-      console.log(apiData)
-      const monthlySales = processMonthlySales(apiData);
-      chartData.value = monthlySales;
-    }
-  } catch (error) {
-    console.error('API 호출 오류:', error);
-  }
-};
-
-const processMonthlySales = (apiData) => {
-  // API 데이터를 월별 매출액 데이터로 가공하는 로직
-  // 예:
-  const monthlySales = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]; // 1월부터 12월까지 매출액을 0으로 초기화
-
-  apiData.forEach(item => {
-    const month = item.month
-    if (item.sales != null){
-      monthlySales[month] += item.sales; // 해당 월의 매출액 누적
-    }
-  });
-
-  return monthlySales;
-};
-
-const handleChartClick = (event) => {
-  const points = chart.value.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
-
-  if (points.length) {
-    const firstPoint = points[0];
-    const month = firstPoint.index;
-    emit('monthClick', { year: year.value, month });
-  }
-};
-
-
-const createChart = () => {
-  const ctx = document.getElementById(props.chartId).getContext('2d');
-  if (chart.value) {
-    chart.value.destroy(); // 기존 차트 제거
-  }
-  chart.value = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels: chartLabels.value,
-      datasets: [{
-        label: props.label,
-        data: chartData.value,
-        borderColor: props.borderColor,
-        tension: props.tension,
-        fill: false
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        title: {
-          display: true,
-          text: `${props.goodsCode} 월별 매출액`,
-          font: {
-            size: 20
-          }
-        }
-      },
-      scales: {
-        y: {
-          beginAtZero: true
-        }
-      },
-      onClick: (event, elements) => {
-        if (elements && elements.length > 0) {
-          const clickedElement = elements[0];
-          const month = clickedElement.index;
-          emit('monthClick', { year: year.value, month });
-        }
-      }
-    }
-  });
-};
 </script>
 
 <template>
-  <div class="filter-group">
-    <select v-model="year">
-      <option value="">연도 선택</option>
-      <option v-for="option in yearOptions"
-              :key="option.value"
-              :value="option.value">
-        {{ option.label }}
-      </option>
-    </select>
-  </div>
-  <div class="chart-container">
-    <canvas :id="chartId"></canvas>
+  <div class="chart-wrapper">
+    <div class="filter-group">
+      <select v-model="year" class="year-select">
+        <option v-for="option in yearOptions"
+                :key="option.value"
+                :value="option.value">
+          {{ option.label }}
+        </option>
+      </select>
+    </div>
+
+    <div class="chart-container">
+      <div v-if="loading" class="loading-overlay">
+        <div class="loading-spinner"></div>
+      </div>
+      <div v-if="error" class="error-message">{{ error }}</div>
+      <canvas :id="chartId"></canvas>
+    </div>
   </div>
 </template>
 
 <style scoped>
+.chart-wrapper {
+  width: fit-content;
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.filter-group {
+  margin-bottom: 16px;
+  text-align: right;
+}
+
+.year-select {
+  padding: 8px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #4a5568;
+  background-color: white;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.year-select:hover {
+  border-color: #cbd5e0;
+}
+
+.year-select:focus {
+  outline: none;
+  border-color: #4299e1;
+  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+}
+
 .chart-container {
-  /* width: 800px;  원래 크기 */
-  /* height: 400px; 원래 크기 */
-  width: 400px; /* 원래 크기의 절반 */
-  height: 200px; /* 원래 크기의 절반 */
-  margin: 0 auto;
+  position: relative;
+  width: 400px;
+  height: 300px;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1;
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #f3f3f3;
+  border-top: 3px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.error-message {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #e53e3e;
+  text-align: center;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 8px 16px;
+  border-radius: 4px;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 768px) {
+  .chart-container {
+    width: 300px;
+    height: 250px;
+  }
 }
 </style>

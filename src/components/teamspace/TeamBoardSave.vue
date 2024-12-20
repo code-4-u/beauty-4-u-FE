@@ -45,7 +45,7 @@ const handleRemove = (fileId) => {
 
 // 목록으로 돌아가기
 const goBack = () => {
-  router.push('/teamspace/board');
+  router.push(`/teamspace/9/board`);
 };
 
 // 게시글 저장
@@ -92,7 +92,7 @@ const fetchSaveTeamBoard = async () => {
 
     // 5. 목록으로 이동
     await router.push({
-      path: `/teamspace/board`
+      path: `/teamspace/9/board`
     });
   } catch (error) {
     console.error('저장에 실패했습니다.', error);

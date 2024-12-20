@@ -4,6 +4,7 @@ import axios from "axios";
 
 import {ArcElement, BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, Title, Tooltip} from 'chart.js';
 import {Bar} from "vue-chartjs";
+import {getFetch} from "@/stores/apiClient.js";
 
 // Register ChartJS components
 ChartJS.register(
@@ -30,12 +31,14 @@ const loadGraphData = async(typeId) => {
 
     const params = promotionIds.map(id => `promoId=${id}`).join('&');
 
-    const response = await axios.get(`http://localhost:8080/api/v1/promotion-statistical/by-year-sales?${params}`, {
-      headers: {
 
+
+    const response = await axios.get(`http://localhost:8080/api/v1/promotion-statistical/by-year-sales?${params}`,
+    {
+      headers: {
+        // 추후 토큰 추가
       }
     });
-
     // API 응답 데이터를 동적으로 객체화하여 저장
     // 처리된 데이터를 반응형 상태에 할당
     salesData.value = response.data.data.map(item => ({
@@ -125,14 +128,16 @@ const loadTypeByPromotion = async () => {
       }
     });
 
-// promotionTypeId 기준으로 데이터 그룹화하고 정렬
+    console.log(response);
+
+    // promotionTypeId 기준으로 데이터 그룹화하고 정렬
     const groupedData = response.data.data.reduce((acc, promotion) => {
       const existingGroup = acc.find(group => group.typeId === promotion.promotionTypeId);
 
       if (existingGroup) {
         existingGroup.items.push({
           promotionId: promotion.promotionId,
-          promotionTitle: promotion.promotionTitle
+          promotionTitle: promotion.promotionTitle || ''  // null 처리
         });
       } else {
         acc.push({
@@ -140,7 +145,7 @@ const loadTypeByPromotion = async () => {
           typeName: getTypeName(promotion.promotionTypeId),
           items: [{
             promotionId: promotion.promotionId,
-            promotionTitle: promotion.promotionTitle
+            promotionTitle: promotion.promotionTitle || ''  // null 처리
           }]
         });
       }
@@ -148,12 +153,23 @@ const loadTypeByPromotion = async () => {
       return acc;
     }, []);
 
-    // 각 그룹 내의 items를 연도 기준으로 정렬 (2024 -> 2023 -> 2022)
+    // 각 그룹 내의 items를 연도 기준으로 정렬
     groupedData.forEach(group => {
       group.items.sort((a, b) => {
-        const yearA = parseInt(a.promotionTitle.match(/\d{4}/)[0]);
-        const yearB = parseInt(b.promotionTitle.match(/\d{4}/)[0]);
-        return yearB - yearA;
+        // 안전한 연도 추출 함수
+        const getYear = (title) => {
+          if (!title) return 0;
+          const match = title.match(/\d{4}/);
+          return match ? parseInt(match[0]) : 0;
+        };
+
+        const yearA = getYear(a.promotionTitle);
+        const yearB = getYear(b.promotionTitle);
+
+        if (yearA === 0 && yearB === 0) return 0;
+        if (yearA === 0) return 1;  // yearA가 없으면 뒤로
+        if (yearB === 0) return -1; // yearB가 없으면 뒤로
+        return yearB - yearA;  // 연도 내림차순 정렬
       });
     });
 
