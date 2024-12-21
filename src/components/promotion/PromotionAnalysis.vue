@@ -1,10 +1,9 @@
 <script setup>
-import {computed, onMounted, ref} from 'vue';
 import axios from "axios";
-
-import {ArcElement, BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, Title, Tooltip} from 'chart.js';
 import {Bar} from "vue-chartjs";
+import {ref, computed, reactive, onMounted} from 'vue';
 import {getFetch} from "@/stores/apiClient.js";
+import {ArcElement, BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, Title, Tooltip} from 'chart.js';
 
 // Register ChartJS components
 ChartJS.register(
@@ -17,7 +16,84 @@ ChartJS.register(
     Legend
 );
 
+/* 프로모션 종류 저장 변수 */
+const promotionType = ref([]);
+
+/* 프로모션 검색 결과 저장 변수 */
+const promotionSearchResult = ref([]);
+
+/* 프로모션 리스트 */
+const promotionList = computed(() => transformSearchData(promotionSearchResult.value));
+
+/* 검색창 상태 저장 변수 */
 const isSearchOpen = ref(false);
+
+/* 프로모션 검색 조건 저장 변수 */
+const promotionSearch = reactive({
+  promotionTitle: '',
+  promotionStartDate: '',
+  promotionEndDate: '',
+  promotionTypeId: Number,
+  promotionStatus: ''
+});
+
+/* 프로모션 검색 데이터 가공 */
+const transformSearchData = (searchData) => {
+  /* 프로모션 타입 별 번호 추출 (중복제거) */
+  const typePromotion = [...new Set(searchData.map(item => item.promotionTypeId))];
+
+  // 1. 먼저 년도별로 데이터 정렬
+  const sortedData = searchData.sort((a, b) => {
+    const yearA = new Date(a.promotionStartDate).getFullYear();
+    const yearB = new Date(b.promotionStartDate).getFullYear();
+    return yearB - yearA; // 최신년도가 먼저 오도록 내림차순 정렬
+  });
+
+  return typePromotion.map(promotionTypeId => ({
+    promotionTypeId: promotionTypeId,
+    promotionTypeName: promotionType.value.find(promotionType => promotionType.promotionTypeId === promotionTypeId)?.promotionTypeName || `타입 ${promotionTypeId}`,
+    items: sortedData.filter(item => item.promotionTypeId === promotionTypeId)
+  }));
+};
+
+/* 데이터 통신 */
+/* 프로모션 종류 데이터 조회 */
+const loadPromotionType = async () => {
+  try {
+    const response = await getFetch(`/promotion-statistical/type`);
+    promotionType.value = response.data.data;
+  } catch(e) {
+    console.log("프로모션 종류 데이터 조회 실패", e);
+  }
+}
+
+/* 프로모션 검색 */
+const loadSearchPromotion = async () => {
+  try {
+    const response = await axios.get('http://localhost:8080/api/v1/promotion-statistical/search-promotion', {
+      header: {
+
+      },
+      params: promotionSearch
+    })
+    promotionSearchResult.value = response.data.data;
+  } catch(e) {
+    console.log("프로모션 검색 실패", e);
+  } finally {
+    console.log(promotionList.value);
+  }
+}
+
+
+
+
+
+
+
+
+
+
+/******************************* 개발중 *****************************/
 
 const toggleSearch = () => {
   isSearchOpen.value = !isSearchOpen.value;
@@ -48,7 +124,6 @@ const loadGraphData = async(typeId) => {
       growthRate: item.growthRate
     }));
 
-    console.log('그래프 데이터:', salesData.value);
 
   } catch (error) {
     console.log('그래프 데이터 로딩 에러', error)
@@ -205,7 +280,7 @@ const getTypeName = (typeId) => {
 };
 
 onMounted(()=> {
-  loadTypeByPromotion();
+  loadPromotionType();
 });
 
 </script>
@@ -275,37 +350,47 @@ onMounted(()=> {
         <div class="search-form">
           <div class="form-group">
             <label>프로모션명</label>
-            <input type="text" placeholder="프로모션명을 입력하세요">
+            <input v-model="promotionSearch.promotionTitle" type="text" placeholder="프로모션명을 입력하세요">
           </div>
 
           <div class="form-group">
             <label>기간 선택</label>
             <div class="date-inputs">
-              <input type="date">
+              <input v-model="promotionSearch.promotionStartDate" type="date">
               <span>~</span>
-              <input type="date">
+              <input v-model="promotionSearch.promotionEndDate" type="date">
             </div>
+          </div>
+
+          <div class="form-group">
+            <label>프로모션 종류</label>
+            <select v-model="promotionSearch.promotionTypeId">
+              <option value="">전체</option>
+              <option v-for="option in promotionType" :value="option.promotionTypeId">
+                {{option.promotionTypeName}}
+              </option>
+            </select>
           </div>
 
           <div class="form-group">
             <label>상태</label>
             <select>
               <option value="">전체</option>
-              <option value="active">진행중</option>
+              <option value="ongoing">진행중</option>
               <option value="ended">종료</option>
-              <option value="scheduled">예정</option>
+              <option value="before">예정</option>
             </select>
           </div>
 
-          <button class="search-btn">검색</button>
+          <button class="search-btn" @click="loadSearchPromotion">검색</button>
           <div class="promotion-history">
             <h4>프로모션 내역</h4>
             <div class="promotion-scroll-container">
-              <div v-for="group in promotions"
-                   :key="group.typeId"
+              <div v-for="group in promotionList"
+                   :key="group.promotionTypeId"
                    class="promotion-group">
                 <button class="search-promotion-result" @click="loadGraphData(group.typeId)">
-                  {{ group.typeName }}
+                  {{ group.promotionTypeName }}
                 </button>
                 <div class="promotion-items">
                   <label v-for="item in group.items"
