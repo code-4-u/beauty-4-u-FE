@@ -1,11 +1,12 @@
 <script setup>
-import { ref, onMounted, reactive } from 'vue'
-import { getFetch } from "@/stores/apiClient.js"
+import {ref, onMounted, reactive} from 'vue'
+import {getFetch} from "@/stores/apiClient.js"
 
 // 상태 관리
 const products = ref([])
 const loading = ref(false)
 const error = ref(null)
+const suggestions = ref([])
 
 // 브랜드 관련 상태
 const brands = ref([])
@@ -61,6 +62,46 @@ const fetchProducts = async () => {
   }
 }
 
+// 검색어 입력 처리 함수 추가
+const handleSearchInput = async () => {
+  if (!filters.goodsName) {
+    suggestions.value = []
+    return
+  }
+  try {
+    const response = await getFetch(`/goods/search/${filters.goodsName}`)
+    suggestions.value = response.data.data
+  } catch (error) {
+    console.log('검색어 제안 조회 중 오류 발생:', error)
+    suggestions.value = []
+  }
+}
+
+// 검색어 하이라이트 처리 함수
+const highlightText = (text) => {
+  if (!filters.goodsName) return { before: text, match: '', after: '' };
+  const searchTerm = filters.goodsName.toLowerCase();
+  const index = text.toLowerCase().indexOf(searchTerm);
+  if (index === -1) return { before: text, match: '', after: '' };
+
+  const before = text.slice(0, index);
+  const match = text.slice(index, index + searchTerm.length);
+  const after = text.slice(index + searchTerm.length);
+
+  return {
+    before,
+    match,
+    after
+  };
+}
+
+// 검색어 제안 선택 처리 함수
+const selectSuggestion = (item) => {
+  filters.goodsName = item.goodsName
+  suggestions.value = []
+  handleSearch()
+}
+
 // 브랜드 목록 가져오기
 const fetchBrands = async () => {
   try {
@@ -90,6 +131,7 @@ const resetFilters = () => {
     count: 8
   })
   selectedBrand.value = null
+  suggestions.value = [] //연관검색어 초기화
   fetchProducts()
 }
 
@@ -128,11 +170,27 @@ onMounted(() => {
         <div class="search-bar">
           <div class="form-group">
             <label>상품명</label>
-            <input
-                v-model="filters.goodsName"
-                type="text"
-                placeholder="상품명 입력"
-            />
+            <div class="dropdown-container">
+              <input
+                  v-model="filters.goodsName"
+                  @input="handleSearchInput"
+                  type="text"
+                  placeholder="상품명 입력"
+              />
+              <!--            연관검색어 드롭다운 -->
+              <div v-if="suggestions.length > 0" class="dropdown-content">
+                <div
+                    v-for="item in suggestions"
+                    :key="item.goodsCode"
+                    @click="selectSuggestion(item)"
+                    class="dropdown-item"
+                >
+                    {{ highlightText(item.goodsName).before }}
+                    <span class="highlight">{{ highlightText(item.goodsName).match }}</span>
+                    {{ highlightText(item.goodsName).after }}
+                </div>
+              </div>
+            </div>
           </div>
           <div class="form-group">
             <label>브랜드</label>
@@ -286,6 +344,40 @@ onMounted(() => {
   border-radius: 0.375rem;
   background-color: white;
 }
+
+.dropdown-container {
+  position: relative;
+  width: 100%;
+}
+
+.dropdown-content {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.dropdown-item {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.dropdown-item:hover {
+  background-color: #f5f5f5;
+}
+
+.highlight {
+  font-weight: bold;
+  color: #4CAF50;
+}
+
 
 .button-group {
   display: flex;
