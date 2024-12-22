@@ -159,6 +159,7 @@ const sendMessage = async () => {
 const route = useRoute();
 
 onMounted(async () => {
+  document.body.style.overflow = "hidden"; // 외부 스크롤 비활성화
   const id = route.params.teamspaceId;
   if (!id) {
     console.error("Teamspace ID is missing.");
@@ -174,6 +175,7 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
+  document.body.style.overflow = ""; // 외부 스크롤 복원
   if (stompClient) {
     stompClient.disconnect();
     stompClient = null;
@@ -273,7 +275,7 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 15px; /* 메시지 간 간격 */
-  max-height: 500px;
+  max-height: 450px;
   overflow-y: auto; /* 세로 스크롤만 허용 */
   overflow-x: hidden; /* 가로 스크롤 제거 */
   padding: 20px;
@@ -332,7 +334,7 @@ h1 {
   background-color: #e3f2fd; /* 채팅 화면과 동일한 배경색 */
   padding: 15px;
   border-radius: 12px;
-  max-height: 500px;
+  max-height: 450px;
   overflow-y: auto;
   box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
 }
