@@ -2,8 +2,11 @@
 import {ref, onMounted, reactive, computed} from 'vue'
 import {useRouter} from "vue-router";
 import {delFetch, getFetch} from "@/stores/apiClient.js";
+import PromotionTypeModal from "@/components/promotion/PromotionTypeModal.vue";
+import {FontAwesomeIcon} from "@fortawesome/vue-fontawesome";
 
 const router = useRouter();
+const isTypeModalOpen = ref(false)
 
 // 상태 관리
 const promotions = ref([])
@@ -12,6 +15,14 @@ const error = ref(null)
 
 const openCreatePage = () => {
   router.push('/promotion/save')
+}
+
+const openTypeModal = () => {
+  isTypeModalOpen.value = true
+}
+
+const closeTypeModal = () => {
+  isTypeModalOpen.value = false
 }
 
 // 필터링 조건
@@ -150,10 +161,20 @@ onMounted(() => {
     <div class="promotion-management">
       <div class="header">
         <h2>프로모션 관리</h2>
-        <button class="add-button" @click="openCreatePage">
-          + 신규 프로모션 등록
-        </button>
+        <div class="header-buttons">
+          <button class="manage-button" @click="openTypeModal">
+            <font-awesome-icon :icon="['fas', 'cog']"/> 프로모션 종류 관리
+          </button>
+          <button class="add-button" @click="openCreatePage">
+            + 신규 프로모션 등록
+          </button>
+        </div>
       </div>
+
+      <PromotionTypeModal
+          v-model:isOpen="isTypeModalOpen"
+          @closed="fetchPromotions"
+      />
 
       <!-- 필터링 섹션 -->
       <div class="filter-section">
@@ -540,6 +561,50 @@ td {
 /* 버튼 호버 시 행 배경색 변경 방지 */
 .promotion-row:hover .action-buttons {
   background-color: transparent;
+}
+
+.header-buttons {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.manage-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: white;
+  color: #4CAF50;
+  border: 1px solid #4CAF50;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.manage-button:hover {
+  background-color: #f0fdf4;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.manage-button:active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+@media (max-width: 768px) {
+  .header-buttons {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .manage-button,
+  .add-button {
+    width: 100%;
+    justify-content: center;
+  }
 }
 
 @media (max-width: 768px) {
