@@ -1,6 +1,5 @@
 import axios from "axios";
 import {useAuthStore} from "@/stores/auth.js";
-import {params} from "sockjs-client";
 
 const apiClient = axios.create({
     baseURL: 'http://localhost:8080/api/v1',
@@ -73,13 +72,12 @@ apiClient.interceptors.response.use(
 );
 
 /* 공통 요청 함수 */
-const request = async (method, endpoint, data = null, params=null) => {
+const request = async (method, endpoint, data = null) => {
     try {
         return await apiClient.request({
             method: method,
             url: endpoint,
-            data: data,
-            params: params
+            data: data
         });
     } catch (error) {
         console.log('api 요청 중 에러 발생');
@@ -87,7 +85,7 @@ const request = async (method, endpoint, data = null, params=null) => {
     }
 };
 
-const getFetch = (endpoint) => request('GET', endpoint, null, params);
+const getFetch = (endpoint) => request('GET', endpoint);
 const postFetch = (endpoint, data) => request('POST', endpoint, data);
 const putFetch = (endpoint, data) => request('PUT', endpoint, data);
 const delFetch = (endpoint) => request('DELETE', endpoint);
