@@ -1,5 +1,6 @@
 import {createRouter, createWebHistory} from "vue-router";
 import {useAuthStore} from "@/stores/auth.js";
+import {useSSEStore} from "@/stores/sse.js";
 
 import Home from "@/views/Home.vue";
 import Login from "@/views/user/Login.vue";
@@ -41,18 +42,25 @@ const router = createRouter({
 
 router.beforeEach(async (to, from, next) => {
     const authStore = useAuthStore();
+    const sseStore = useSSEStore();
 
-    // 1. 인증 확인
+    // 1. SSE 연결 상태 확인 및 처리
+    if (authStore.accessToken && sseStore.connectionStatus === 'disconnected') {
+        console.log('SSE 연결 시도 중...');
+        await sseStore.connectSSE();
+    }
+
+    // 2. 인증 확인
     if (to.meta.requiresAuth && !authStore.accessToken) {
         return next({ path: '/login' });
     }
 
-    // 2. 로그인 상태에서 로그인 페이지로 접근 방지
+    // 3. 로그인 상태에서 로그인 페이지로 접근 방지
     if (authStore.accessToken && to.path === '/login') {
         return next({ path: '/' });
     }
 
-    // 3. /teamspace 경로 접근 시 리다이렉트
+    // 4. /teamspace 경로 접근 시 리다이렉트
     if (to.path === '/teamspace') {
         if (!authStore.teamspaceId) {
             await authStore.fetchTeamspaceId();
@@ -64,7 +72,7 @@ router.beforeEach(async (to, from, next) => {
         }
     }
 
-    // 4. 잘못된 teamspaceId 접근 차단
+    // 5. 잘못된 teamspaceId 접근 차단
     if (to.path.startsWith('/teamspace/chat/')) {
         const requestedTeamspaceId = to.params.teamspaceId;
 
@@ -80,7 +88,7 @@ router.beforeEach(async (to, from, next) => {
         }
     }
 
-    // 5. 기본적으로 next() 호출
+    // 6. 기본적으로 next() 호출
     next();
 });
 
