@@ -1,5 +1,5 @@
 <script setup>
-import {ref, onMounted, reactive} from 'vue'
+import {ref, onMounted, reactive, computed} from 'vue'
 import {getFetch} from "@/stores/apiClient.js"
 
 // 상태 관리
@@ -7,6 +7,10 @@ const products = ref([])
 const loading = ref(false)
 const error = ref(null)
 const suggestions = ref([])
+
+// 페이징 처리
+const totalCount = ref(0)
+const totalPages = computed(() => Math.ceil(totalCount.value / filters.count))
 
 // 브랜드 관련 상태
 const brands = ref([])
@@ -50,7 +54,8 @@ const fetchProducts = async () => {
 
     const response = await getFetch(`/goods/search?${queryParams.toString()}`)
     if (response?.data?.data) {
-      products.value = response.data.data
+      products.value = response.data.data.goodsList
+      totalCount.value = response.data.data.totalCount
     } else {
       products.value = []
     }
@@ -135,6 +140,32 @@ const resetFilters = () => {
   fetchProducts()
 }
 
+// 표시할 페이지 번호 배열 계산
+const pageNumbers = computed(() => {
+  const pages = []
+  const currentPage = filters.page
+  const maxPages = 5 // 한 번에 보여줄 페이지 번호 개수
+
+  let startPage = Math.max(1, currentPage - Math.floor(maxPages / 2))
+  let endPage = Math.min(startPage + maxPages - 1, totalPages.value)
+
+  if (endPage - startPage + 1 < maxPages) {
+    startPage = Math.max(1, endPage - maxPages + 1)
+  }
+
+  for (let i = startPage; i <= endPage; i++) {
+    pages.push(i)
+  }
+
+  return pages
+})
+
+// 페이지 변경 함수
+const handlePageChange = (page) => {
+  filters.page = page
+  fetchProducts()
+}
+
 // 정렬 처리
 const handleSort = (column) => {
   if (filters.sort === column) {
@@ -164,7 +195,6 @@ onMounted(() => {
       <div class="header">
         <h2>상품 관리</h2>
       </div>
-
       <!-- 필터링 섹션 -->
       <div class="filter-section">
         <div class="search-bar">
@@ -275,6 +305,33 @@ onMounted(() => {
           </tr>
           </tbody>
         </table>
+        <!-- 페이지네이션 -->
+        <div class="pagination">
+          <button
+              @click="handlePageChange(filters.page - 1)"
+              :disabled="filters.page === 1"
+              class="page-btn"
+          >
+            이전
+          </button>
+
+          <button
+              v-for="page in pageNumbers"
+              :key="page"
+              @click="handlePageChange(page)"
+              :class="['page-btn', { active: filters.page === page }]"
+          >
+            {{ page }}
+          </button>
+
+          <button
+              @click="handlePageChange(filters.page + 1)"
+              :disabled="filters.page >= totalPages"
+              class="page-btn"
+          >
+            다음
+          </button>
+        </div>
       </div>
     </div>
   </div>
@@ -376,6 +433,39 @@ onMounted(() => {
 .highlight {
   font-weight: bold;
   color: #4CAF50;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
+}
+
+.page-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  background-color: white;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.page-btn:hover:not(:disabled) {
+  background-color: #f3f4f6;
+}
+
+.page-btn.active {
+  background-color: #4CAF50;
+  color: white;
+  border-color: #4CAF50;
+}
+
+.page-btn:disabled {
+  background-color: #f3f4f6;
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 
