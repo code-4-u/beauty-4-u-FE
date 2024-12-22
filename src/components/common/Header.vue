@@ -1,7 +1,7 @@
 <script setup>
 import {useAuthStore} from "@/stores/auth.js";
 import {FontAwesomeIcon} from '@fortawesome/vue-fontawesome';
-import {computed, ref, inject, onMounted, onUnmounted} from "vue";
+import {computed, onMounted, onUnmounted, ref} from "vue";
 import {getFetch, putFetch} from "@/stores/apiClient.js";
 import userProfile from '@/assets/icons/profile.svg';
 
@@ -46,7 +46,7 @@ headerItems.value = [
 const fetchMyNotReadNotiList = async () => {
   try {
     const response = await getFetch('/noti');
-    notis.value = response.data.data.filter(noti => noti.notiReadYn === 'N');
+    notis.value = response.data.data;
   } catch (error) {
     console.error('알림 목록을 불러오는 중 에러가 발생했습니다.', error);
   }
