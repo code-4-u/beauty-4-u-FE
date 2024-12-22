@@ -1,11 +1,10 @@
 import TeamSpaceHome from "@/views/teamspace/TeamSpaceHome.vue";
 import ChatTest from "@/views/chat/ChatTest.vue";
-import ChatHome from "@/views/chat/ChatHome.vue";
 import TeamBoardList from "@/components/teamspace/TeamBoardList.vue";
 import TeamBoardSave from "@/components/teamspace/TeamBoardSave.vue";
 import TeamBoardUpdate from "@/components/teamspace/TeamBoardUpdate.vue";
 import TeamBoardDetail from "@/components/teamspace/TeamBoardDetail.vue";
-import TeamChat from "@/components/teamspace/TeamChat.vue";
+import TeamChat from "@/views/chat/TeamChat.vue";
 
 export default [
     {
@@ -29,12 +28,8 @@ export default [
                 component: TeamBoardUpdate
             },
             {
-                path: 'chat',
+                path: 'chat/:teamspaceId',
                 component: TeamChat
-            },
-            {
-                path: ':teamspaceId/chat',
-                component: ChatHome
             },
         ]
     },
