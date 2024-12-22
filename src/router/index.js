@@ -39,17 +39,49 @@ const router = createRouter({
     routes
 });
 
-router.beforeEach((to, from, next) => {
+router.beforeEach(async (to, from, next) => {
     const authStore = useAuthStore();
 
+    // 1. 인증 확인
     if (to.meta.requiresAuth && !authStore.accessToken) {
-        next({ path: '/login' });
+        return next({ path: '/login' });
     }
-    else if (authStore.accessToken && (to.path === '/login')) {
-        next({ path: '/' });
-    } else {
-        next();
+
+    // 2. 로그인 상태에서 로그인 페이지로 접근 방지
+    if (authStore.accessToken && to.path === '/login') {
+        return next({ path: '/' });
     }
+
+    // 3. /teamspace 경로 접근 시 리다이렉트
+    if (to.path === '/teamspace') {
+        if (!authStore.teamspaceId) {
+            await authStore.fetchTeamspaceId();
+        }
+
+        const redirectPath = `/teamspace/chat/${authStore.teamspaceId}`;
+        if (to.path !== redirectPath) {
+            return next(redirectPath); // 리다이렉트
+        }
+    }
+
+    // 4. 잘못된 teamspaceId 접근 차단
+    if (to.path.startsWith('/teamspace/chat/')) {
+        const requestedTeamspaceId = to.params.teamspaceId;
+
+        if (!authStore.teamspaceId) {
+            await authStore.fetchTeamspaceId();
+        }
+
+        if (requestedTeamspaceId !== authStore.teamspaceId) {
+            const redirectPath = `/teamspace/chat/${authStore.teamspaceId}`;
+            if (to.path !== redirectPath) {
+                return next(redirectPath); // 리다이렉트
+            }
+        }
+    }
+
+    // 5. 기본적으로 next() 호출
+    next();
 });
 
 export default router;

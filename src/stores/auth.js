@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { onMounted, ref } from "vue";
+import axios from "axios";
 
 export const useAuthStore = defineStore('auth', () => {
     const accessToken = ref(null);
@@ -10,6 +11,7 @@ export const useAuthStore = defineStore('auth', () => {
     const deptCode = ref(null);
     const deptName = ref(null);
     const userName = ref(null);
+    const teamspaceId = ref(null); // teamspaceId 추가
 
     function setUserInfo(aToken) {
         const payload = decodeJwtPayload(aToken);
@@ -19,6 +21,27 @@ export const useAuthStore = defineStore('auth', () => {
         deptCode.value = payload.deptCode;
         deptName.value = payload.deptName;
         userName.value = payload.userName;
+    }
+
+    async function fetchTeamspaceId() {
+        if (!deptCode.value) {
+            console.error("부서 코드가 없습니다.");
+            return null;
+        }
+        try {
+            const response = await axios.get("http://localhost:8080/api/v1/teamspace", {
+                params: { deptCode: deptCode.value },
+                headers: {
+                    Authorization: `Bearer ${accessToken.value}`
+                },
+            });
+            teamspaceId.value = response.data; // teamspaceId 저장
+            console.log("teamspaceId fetched: ", teamspaceId.value);
+            return teamspaceId.value;
+        } catch (error) {
+            console.error("팀스페이스 ID 조회 실패:", error);
+            return null;
+        }
     }
 
     onMounted(() => {
@@ -79,5 +102,5 @@ export const useAuthStore = defineStore('auth', () => {
         return JSON.parse(jsonPayload);
     }
 
-    return { accessToken, refreshToken, userRole, userCode, jobName, deptCode, deptName, userName, login, logout, isAuthorized, setAccessToken, setRefreshToken };
+    return { accessToken, refreshToken, userRole, userCode, jobName, deptCode, deptName, userName, teamspaceId, login, logout, isAuthorized, setAccessToken, setRefreshToken, fetchTeamspaceId, };
 });
