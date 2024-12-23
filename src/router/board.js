@@ -77,7 +77,8 @@ export default [
             },
             {
                 path: 'save',
-                component: FaqSave
+                component: FaqSave,
+                beforeEnter: checkAdminRole // 관리자 권한 체크 추가
             },
             {
                 path: ':faqId',
@@ -85,7 +86,8 @@ export default [
             },
             {
                 path: ':faqId/update',
-                component: FaqUpdate
+                component: FaqUpdate,
+                beforeEnter: checkAdminRole // 관리자 권한 체크 추가
             },
         ]
     }

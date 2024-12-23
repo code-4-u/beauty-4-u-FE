@@ -2,8 +2,10 @@
 import {ref, computed, onMounted} from 'vue';
 import {getFetch, putFetch} from "@/stores/apiClient.js";
 import { useRouter } from 'vue-router';
+import { useAuthStore } from '@/stores/auth.js'; // userStore import 추가
 
 const router = useRouter();
+const userStore = useAuthStore(); // userStore 인스턴스 생성
 
 // 상태 관리
 const faqs = ref([]);
@@ -118,7 +120,12 @@ onMounted(async () => {
       <div class="faq-section">
         <div class="header">
           <h2>FAQ</h2>
-          <button class="add-button" @click="goToFaqSave">
+          <!-- FAQ 등록 버튼에 v-if 조건 추가 -->
+          <button
+              v-if="userStore.userRole === 'ADMIN'"
+              class="add-button"
+              @click="goToFaqSave"
+          >
             + FAQ 등록
           </button>
         </div>
