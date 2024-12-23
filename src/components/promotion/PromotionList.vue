@@ -10,6 +10,7 @@ const isTypeModalOpen = ref(false)
 
 // 상태 관리
 const promotions = ref([])
+const totalCount = ref(0)  // 추가
 const loading = ref(false)
 const error = ref(null)
 
@@ -50,7 +51,6 @@ const getStatusText = (status) => {
 const fetchPromotions = async () => {
   try {
     loading.value = true
-    // QueryString 생성
     const queryParams = new URLSearchParams({
       promotionTitle: filters.promotionTitle,
       promotionStartDate: filters.promotionStartDate || '',
@@ -58,12 +58,13 @@ const fetchPromotions = async () => {
       promotionStatus: filters.promotionStatus,
       sort: filters.sort,
       order: filters.order,
-      page: 1,
+      page: filters.page,
       count: filters.count
     })
 
     const response = await getFetch(`/promotion?${queryParams}`)
-    promotions.value = response.data.data
+    promotions.value = response.data.data.promotionList
+    totalCount.value = response.data.data.totalCount  // 총 개수 저장
   } catch (e) {
     error.value = '프로모션 목록을 불러오는데 실패했습니다.'
     console.error('Error fetching promotions:', e)
@@ -123,9 +124,20 @@ const handleSort = (column) => {
   fetchPromotions()
 }
 
-// 페이지네이션
+// totalPages computed 속성 수정
 const totalPages = computed(() => {
-  return Math.ceil(promotions.value.length / filters.count)
+  return Math.ceil(totalCount.value / filters.count)
+})
+
+// 페이지 그룹 관련 computed 속성 추가
+const currentPageGroup = computed(() => {
+  return Math.ceil(filters.page / 5)
+})
+
+const pageNumbers = computed(() => {
+  const start = (currentPageGroup.value - 1) * 5 + 1
+  const end = Math.min(currentPageGroup.value * 5, totalPages.value)
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i)
 })
 
 // 날짜 포맷팅
@@ -283,25 +295,50 @@ onMounted(() => {
 
       <!-- 페이지네이션 -->
       <div class="pagination">
+        <!-- 첫 페이지로 -->
         <button
             :disabled="filters.page === 1"
-            @click="filters.page--; fetchPromotions()"
+            @click="filters.page = 1; fetchPromotions()"
+            class="page-button"
         >
-          이전
+          &lt;&lt;
         </button>
+
+        <!-- 이전 페이지 그룹으로 -->
         <button
-            v-for="page in totalPages"
+            :disabled="filters.page === 1"
+            @click="filters.page = Math.max(1, pageNumbers[0] - 5); fetchPromotions()"
+            class="page-button"
+        >
+          &lt;
+        </button>
+
+        <!-- 페이지 번호들 -->
+        <button
+            v-for="page in pageNumbers"
             :key="page"
-            :class="{ active: filters.page === page }"
+            :class="['page-button', { active: filters.page === page }]"
             @click="filters.page = page; fetchPromotions()"
         >
           {{ page }}
         </button>
+
+        <!-- 다음 페이지 그룹으로 -->
         <button
-            :disabled="filters.page === totalPages"
-            @click="filters.page++; fetchPromotions()"
+            :disabled="filters.page >= totalPages"
+            @click="filters.page = Math.min(totalPages, pageNumbers[pageNumbers.length - 1] + 1); fetchPromotions()"
+            class="page-button"
         >
-          다음
+          &gt;
+        </button>
+
+        <!-- 마지막 페이지로 -->
+        <button
+            :disabled="filters.page >= totalPages"
+            @click="filters.page = totalPages; fetchPromotions()"
+            class="page-button"
+        >
+          &gt;&gt;
         </button>
       </div>
     </div>
@@ -490,8 +527,10 @@ td {
   margin-top: 2rem;
 }
 
-.pagination button {
-  padding: 0.5rem 1rem;
+.page-button {
+  min-width: 2.5rem;
+  height: 2.5rem;
+  padding: 0.5rem;
   border: 1px solid #e5e7eb;
   background-color: white;
   border-radius: 0.5rem;
@@ -499,21 +538,24 @@ td {
   transition: all 0.2s ease;
   color: #374151;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.pagination button:hover:not(:disabled) {
+.page-button:hover:not(:disabled) {
   border-color: #4CAF50;
   color: #4CAF50;
   background-color: #f0fdf4;
 }
 
-.pagination button.active {
+.page-button.active {
   background-color: #4CAF50;
   color: white;
   border-color: #4CAF50;
 }
 
-.pagination button:disabled {
+.page-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -605,9 +647,7 @@ td {
     width: 100%;
     justify-content: center;
   }
-}
 
-@media (max-width: 768px) {
   .container {
     padding: 1rem;
   }
@@ -631,7 +671,14 @@ td {
   }
 
   .pagination {
-    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+
+  .page-button {
+    min-width: 2rem;
+    height: 2rem;
+    padding: 0.25rem;
+    font-size: 0.875rem;
   }
 }
 </style>

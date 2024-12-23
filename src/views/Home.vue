@@ -16,17 +16,21 @@ const increaseTop5 = ref([]);
 const decreaseTop5 = ref([]);
 
 const periods = [
-  { type: 'DAILY', label: '일간' },
-  { type: 'WEEKLY', label: '주간' },
-  { type: 'MONTHLY', label: '월간' },
-  { type: 'QUARTER', label: '3개월' },
-  { type: 'HALF', label: '6개월' },
-  { type: 'YEARLY', label: '1년' }
+  {type: 'DAILY', label: '일간'},
+  {type: 'WEEKLY', label: '주간'},
+  {type: 'MONTHLY', label: '월간'},
+  {type: 'QUARTER', label: '3개월'},
+  {type: 'HALF', label: '6개월'},
+  {type: 'YEARLY', label: '1년'}
 ];
 
 const selectedPeriod = ref('DAILY');
-const selectedYear = ref(new Date().getFullYear());
-const selectedMonth = ref(new Date().getMonth() + 1);
+
+// 팀 일정과 프로모션의 연도/월 선택 분리
+const teamSelectedYear = ref(new Date().getFullYear());
+const teamSelectedMonth = ref(new Date().getMonth() + 1);
+const promotionSelectedYear = ref(new Date().getFullYear());
+const promotionSelectedMonth = ref(new Date().getMonth() + 1);
 
 // 매출 상품 클릭 시 상품 분석 페이지 이동 함수
 const handleGoodsClick = (item) => {
@@ -44,6 +48,7 @@ const changePeriod = async (periodType) => {
       periodType: periodType
     });
     const response = await getFetch(`goodsRate/list?${params.toString()}`);
+
     const {increase, decrease} = response.data.data;
 
     increaseTop5.value = increase;
@@ -94,16 +99,16 @@ const filteredEvents = computed(() => {
 const filteredTeamEvents = computed(() => {
   return teamEvents.value.filter(event => {
     const eventDate = new Date(event.start);
-    return eventDate.getFullYear() === selectedYear.value &&
-        eventDate.getMonth() + 1 === selectedMonth.value;
+    return eventDate.getFullYear() === teamSelectedYear.value &&
+        eventDate.getMonth() + 1 === teamSelectedMonth.value;
   });
 });
 
 const filteredPromotionEvents = computed(() => {
   return promotionEvents.value.filter(event => {
     const eventDate = new Date(event.start);
-    return eventDate.getFullYear() === selectedYear.value &&
-        eventDate.getMonth() + 1 === selectedMonth.value;
+    return eventDate.getFullYear() === promotionSelectedYear.value &&
+        eventDate.getMonth() + 1 === promotionSelectedMonth.value;
   });
 });
 
@@ -314,7 +319,9 @@ const fetchSchedules = async () => {
       content: schedule.scheduleContent,
       start: schedule.scheduleStart,
       end: schedule.scheduleEnd,
-      color: schedule.scheduleType === 'TEAMSPACE' ? '#2196F3' : '#FF4081',
+      color: schedule.scheduleType === 'TEAMSPACE' ?
+          ['#2196F3', '#1976D2', '#1565C0', '#0D47A1', '#82B1FF'][Math.floor(Math.random() * 5)] : // 파란색 계열
+          ['#F44336', '#E53935', '#D32F2F', '#C62828', '#FF8A80'][Math.floor(Math.random() * 5)], // 빨간색 계열
       type: schedule.scheduleType,
       scheduleUrl: schedule.scheduleUrl
     }));
@@ -448,7 +455,7 @@ onMounted(() => {
             </div>
           </div>
           <div class="calendar-wrapper">
-            <FullCalendar :options="calendarOptions" />
+            <FullCalendar :options="calendarOptions"/>
           </div>
         </div>
 
@@ -458,15 +465,19 @@ onMounted(() => {
           <div class="event-card">
             <div class="card-header">
               <h3 class="card-title">프로모션</h3>
+              <!-- 프로모션 카드의 연도/월 선택 -->
               <div class="date-select">
-                <select v-model="selectedYear" class="year-select">
-                  <option v-for="year in [selectedYear - 1, selectedYear, selectedYear + 1]"
+                <select v-model="promotionSelectedYear" class="year-select">
+                  <option v-for="year in [
+      2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
+      2019, 2020, 2021, 2022, 2023, 2024, 2025
+    ]"
                           :key="year"
                           :value="year">
                     {{ year }}년
                   </option>
                 </select>
-                <select v-model="selectedMonth" class="month-select">
+                <select v-model="promotionSelectedMonth" class="month-select">
                   <option v-for="month in 12" :key="month" :value="month">
                     {{ month }}월
                   </option>
@@ -494,15 +505,19 @@ onMounted(() => {
           <div class="event-card">
             <div class="card-header">
               <h3 class="card-title">팀 일정</h3>
+              <!-- 팀 일정 카드의 연도/월 선택 -->
               <div class="date-select">
-                <select v-model="selectedYear" class="year-select">
-                  <option v-for="year in [selectedYear - 1, selectedYear, selectedYear + 1]"
+                <select v-model="teamSelectedYear" class="year-select">
+                  <option v-for="year in [
+      2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
+      2019, 2020, 2021, 2022, 2023, 2024, 2025
+    ]"
                           :key="year"
                           :value="year">
                     {{ year }}년
                   </option>
                 </select>
-                <select v-model="selectedMonth" class="month-select">
+                <select v-model="teamSelectedMonth" class="month-select">
                   <option v-for="month in 12" :key="month" :value="month">
                     {{ month }}월
                   </option>
@@ -1009,20 +1024,30 @@ onMounted(() => {
   box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06) !important;
 }
 
+/* 캘린더 이벤트 스타일 수정 - 여기가 핵심 변경 부분 */
 .calendar-wrapper :deep(.fc-event) {
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .calendar-wrapper :deep(.team-event) {
-  background-color: #60a5fa !important;
-  border-color: #3b82f6 !important;
   color: white !important;
 }
 
 .calendar-wrapper :deep(.promotion-event) {
-  background-color: #f472b6 !important;
-  border-color: #ec4899 !important;
+  color: white !important;
+}
+
+.calendar-wrapper :deep(.fc-event) {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.calendar-wrapper :deep(.team-event) {
+  color: white !important;
+}
+
+.calendar-wrapper :deep(.promotion-event) {
   color: white !important;
 }
 
