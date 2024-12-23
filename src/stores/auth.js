@@ -1,5 +1,6 @@
 import { defineStore } from "pinia";
 import { onMounted, ref } from "vue";
+import { useSSEStore } from "@/stores/sse.js";
 import axios from "axios";
 
 export const useAuthStore = defineStore('auth', () => {
@@ -11,7 +12,8 @@ export const useAuthStore = defineStore('auth', () => {
     const deptCode = ref(null);
     const deptName = ref(null);
     const userName = ref(null);
-    const teamspaceId = ref(null); // teamspaceId 추가
+    const teamspaceId = ref(null);
+    const sseStore = useSSEStore();
 
     function setUserInfo(aToken) {
         const payload = decodeJwtPayload(aToken);
@@ -62,6 +64,7 @@ export const useAuthStore = defineStore('auth', () => {
         localStorage.setItem('accessToken', aToken);
         localStorage.setItem('refreshToken', rToken);
         setUserInfo(aToken);
+        sseStore.connectSSE();
     }
 
     function logout() {
@@ -71,6 +74,7 @@ export const useAuthStore = defineStore('auth', () => {
         userCode.value = null;
         localStorage.removeItem('accessToken');
         localStorage.removeItem('refreshToken');
+        sseStore.disconnectSSE();
     }
 
     function isAuthorized(requiredRole) {

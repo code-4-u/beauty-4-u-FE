@@ -260,7 +260,8 @@ onMounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -273,6 +274,8 @@ onMounted(() => {
   width: 100%;
   max-width: 800px;
   padding: 1.5rem;
+  transform: translateY(0);
+  animation: modal-slide-up 0.3s ease-out;
 }
 
 .modal-header {
@@ -410,7 +413,7 @@ table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 th {
@@ -446,11 +449,6 @@ td:first-child {
 th:last-child,
 td:last-child {
   width: 20%;
-}
-
-th:nth-child(2),
-td:nth-child(2) {
-  width: 65%;
 }
 
 /* 인라인 수정 스타일 */
@@ -598,6 +596,17 @@ td:nth-child(2) {
   .action-buttons {
     flex-direction: column;
     gap: 0.5rem;
+  }
+}
+
+@keyframes modal-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 </style>

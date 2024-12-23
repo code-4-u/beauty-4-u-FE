@@ -1,7 +1,7 @@
 <script setup>
 import axios from "axios";
 import {Bar} from "vue-chartjs";
-import {ref, computed, reactive, onMounted} from 'vue';
+import {ref, computed, onMounted} from 'vue';
 import {getFetch} from "@/stores/apiClient.js";
 import html2canvas from "html2canvas";
 import {ArcElement, BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, Title, Tooltip} from 'chart.js';
@@ -31,13 +31,11 @@ const promotionList = computed(() => transformSearchData(promotionSearchResult.v
 const isSearchOpen = ref(false);
 
 /* 프로모션 검색 조건 저장 변수 */
-const promotionSearch = reactive({
-  promotionTitle: '',
-  promotionStartDate: '',
-  promotionEndDate: '',
-  promotionTypeId: Number,
-  promotionStatus: ''
-});
+const searchKeyword = ref('');
+const startDate = ref('');
+const endDate = ref('');
+const promotionTypeId = ref('');
+const promotionStatus = ref('');
 
 /* 프로모션 검색 데이터 가공 */
 const transformSearchData = (searchData) => {
@@ -72,12 +70,15 @@ const loadPromotionType = async () => {
 /* 프로모션 검색 */
 const loadSearchPromotion = async () => {
   try {
-    const response = await axios.get('http://localhost:8080/api/v1/promotion-statistical/search-promotion', {
-      header: {
+    const searchParams = new URLSearchParams();
 
-      },
-      params: promotionSearch
-    })
+    if(searchKeyword.value) searchParams.append('searchKeyword', searchKeyword.value);
+    if(startDate.value) searchParams.append('startDate', startDate.value);
+    if(endDate.value) searchParams.append('endDate', endDate.value);
+    if(promotionTypeId.value) searchParams.append('promotionTypeId', promotionTypeId.value);
+    if(promotionStatus.value) searchParams.append('promotionStatus', promotionStatus.value);
+
+    const response = await getFetch(`/promotion-statistical/search-promotion?${searchParams.toString()}`);
     promotionSearchResult.value = response.data.data;
   } catch(e) {
     console.log("프로모션 검색 실패", e);
@@ -421,21 +422,21 @@ onMounted(()=> {
         <div class="search-form">
           <div class="form-group">
             <label>프로모션명</label>
-            <input v-model="promotionSearch.promotionTitle" type="text" placeholder="프로모션명을 입력하세요">
+            <input v-model="searchKeyword" type="text" placeholder="프로모션명을 입력하세요">
           </div>
 
           <div class="form-group">
             <label>기간 선택</label>
             <div class="date-inputs">
-              <input v-model="promotionSearch.promotionStartDate" type="date">
+              <input v-model="startDate" type="date">
               <span>~</span>
-              <input v-model="promotionSearch.promotionEndDate" type="date">
+              <input v-model="endDate" type="date">
             </div>
           </div>
 
           <div class="form-group">
             <label>프로모션 종류</label>
-            <select v-model="promotionSearch.promotionTypeId">
+            <select v-model="promotionTypeId">
               <option value="">전체</option>
               <option v-for="option in promotionType" :value="option.promotionTypeId">
                 {{option.promotionTypeName}}
