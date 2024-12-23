@@ -2,7 +2,9 @@
 import {Bar} from "vue-chartjs";
 import {ref, computed, onMounted} from 'vue';
 import {getFetch} from "@/stores/apiClient.js";
+import html2canvas from "html2canvas";
 import {ArcElement, BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, Title, Tooltip} from 'chart.js';
+
 
 // Register ChartJS components
 ChartJS.register(
@@ -130,6 +132,66 @@ const loadPromotionByYearSales = async (promotionTypeId) => {
   }
 }
 
+/* 화면 캡처 함수 */
+const captureScreen = async () => {
+  try {
+    // 검색 패널이 열려있다면 닫기
+    if (isSearchOpen.value) {
+      isSearchOpen.value = false;
+      // 패널이 닫히는 애니메이션을 위한 약간의 딜레이
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+
+    // document.documentElement를 사용하여 전체 화면을 선택
+    const element = document.documentElement;
+
+    // 캡처 시작을 알리는 토스트 메시지나 로딩 표시를 추가할 수 있습니다
+    console.log('캡처 시작...');
+
+    // 현재 뷰포트의 스크롤 위치 저장
+    const scrollX = window.scrollX;
+    const scrollY = window.scrollY;
+
+    const canvas = await html2canvas(element, {
+      useCORS: true, // CORS 이슈 해결을 위한 옵션
+      scale: window.devicePixelRatio, // 고해상도 화면 대응
+      logging: false, // 디버그 로그 비활성화
+      backgroundColor: '#ffffff', // 배경색 설정
+      allowTaint: true, // 외부 이미지 허용
+      foreignObjectRendering: true, // SVG 및 외부 컨텐츠 렌더링 허용
+      // 전체 문서의 크기를 캡처하도록 설정
+      height: Math.max(
+          element.scrollHeight,
+          element.offsetHeight,
+          element.clientHeight
+      ),
+      width: Math.max(
+          element.scrollWidth,
+          element.offsetWidth,
+          element.clientWidth
+      ),
+      windowWidth: document.documentElement.offsetWidth,
+      windowHeight: document.documentElement.offsetHeight,
+      x: scrollX,
+      y: scrollY,
+      scrollX: -window.scrollX,
+      scrollY: -window.scrollY
+    });
+
+    // 이미지 파일명 생성 (현재 날짜와 시간 포함)
+    const fileName = `promotion-statistics-${new Date().toISOString().slice(0,19).replace(/[^0-9]/g, '')}.png`;
+
+    // 캔버스를 이미지로 변환하고 다운로드
+    const link = document.createElement('a');
+    link.download = fileName;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+
+    console.log('캡처 완료!');
+  } catch (error) {
+    console.error('화면 캡처 중 오류가 발생했습니다:', error);
+  }
+};
 
 /* 데이터 차트 관련 */
 const years = computed(() => promotionByYearSales.value.map(item => item.promoYear));
@@ -201,6 +263,24 @@ onMounted(()=> {
 
 <template>
   <div class="container-wrapper">
+    <!-- 검색 버튼 -->
+    <button
+        class="search-trigger-btn"
+        @click="toggleSearch"
+        :class="{ 'shifted': isSearchOpen }"
+    >
+      {{ isSearchOpen ? '닫기' : '검색' }}
+    </button>
+
+    <!-- 캡처 버튼 -->
+    <button
+        class="capture-btn"
+        @click="captureScreen"
+        :class="{ 'shifted': isSearchOpen }"
+    >
+      <span>캡처</span>
+    </button>
+
     <div class="content-container">
       <div class="layout-grid">
         <!-- 왼쪽 영역 -->
@@ -249,15 +329,6 @@ onMounted(()=> {
         </div>
       </div>
     </div>
-
-    <!-- 검색 버튼 -->
-    <button
-        class="search-trigger-btn"
-        @click="toggleSearch"
-        :class="{ 'shifted': isSearchOpen }"
-    >
-      {{ isSearchOpen ? '닫기' : '검색' }}
-    </button>
 
     <!-- 검색 슬라이드 패널 -->
     <div class="search-panel" :class="{ 'open': isSearchOpen }">
@@ -420,9 +491,36 @@ onMounted(()=> {
   transition: left 0.3s ease;
 }
 
-.search-trigger-btn.shifted {
+
+/* 캡처 버튼 스타일 추가 */
+.capture-btn {
+  position: fixed;
+  left: 0;
+  top: 28%;  /* 검색 버튼 아래에 위치 */
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  background: #4CAF50;  /* 검색 버튼과 동일한 색상 */
+  border: none;
+  border-radius: 0 8px 8px 0;
+  color: white;
+  cursor: pointer;
+  z-index: 1001;
+  letter-spacing: 2px;
+  font-size: 14px;
+  transition: left 0.3s ease;
+}
+
+.search-trigger-btn.shifted,
+.capture-btn.shifted {
   left: 25%;
 }
+
+.search-trigger-btn:hover,
+.capture-btn:hover {
+  background: #45a049;
+}
+
 
 /* 검색 패널 스타일 */
 .search-panel {
