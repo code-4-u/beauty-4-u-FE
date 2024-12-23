@@ -1,15 +1,37 @@
 <script setup>
-import {onMounted, ref} from 'vue';
-import {useRoute, useRouter} from 'vue-router';
-import {delFetch, getFetch} from "@/stores/apiClient.js";
-import {formatDate} from "@/stores/util.js";
+import { onMounted, ref, computed } from 'vue';
+import { useRoute, useRouter } from 'vue-router';
+import { delFetch, getFetch, postFetch, putFetch } from "@/stores/apiClient.js";
+import { formatDate } from "@/stores/util.js";
+import { useAuthStore } from "@/stores/auth.js";
 
 const router = useRouter();
 const route = useRoute();
+const authStore = useAuthStore();
 
 const inquiryId = route.params['inquiryId'];
 const inquiryDetail = ref({});
+const comment = ref(null);
+const newComment = ref('');
+const editingCommentId = ref(null);
+const editingContent = ref('');
 
+// 관리자 권한 체크
+const isAdmin = computed(() => {
+  return authStore.userRole === 'ADMIN';
+});
+
+// 현재 사용자가 게시글 작성자인지 확인
+const isAuthor = computed(() => {
+  return authStore.userCode === inquiryDetail.value.userCode;
+});
+
+// 수정 및 삭제 권한 확인
+const canEditDelete = computed(() => {
+  return isAdmin.value || isAuthor.value;
+});
+
+// Q&A 상세 정보 조회
 const fetchInquiryDetail = async () => {
   try {
     const response = await getFetch(`/inquiry/${inquiryId}`)
@@ -19,16 +41,114 @@ const fetchInquiryDetail = async () => {
   }
 }
 
+const fetchComment = async () => {
+  try {
+    const response = await getFetch(`/inquiryReply/${inquiryId}`);
+    comment.value = response.data.data;
+  } catch (error) {
+    console.error("답변을 가져오는 데 실패했습니다:", error);
+  }
+};
+
+// 답변 작성
+const submitComment = async () => {
+  if (!isAdmin.value) {
+    alert('관리자만 답변을 작성할 수 있습니다.');
+    return;
+  }
+
+  if (!newComment.value.trim()) {
+    alert('답변 내용을 입력해주세요.');
+    return;
+  }
+
+  try {
+    await postFetch(`/inquiry/${inquiryId}/reply`, {
+      inquiryReplyContent: newComment.value
+    });
+    newComment.value = '';
+    await fetchComment();
+    await fetchInquiryDetail(); // 게시글 정보를 다시 불러옴
+  } catch (error) {
+    console.error("답변 작성에 실패했습니다:", error);
+  }
+};
+
+// 답변 수정 모드 시작
+const startEdit = (comment) => {
+  if (!isAdmin.value) {
+    alert('관리자만 답변을 수정할 수 있습니다.');
+    return;
+  }
+  editingCommentId.value = true;
+  editingContent.value = comment.inquiryReplyContent;
+};
+
+// 답변 수정 취소
+const cancelEdit = () => {
+  editingCommentId.value = null;
+  editingContent.value = '';
+};
+
+// 답변 수정 저장
+const updateComment = async () => {
+  if (!isAdmin.value) {
+    alert('관리자만 답변을 수정할 수 있습니다.');
+    return;
+  }
+
+  if (!editingContent.value.trim()) {
+    alert('답변 내용을 입력해주세요.');
+    return;
+  }
+
+  try {
+    await putFetch(`/inquiry/${comment.value.inquiryReplyId}/reply`, {
+      inquiryReplyContent: editingContent.value
+    });
+    editingCommentId.value = null;
+    editingContent.value = '';
+    await fetchComment();
+  } catch (error) {
+    console.error("답변 수정에 실패했습니다:", error);
+  }
+};
+
+// 답변 삭제
+const deleteComment = async () => {
+  if (!isAdmin.value) {
+    alert('관리자만 답변을 삭제할 수 있습니다.');
+    return;
+  }
+
+  if (!confirm('답변을 삭제하시겠습니까?')) return;
+
+  try {
+    await delFetch(`/inquiry/${comment.value.inquiryReplyId}/reply`);
+    comment.value = null; // 답변 상태를 즉시 null로 설정
+    await fetchInquiryDetail(); // 게시글 정보를 다시 불러옴
+  } catch (error) {
+    console.error("답변 삭제에 실패했습니다:", error);
+  }
+};
+
+// 목록으로 이동
 const goBack = () => {
   router.push('/qna');
 };
 
+// Q&A 수정 페이지로 이동
 const editInquiry = () => {
+  if (!canEditDelete.value) {
+    alert('수정 권한이 없습니다.');
+    return;
+  }
   router.push({
     path: `/qna/${inquiryId}/update`
   });
 };
 
+// Q&A 삭제
 const deleteFetchInquiry = async () => {
   try {
     await delFetch(`/inquiry/${inquiryId}`);
@@ -37,7 +157,12 @@ const deleteFetchInquiry = async () => {
   }
 }
 
+// Q&A 삭제 확인 및 처리
 const deleteInquiry = () => {
+  if (!canEditDelete.value) {
+    alert('삭제 권한이 없습니다.');
+    return;
+  }
   if (confirm('정말로 삭제하시겠습니까?')) {
     deleteFetchInquiry();
     alert('삭제되었습니다.');
@@ -47,11 +172,13 @@ const deleteInquiry = () => {
 
 onMounted(() => {
   fetchInquiryDetail();
-})
+  fetchComment();
+});
 </script>
 
 <template>
   <div class="qna-detail-container">
+    <!-- Q&A 상세 정보 헤더 -->
     <div class="qna-header">
       <h3 class="title">{{ inquiryDetail.inquiryTitle }}</h3>
       <div class="info-section">
@@ -61,10 +188,8 @@ onMounted(() => {
         </div>
         <div class="info-item">
           <span class="info-label">상태</span>
-          <span
-              class="status-badge"
-              :class="inquiryDetail.inquiryReplyYn === 'Y' ? 'answered' : 'waiting'"
-          >
+          <span class="status-badge"
+                :class="inquiryDetail.inquiryReplyYn === 'Y' ? 'answered' : 'waiting'">
             {{ inquiryDetail.inquiryReplyYn === 'Y' ? '답변완료' : '답변대기' }}
           </span>
         </div>
@@ -83,10 +208,65 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- Q&A 내용 -->
     <div class="content-section">
       <div v-html="inquiryDetail.inquiryContent" class="post-content"></div>
     </div>
 
+    <!-- 답변 섹션 -->
+    <div class="comments-section">
+      <h4 class="comments-title">답변</h4>
+
+      <!-- 답변 작성 폼 - 관리자이면서 답변이 없을 때만 표시 -->
+      <div v-if="isAdmin && !comment" class="comment-form">
+        <textarea
+            v-model="newComment"
+            placeholder="답변을 입력하세요..."
+            class="comment-input"
+        ></textarea>
+        <button class="btn btn-primary comment-submit" @click="submitComment">
+          답변 작성
+        </button>
+      </div>
+
+      <!-- 답변이 없고 관리자가 아닌 경우 메시지 -->
+      <div v-if="!isAdmin && !comment" class="no-comments">
+        관리자의 답변을 기다리고 있습니다.
+      </div>
+
+      <!-- 답변 표시 영역 -->
+      <div v-if="comment" class="comment-item">
+        <!-- 수정 모드가 아닐 때 -->
+        <template v-if="!editingCommentId">
+          <div class="comment-header">
+            <span class="comment-author">관리자</span>
+            <span class="comment-date">{{ formatDate(comment.createdDate) }}</span>
+          </div>
+          <div class="comment-content">{{ comment.inquiryReplyContent }}</div>
+          <div v-if="isAdmin" class="comment-actions">
+            <button class="btn-edit" @click="startEdit(comment)">수정</button>
+            <button class="btn-delete" @click="deleteComment()">삭제</button>
+          </div>
+        </template>
+
+        <!-- 수정 모드일 때 -->
+        <template v-else>
+          <div class="edit-form">
+            <textarea
+                v-model="editingContent"
+                class="edit-input"
+                rows="4"
+            ></textarea>
+            <div class="edit-actions">
+              <button class="btn btn-primary" @click="updateComment()">저장</button>
+              <button class="btn btn-secondary" @click="cancelEdit">취소</button>
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <!-- 버튼 그룹 -->
     <div class="footer-section">
       <div class="left-buttons">
         <button class="btn btn-secondary" @click="goBack">
@@ -94,10 +274,10 @@ onMounted(() => {
         </button>
       </div>
       <div class="right-buttons">
-        <button class="btn btn-primary" @click="editInquiry">
+        <button v-if="canEditDelete" class="btn btn-primary" @click="editInquiry">
           <span class="btn-text">수정</span>
         </button>
-        <button class="btn btn-danger" @click="deleteInquiry">
+        <button v-if="canEditDelete" class="btn btn-danger" @click="deleteInquiry">
           <span class="btn-text">삭제</span>
         </button>
       </div>
@@ -183,27 +363,131 @@ onMounted(() => {
   line-height: 1.6;
 }
 
-.post-content img {
-  max-width: 100%;
-  height: auto;
-  margin: 1rem 0;
-  border-radius: 4px;
+/* 답변 섹션 스타일 */
+.comments-section {
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid #e0e0e0;
 }
 
-.footer-section {
+.comments-title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #333;
+}
+
+.comment-form {
+  margin-bottom: 2rem;
+}
+
+.comment-input, .edit-input {
+  width: 100%;
+  min-height: 100px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  resize: vertical;
+  font-family: inherit;
+  background-color: #fff;
+}
+
+.comment-input:focus, .edit-input:focus {
+  outline: none;
+  border-color: #29C458;
+  box-shadow: 0 0 0 2px rgba(41, 196, 88, 0.1);
+}
+
+.comment-submit {
+  float: right;
+  margin-bottom: 1rem;
+}
+
+.comments-list {
+  clear: both;
+}
+
+.comment-item {
+  padding: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  margin-bottom: 1rem;
+  background-color: #f8f9fa;
+}
+
+.comment-header {
+  margin-bottom: 0.5rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid #f0f0f0;
 }
 
-.right-buttons {
+.comment-author {
+  font-weight: 600;
+  color: #2e7d32;
+}
+
+.comment-date {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.comment-content {
+  line-height: 1.5;
+  color: #444;
+  margin-bottom: 1rem;
+}
+
+.comment-actions {
   display: flex;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  justify-content: flex-end;
 }
 
+.btn-edit, .btn-delete {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-edit {
+  color: #2196F3;
+}
+
+.btn-delete {
+  color: #dc3545;
+}
+
+.btn-edit:hover, .btn-delete:hover {
+  text-decoration: underline;
+}
+
+.edit-form {
+  background-color: #fff;
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.no-comments {
+  text-align: center;
+  padding: 2rem;
+  color: #666;
+  font-style: italic;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+/* 버튼 공통 스타일 */
 .btn {
   padding: 0.5rem 1rem;
   border: none;
@@ -213,7 +497,6 @@ onMounted(() => {
   transition: all 0.2s ease;
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 0.4rem;
 }
 
@@ -247,10 +530,21 @@ onMounted(() => {
   transform: translateY(-1px);
 }
 
-.btn-text {
-  font-size: 0.95rem;
+.footer-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f0f0f0;
 }
 
+.right-buttons {
+  display: flex;
+  gap: 0.75rem;
+}
+
+/* 반응형 스타일 */
 @media (max-width: 768px) {
   .qna-detail-container {
     margin: 0.75rem;
@@ -276,6 +570,16 @@ onMounted(() => {
 
   .btn {
     flex: 1;
+  }
+
+  .comment-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .comment-actions {
+    margin-top: 0.5rem;
   }
 }
 </style>
