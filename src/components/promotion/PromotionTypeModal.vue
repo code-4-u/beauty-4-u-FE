@@ -410,7 +410,7 @@ table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  table-layout: fixed;
+  table-layout: auto;
 }
 
 th {
@@ -446,11 +446,6 @@ td:first-child {
 th:last-child,
 td:last-child {
   width: 20%;
-}
-
-th:nth-child(2),
-td:nth-child(2) {
-  width: 65%;
 }
 
 /* 인라인 수정 스타일 */
