@@ -1,5 +1,4 @@
 <script setup>
-import axios from "axios";
 import {Bar} from "vue-chartjs";
 import {ref, computed, onMounted} from 'vue';
 import {getFetch} from "@/stores/apiClient.js";
@@ -21,6 +20,12 @@ const promotionType = ref([]);
 
 /* 프로모션 검색 결과 저장 변수 */
 const promotionSearchResult = ref([]);
+
+/* 프로모션 별 매출액 조회 저장 변수 */
+const promotionByYearSales = ref([]);
+
+/* 통신 완료 여부 함수 */
+const loadFin = ref(false);
 
 /* 프로모션 리스트 */
 const promotionList = computed(() => transformSearchData(promotionSearchResult.value));
@@ -54,6 +59,26 @@ const transformSearchData = (searchData) => {
   }));
 };
 
+/* 검색 키워드 리셋 함수 */
+const resetSearchKeyword = () => {
+  searchKeyword.value = '';
+  startDate.value = '';
+  endDate.value = '';
+  promotionTypeId.value = '';
+  promotionStatus.value = '';
+}
+
+/* 특정 typeId의 모든 promotionId를 배열로 반환하는 함수 */
+const getPromotionIdsByType = (promotionTypeId) => {
+  const promotionGroup = promotionList.value.find(item => item.promotionTypeId === promotionTypeId);
+  return promotionGroup.items.map(item => item.promotionId);
+};
+
+/* 검색창 토글 설정 */
+const toggleSearch = () => {
+  isSearchOpen.value = !isSearchOpen.value;
+};
+
 /* 데이터 통신 */
 /* 프로모션 종류 데이터 조회 */
 const loadPromotionType = async () => {
@@ -81,66 +106,42 @@ const loadSearchPromotion = async () => {
   } catch(e) {
     console.log("프로모션 검색 실패", e);
   } finally {
-    console.log(promotionList.value);
+    console.log(promotionList);
+    resetSearchKeyword();
+  }
+}
+
+/* 프로모션 년도별 매출액 조회 */
+const loadPromotionByYearSales = async (promotionTypeId) => {
+  try {
+    const promotionIds = computed(() => getPromotionIdsByType(promotionTypeId));
+    const params = new URLSearchParams();
+
+    promotionIds.value.forEach(id => {
+      params.append("promotionIds", id);
+    });
+
+    const response = await getFetch(`/promotion-statistical/by-year-sales?${params.toString()}`);
+    promotionByYearSales.value = response.data.data;
+  } catch(e) {
+    console.log("프로모션 년도별 매출 조회중 오류가 났습니다.", e);
+  } finally {
+    loadFin.value = true;
   }
 }
 
 
-
-
-
-
-
-
-
-
-/******************************* 개발중 *****************************/
-
-const toggleSearch = () => {
-  isSearchOpen.value = !isSearchOpen.value;
-};
-
-const salesData = ref([]);
-
-const loadGraphData = async(typeId) => {
-  try {
-    const promotionIds = getPromotionIdsByType(typeId);
-
-    const params = promotionIds.map(id => `promoId=${id}`).join('&');
-
-
-
-    const response = await axios.get(`http://localhost:8080/api/v1/promotion-statistical/by-year-sales?${params}`,
-    {
-      headers: {
-        // 추후 토큰 추가
-      }
-    });
-    // API 응답 데이터를 동적으로 객체화하여 저장
-    // 처리된 데이터를 반응형 상태에 할당
-    salesData.value = response.data.data.map(item => ({
-      promoYear: item.promoYear,
-      totalSales: item.totalSales,
-      prevYearSales: item.prevYearSales,
-      growthRate: item.growthRate
-    }));
-
-
-  } catch (error) {
-    console.log('그래프 데이터 로딩 에러', error)
-  }
-};
-
-const years = computed(() => salesData.value.map(item => item.promoYear));
-const sales = computed(() => salesData.value.map(item => item.totalSales));
+/* 데이터 차트 관련 */
+const years = computed(() => promotionByYearSales.value.map(item => item.promoYear));
+const sales = computed(() => promotionByYearSales.value.map(item => item.totalPromotionSales));
 
 const chartData = computed(() => ({
   labels: years.value,
   datasets: [
     {
       data: sales.value,
-      backgroundColor: '#6366F1',
-      borderColor: '#6366F1',
+      backgroundColor: '#4CAF50',
+      borderColor: '#4CAF50',
       borderWidth: 1
     }
   ]
@@ -192,94 +193,6 @@ const chartOption = computed(() => {
   }
 });
 
-// 프로모션 데이터를 담을 배열 ref
-const promotions = ref([]);
-
-/* 프로모션 타입별 조회 통신 */
-const loadTypeByPromotion = async () => {
-  try {
-    const response = await axios.get('http://localhost:8080/api/v1/promotion-statistical/type-by-promotion', {
-      headers: {
-        // 추후 토큰 추가
-      }
-    });
-
-    console.log(response);
-
-    // promotionTypeId 기준으로 데이터 그룹화하고 정렬
-    const groupedData = response.data.data.reduce((acc, promotion) => {
-      const existingGroup = acc.find(group => group.typeId === promotion.promotionTypeId);
-
-      if (existingGroup) {
-        existingGroup.items.push({
-          promotionId: promotion.promotionId,
-          promotionTitle: promotion.promotionTitle || ''  // null 처리
-        });
-      } else {
-        acc.push({
-          typeId: promotion.promotionTypeId,
-          typeName: getTypeName(promotion.promotionTypeId),
-          items: [{
-            promotionId: promotion.promotionId,
-            promotionTitle: promotion.promotionTitle || ''  // null 처리
-          }]
-        });
-      }
-
-      return acc;
-    }, []);
-
-    // 각 그룹 내의 items를 연도 기준으로 정렬
-    groupedData.forEach(group => {
-      group.items.sort((a, b) => {
-        // 안전한 연도 추출 함수
-        const getYear = (title) => {
-          if (!title) return 0;
-          const match = title.match(/\d{4}/);
-          return match ? parseInt(match[0]) : 0;
-        };
-
-        const yearA = getYear(a.promotionTitle);
-        const yearB = getYear(b.promotionTitle);
-
-        if (yearA === 0 && yearB === 0) return 0;
-        if (yearA === 0) return 1;  // yearA가 없으면 뒤로
-        if (yearB === 0) return -1; // yearB가 없으면 뒤로
-        return yearB - yearA;  // 연도 내림차순 정렬
-      });
-    });
-
-    // typeId 기준으로 그룹 정렬
-    groupedData.sort((a, b) => a.typeId - b.typeId);
-
-    promotions.value = groupedData;
-
-    console.log(promotions.value);
-
-  } catch (error) {
-    console.log('데이터 로딩 에러 : ', error);
-  }
-};
-
-// 특정 typeId의 모든 promotionId를 배열로 반환하는 함수
-const getPromotionIdsByType = (typeId) => {
-  const group = promotions.value.find(group => group.typeId === typeId);
-  return group ? group.items.map(item => item.promotionId) : [];
-};
-
-
-// promotionTypeId에 따른 타입 이름을 반환하는 함수
-const getTypeName = (typeId) => {
-  const typeNames = {
-    1: "봄맞이 새학기 특별전",
-    2: "여름 바캉스 시즌오프",
-    3: "가을 패션위크",
-    4: "윈터 클리어런스",
-    5: "설날 선물세트 특가전"
-  };
-  return typeNames[typeId] || `프로모션 타입 ${typeId}`;
-};
-
 onMounted(()=> {
   loadPromotionType();
 });
@@ -298,7 +211,9 @@ onMounted(()=> {
             <div class="chart-container">
               <!-- 차트가 들어갈 자리 -->
               <div class="chart-placeholder">
-                <Bar :data="chartData" :options="chartOption" />
+                <template v-if="loadFin">
+                  <Bar :data="chartData" :options="chartOption" />
+                </template>
               </div>
             </div>
           </div>
@@ -390,7 +305,7 @@ onMounted(()=> {
               <div v-for="group in promotionList"
                    :key="group.promotionTypeId"
                    class="promotion-group">
-                <button class="search-promotion-result" @click="loadGraphData(group.typeId)">
+                <button class="search-promotion-result" @click="loadPromotionByYearSales(group.promotionTypeId)">
                   {{ group.promotionTypeName }}
                 </button>
                 <div class="promotion-items">
