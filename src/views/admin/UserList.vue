@@ -13,12 +13,20 @@ const selectedUserCode = ref('');
 // 검색어 상태 관리
 const searchQuery = ref('');
 const currentPage = ref(1);
-const itemsPerPage = 8;
+const itemsPerPage = 10;
+const totalItems = ref(0);
 
 const fetchUserList = async () => {
   try {
-    const response = await getFetch('/user/list');
-    users.value = response.data.data.map(user => ({
+    const params = new URLSearchParams();
+    params.append('page', currentPage.value);
+    params.append('count', itemsPerPage);
+    if (searchQuery.value) {
+      params.append('search', searchQuery.value);
+    }
+
+    const response = await getFetch(`/user/list?${params.toString()}`);
+    users.value = response.data.data.content.map(user => ({
       userCode: user.userCode || '',
       userName: user.userName || '',
       userRoleName: user.userRoleName || '',
@@ -28,72 +36,52 @@ const fetchUserList = async () => {
       userExpiredDate: user.userExpiredDate,
       userExpiredYn: user.userExpiredYn
     }));
+    totalItems.value = response.data.data.totalElements;
   } catch (error) {
     console.error('회원 목록을 불러오는 중 에러가 발생했습니다.', error.response ? error.response.data : error.message);
   }
 };
 
-// 필터링된 직원 목록 계산
-const filteredUsers = computed(() => {
-  return users.value.filter(user => {
-    if (!user) return false;
-
-    const searchLower = searchQuery.value.toLowerCase();
-    const userCode = user.userCode || '';
-    const userName = user.userName || '';
-    const deptName = user.deptName || '';
-    const jobName = user.jobName || '';
-
-    return (
-        userCode.toLowerCase().includes(searchLower) ||
-        userName.toLowerCase().includes(searchLower) ||
-        deptName.toLowerCase().includes(searchLower) ||
-        jobName.toLowerCase().includes(searchLower)
-    );
-  });
-});
-
-// 페이지네이션된 직원 목록
-const paginatedUsers = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage;
-  const end = start + itemsPerPage;
-  return filteredUsers.value.slice(start, end);
-});
-
 // 총 페이지 수 계산
 const totalPages = computed(() => {
-  return Math.ceil(filteredUsers.value.length / itemsPerPage);
+  return Math.ceil(totalItems.value / itemsPerPage);
 });
 
 const deleteUser = async (userCode, isExpired) => {
   try {
     if (isExpired) {
-
       const confirmedUnexpire = confirm(`${userCode} 회원을 활성화하시겠습니까?`);
       if (!confirmedUnexpire) return;
 
-      await putFetch('/user/unexpire',
-          {
-            userCode: userCode
-          }
-      );
+      await putFetch('/user/unexpire', {
+        userCode: userCode
+      });
       console.log('계정이 복구되었습니다.');
     } else {
-
       const confirmedExpire = confirm(`${userCode} 회원을 비활성화하시겠습니까?`);
       if (!confirmedExpire) return;
 
-      await putFetch('/user/expire',
-          {
-            userCode: userCode
-          }
-      );
+      await putFetch('/user/expire', {
+        userCode: userCode
+      });
       console.log('계정이 삭제되었습니다.');
     }
     await fetchUserList();
   } catch (error) {
     console.error('작업 중 에러가 발생했습니다:', error.response ? error.response.data : error.message);
   }
+};
+
+// 검색어 변경 시 페이지를 1로 리셋하고 데이터 새로 불러오기
+const handleSearch = async () => {
+  currentPage.value = 1;
+  await fetchUserList();
+};
+
+// 페이지 변경 시 데이터 새로 불러오기
+const changePage = async (page) => {
+  currentPage.value = page;
+  await fetchUserList();
 };
 
 const addNewUser = () => {
@@ -118,10 +106,8 @@ const formatDate = (dateString) => {
 };
 
 onMounted(async () => {
-  await Promise.all([
-    fetchUserList(),
-  ])
-})
+  await fetchUserList();
+});
 </script>
 
 <template>
@@ -138,6 +124,7 @@ onMounted(async () => {
         <input
             type="text"
             v-model="searchQuery"
+            @input="handleSearch"
             placeholder="이름, 연락처, 사원번호로 검색"
         />
         <div class="filter-dropdown">
@@ -159,10 +146,9 @@ onMounted(async () => {
         </tr>
         </thead>
         <tbody>
-        <tr v-for="user in paginatedUsers" :key="user.userCode">
+        <tr v-for="user in users" :key="user.userCode">
           <td>
             <div class="user-info">
-
               <div>
                 <div>{{ user.userName }}</div>
                 <div class="sub-info">{{ user.userCode }}</div>
@@ -170,9 +156,11 @@ onMounted(async () => {
             </div>
           </td>
           <td>
-    <span :class="['status-badge', user.userRoleName === 'ADMIN' ? 'admin' : 'user']">
-      {{ user.userRoleName }}
-    </span>
+            <span :class="['status-badge',
+              user.userRoleName === 'ADMIN' ? 'admin' :
+              user.userRoleName === 'LEADER' ? 'leader' : 'user']">
+              {{ user.userRoleName }}
+            </span>
           </td>
           <td>
             {{ user.deptName }}
@@ -202,7 +190,7 @@ onMounted(async () => {
       <div class="pagination">
         <button
             :disabled="currentPage === 1"
-            @click="currentPage--"
+            @click="changePage(currentPage - 1)"
         >
           이전
         </button>
@@ -210,13 +198,13 @@ onMounted(async () => {
             v-for="page in totalPages"
             :key="page"
             :class="{ active: currentPage === page }"
-            @click="currentPage = page"
+            @click="changePage(page)"
         >
           {{ page }}
         </button>
         <button
             :disabled="currentPage === totalPages"
-            @click="currentPage++"
+            @click="changePage(currentPage + 1)"
         >
           다음
         </button>
@@ -371,6 +359,11 @@ tr:hover {
   color: #0284c7;
 }
 
+.status-badge.leader {
+  background-color: #f0fdf4;
+  color: #16a34a;
+}
+
 .action-buttons {
   display: flex;
   gap: 0.75rem;
@@ -442,6 +435,11 @@ tr:hover {
   background-color: #4CAF50;
   color: white;
   border-color: #4CAF50;
+}
+
+.pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .sub-info {
