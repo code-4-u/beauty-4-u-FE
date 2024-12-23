@@ -15,7 +15,7 @@ const teamspaceId = computed(() => useAuth.teamspaceId);
 const activeSection = computed(() => {
   const path = router.currentRoute.value.path;
   if (path.includes(`/teamspace/chat/${teamspaceId.value}`)) return 'chat';
-  if (path.includes(`/teamspace/board`)) return 'board';
+  if (path.includes(`/teamspace/board`) || path.includes(`/teamspace/${teamspaceId.value}/board`)) return 'board';
   return 'chat'; // 기본값
 });
 
@@ -26,7 +26,7 @@ const switchSection = (section) => {
     router.push(`/teamspace/chat/${teamspaceId.value}`);
   } else if (section === 'board') {
     // 팀 게시판 경로는 teamspaceId 제외
-    router.push(`/teamspace/board`);
+    router.push(`/teamspace/${teamspaceId.value}/board`);
   }
 };
 </script>
@@ -69,19 +69,22 @@ const switchSection = (section) => {
   display: flex;
   flex-direction: column;
   overflow: hidden; /* 새로운 컴포넌트로 인한 스크롤 방지 */
+  padding-bottom: 8px; /* 하단 공간 추가 */
 }
 
 .sidebar {
-  width: 200px; /* 고정 너비 */
+  width: 270px; /* 고정 너비 */
   background-color: var(--background-color);
   padding: 1rem;
   border-right: 1px solid #e0e0e0;
+  margin-left: -50px;
 }
 
 .section-buttons {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  margin-right: 30px;
 }
 
 .section-buttons button {
