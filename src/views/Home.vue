@@ -15,6 +15,14 @@ const authStore = useAuthStore();
 const increaseTop5 = ref([]);
 const decreaseTop5 = ref([]);
 
+// 매출 모달 상태 관리
+const isIncreaseModalOpen = ref(false);
+const isDecreaseModalOpen = ref(false);
+
+// 전체 상승/하락 데이터
+const allIncreaseData = ref([]);
+const allDecreaseData = ref([]);
+
 const periods = [
   { type: 'DAILY', label: '일간' },
   { type: 'WEEKLY', label: '주간' },
@@ -36,12 +44,51 @@ const handleGoodsClick = (item) => {
   })
 };
 
+// 상품 상승률 모달 열기 함수
+const openIncreaseModal = async () => {
+  try {
+    const params = new URLSearchParams({
+      periodType: selectedPeriod.value,
+      limit: 100  // 또는 원하는 제한 수
+    });
+    const response = await getFetch(`goodsRate/list?${params.toString()}`);
+    allIncreaseData.value = response.data.data.increase;
+    isIncreaseModalOpen.value = true;
+  } catch (error) {
+    console.error("Error fetching increase data:", error);
+  }
+};
+
+// 상품 하락률 모달 열기 함수
+const openDecreaseModal = async () => {
+  try {
+    const params = new URLSearchParams({
+      periodType: selectedPeriod.value,
+      limit: 100  // 또는 원하는 제한 수
+    });
+    const response = await getFetch(`goodsRate/list?${params.toString()}`);
+    allDecreaseData.value = response.data.data.decrease;
+    isDecreaseModalOpen.value = true;
+  } catch (error) {
+    console.error("Error fetching decrease data:", error);
+  }
+};
+
+const closeIncreaseModal = () => {
+  isIncreaseModalOpen.value = false;
+};
+
+const closeDecreaseModal = () => {
+  isDecreaseModalOpen.value = false;
+};
+
 // 기간 변경 함수
 const changePeriod = async (periodType) => {
   selectedPeriod.value = periodType;
   try {
     const params = new URLSearchParams({
-      periodType: periodType
+      periodType: periodType,
+      limit: 5
     });
     const response = await getFetch(`goodsRate/list?${params.toString()}`);
     const {increase, decrease} = response.data.data;
@@ -403,7 +450,10 @@ onMounted(() => {
 
       <div class="stats-row">
         <div class="stats-card">
+          <div class="card-header">
           <h3 class="card-title">매출 상승 TOP 5</h3>
+          <button class="more-button" @click="openIncreaseModal">더보기</button>
+          </div>
           <div class="stats-content">
             <div v-for="(item, index) in increaseTop5" :key="index" class="stats-item">
               <span class="stats-label">{{ index + 1 }}.
@@ -417,7 +467,10 @@ onMounted(() => {
         </div>
 
         <div class="stats-card">
+          <div class="card-header">
           <h3 class="card-title">매출 하락 TOP 5</h3>
+          <button class="more-button" @click="openDecreaseModal">더보기</button>
+          </div>
           <div class="stats-content">
             <div v-for="(item, index) in decreaseTop5" :key="index" class="stats-item">
               <span class="stats-label">{{ index + 1 }}.
@@ -569,9 +622,106 @@ onMounted(() => {
       </div>
     </div>
   </div>
+
+  <!-- 매출 상승률 모달 -->
+  <div v-if="isIncreaseModalOpen" class="modal-overlay" @click="closeIncreaseModal">
+    <div class="modal-content sales-modal" @click.stop>
+      <div class="modal-header">
+        <h3 class="modal-title">매출 상승률 전체 보기</h3>
+        <button class="close-button" @click="closeIncreaseModal">✕</button>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+          <tr>
+            <th>순위</th>
+            <th>상품명</th>
+            <th>브랜드</th>
+            <th>변동률</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-for="(item, index) in allIncreaseData" :key="index">
+            <td>{{ index + 1 }}</td>
+            <td>
+              <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
+                {{ item.goodsName }}
+              </a>
+            </td>
+            <td>{{ item.brandName }}</td>
+            <td class="increase">{{ item.rateChange }}</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" @click="closeIncreaseModal">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 매출 하락률 모달 -->
+  <div v-if="isDecreaseModalOpen" class="modal-overlay" @click="closeDecreaseModal">
+    <div class="modal-content sales-modal" @click.stop>
+      <div class="modal-header">
+        <h3 class="modal-title">매출 하락률 전체 보기</h3>
+        <button class="close-button" @click="closeDecreaseModal">✕</button>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+          <tr>
+            <th>순위</th>
+            <th>상품명</th>
+            <th>브랜드</th>
+            <th>변동률</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-for="(item, index) in allDecreaseData" :key="index">
+            <td>{{ index + 1 }}</td>
+            <td>
+              <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
+                {{ item.goodsName }}
+              </a>
+            </td>
+            <td>{{ item.brandName }}</td>
+            <td class="decrease">{{ item.rateChange }}</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" @click="closeDecreaseModal">닫기</button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped>
+/* 링크 스타일 수정 */
+.goods-link {
+  color: #374151;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.goods-link:hover {
+  color: #2563eb;  /* hover 시 파란색으로 변경 */
+  text-decoration: none;  /* 밑줄 제거 유지 */
+}
+
+.table-container .goods-link {
+  color: #374151;  /* 기본 색상을 어두운 회색으로 */
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.table-container .goods-link:hover {
+  color: #2563eb;  /* hover 시 파란색으로 변경 */
+  text-decoration: none;  /* 밑줄 제거 유지 */
+}
+
 /* 모달 헤더 스타일 */
 .modal-header {
   display: flex;
@@ -838,6 +988,77 @@ onMounted(() => {
   background: #87d1d4;
   color: white;
 }
+
+/* 매출 모달 스타일 */
+.sales-modal {
+  max-width: 600px !important;
+}
+
+/* 매출 모달 테이블 스타일 */
+.table-container {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.table-container table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table-container th {
+  background-color: #f8fafc;
+  padding: 0.5rem 0.75rem;  /* 패딩 더 축소 */
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.875rem;  /* 글자 크기 더 축소 */
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  white-space: nowrap;
+}
+
+.table-container td {
+  padding: 0.5rem 0.75rem;  /* 패딩 감소 */
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.8rem;
+  line-height: 1.25;  /* 줄 간격 감소 */
+}
+
+/* 열 너비 조정 */
+.table-container th:nth-child(1),
+.table-container td:nth-child(1) {
+  width: 5%;
+  text-align: center;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+
+.table-container th:nth-child(2),
+.table-container td:nth-child(2) {
+  width: 40%;
+  padding-right: 0.25rem;  /* 패딩 감소 */
+}
+
+.table-container th:nth-child(3),
+.table-container td:nth-child(3) {
+  width: 25%;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+
+.table-container th:nth-child(4),
+.table-container td:nth-child(4) {
+  width: 30%;
+  text-align: right;
+  padding-right: 0.5rem;
+  white-space: nowrap;
+}
+
 
 /* 모달 스타일 */
 .modal-overlay {
