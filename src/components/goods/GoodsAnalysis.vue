@@ -6,6 +6,8 @@ import PromotionList from "@/components/goods/PromotionList.vue";
 import GoodsChart from "@/components/goods/GoodsChart.vue";
 import GoodsCompare from "@/components/goods/GoodsCompare.vue";
 import html2canvas from "html2canvas";
+import { useRoute } from "vue-router";
+import { useRouter } from "vue-router";
 
 const searchWord = ref('');
 const minPrice = ref('');
@@ -17,6 +19,8 @@ const count = ref(10);
 const loading = ref(false);
 const hasMore = ref(true);
 const searchResults = ref([]);
+const route = useRoute();
+const router = useRouter();
 
 // 카테고리 관련 상태 추가
 const selectedTopCategory = ref('');
@@ -31,6 +35,12 @@ const selectedGoodsCode = ref('');
 // 상품 선택 핸들러 추가
 const handleGoodsSelect = (goodsCode) => {
   selectedGoodsCode.value = goodsCode;
+
+  router.replace({
+    query: {goodsCode}
+  }).catch(err => {
+    console.error("url 업데이트 중 오류: ", err);
+  });
 };
 
 
@@ -66,6 +76,25 @@ const toggleSearch = () => {
 
 // 컴포넌트 마운트 시 상위 카테고리 로딩
 onMounted(async () => {
+
+  const goodsCode = route.query.goodsCode;
+
+  if (goodsCode) {
+    // 검색 패널 열기
+    isSearchOpen.value = true;
+    // 해당 상품 코드로 검색 실행
+    selectedGoodsCode.value = goodsCode;
+
+    // 해당 상품의 정보를 가져와서 검색 결과에 추가
+    try {
+      const response = await getFetch(`/goods/${goodsCode}`);
+      if (response?.data?.data) {
+        searchResults.value = [response.data.data];
+      }
+    } catch (error) {
+      console.error('상품 정보 로딩 중 오류:', error);
+    }
+  }
   try {
     const response = await getFetch('/goods/topCategory');
     if (response?.data) {
