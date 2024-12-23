@@ -4,7 +4,7 @@ import FullCalendar from '@fullcalendar/vue3';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import {getFetch, postFetch, putFetch, delFetch} from "@/stores/apiClient.js";
+import {delFetch, getFetch, postFetch, putFetch} from "@/stores/apiClient.js";
 import {useAuthStore} from "@/stores/auth.js";
 import {useRouter} from "vue-router";
 
@@ -16,15 +16,23 @@ const increaseTop5 = ref([]);
 const decreaseTop5 = ref([]);
 
 const periods = [
-  { type: 'DAILY', label: '일간' },
-  { type: 'WEEKLY', label: '주간' },
-  { type: 'MONTHLY', label: '월간' },
-  { type: 'QUARTER', label: '3개월' },
-  { type: 'HALF', label: '6개월' },
-  { type: 'YEARLY', label: '1년' }
+  {type: 'DAILY', label: '일간'},
+  {type: 'WEEKLY', label: '주간'},
+  {type: 'MONTHLY', label: '월간'},
+  {type: 'QUARTER', label: '3개월'},
+  {type: 'HALF', label: '6개월'},
+  {type: 'YEARLY', label: '1년'}
 ];
 
 const selectedPeriod = ref('DAILY'); // 기본값
+
+// 매출 상품 클릭 시 상품 분석 페이지 이동 함수
+const handleGoodsClick = (item) => {
+  console.log('상품코드: ',item.goodsCode)
+  router.push(`/goods/analysis?goodsCode=${item.goodsCode}`).catch((err) => {
+    console.error("페이지 이동 중 오류: ", err)
+  })
+};
 
 // 기간 변경 함수
 const changePeriod = async (periodType) => {
@@ -34,8 +42,10 @@ const changePeriod = async (periodType) => {
       periodType: periodType
     });
     const response = await getFetch(`goodsRate/list?${params.toString()}`);
+    const {increase, decrease} = response.data.data;
 
-    const { increase, decrease } = response.data.data;
+    console.log('응답 데이터:', increase[0]);
+
     increaseTop5.value = increase;
     decreaseTop5.value = decrease;
   } catch (error) {
@@ -380,14 +390,21 @@ onMounted(() => {
     <div class="main-content">
       <!-- 상단 통계 카드 -->
       <div class="period-tabs">
-        <button v-for="period in periods" :key="period.type" :class="['tab-button',{ active: selectedPeriod === period.type }]" @click="changePeriod(period.type)">{{ period.label }}</button>
+        <button v-for="period in periods" :key="period.type"
+                :class="['tab-button',{ active: selectedPeriod === period.type }]" @click="changePeriod(period.type)">
+          {{ period.label }}
+        </button>
       </div>
       <div class="stats-row">
         <div class="stats-card">
           <h3 class="card-title">매출 상승 TOP 5</h3>
           <div class="stats-content">
             <div v-for="(item, index) in increaseTop5" :key="index" class="stats-item">
-              <span class="stats-label">{{ index + 1 }}. {{ item.goodsName }} ({{ item.brandName }})</span>
+              <span class="stats-label">{{ index + 1 }}.
+                <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
+                {{ item.goodsName }} ({{ item.brandName }})
+                </a>
+              </span>
               <span class="stats-value increase">{{ item.rateChange }}</span>
             </div>
           </div>
@@ -397,7 +414,11 @@ onMounted(() => {
           <h3 class="card-title">매출 하락 TOP 5</h3>
           <div class="stats-content">
             <div v-for="(item, index) in decreaseTop5" :key="index" class="stats-item">
-              <span class="stats-label">{{ index + 1 }}. {{ item.goodsName }} ({{ item.brandName }})</span>
+              <span class="stats-label">{{ index + 1 }}.
+                <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
+                {{ item.goodsName }} ({{ item.brandName }})
+              </a>
+              </span>
               <span class="stats-value decrease">{{ item.rateChange }}</span>
             </div>
           </div>
@@ -421,7 +442,7 @@ onMounted(() => {
             </div>
           </div>
           <div class="calendar-wrapper">
-            <FullCalendar :options="calendarOptions" />
+            <FullCalendar :options="calendarOptions"/>
           </div>
         </div>
 
@@ -899,7 +920,7 @@ onMounted(() => {
 }
 
 .calendar-wrapper :deep(.fc-day-today) {
-  background-color: #f0f9ff !important;  /* 연한 파란색 배경 */
+  background-color: #f0f9ff !important; /* 연한 파란색 배경 */
 }
 
 .calendar-wrapper :deep(.fc-col-header-cell) {
@@ -919,12 +940,12 @@ onMounted(() => {
 }
 
 .calendar-wrapper :deep(.team-event) {
-  background-color: #60a5fa !important;  /* 더 부드러운 파란색 */
+  background-color: #60a5fa !important; /* 더 부드러운 파란색 */
   color: white !important;
 }
 
 .calendar-wrapper :deep(.promotion-event) {
-  background-color: #f472b6 !important;  /* 더 부드러운 분홍색 */
+  background-color: #f472b6 !important; /* 더 부드러운 분홍색 */
   color: white !important;
 }
 
@@ -954,11 +975,11 @@ onMounted(() => {
 
 /* 주말 색상 */
 .calendar-wrapper :deep(.fc-day-sun) {
-  color: #ef4444;  /* 일요일 빨간색 */
+  color: #ef4444; /* 일요일 빨간색 */
 }
 
 .calendar-wrapper :deep(.fc-day-sat) {
-  color: #3b82f6;  /* 토요일 파란색 */
+  color: #3b82f6; /* 토요일 파란색 */
 }
 
 /* 툴팁 스타일 */
@@ -1000,7 +1021,7 @@ onMounted(() => {
 }
 
 .promotion-item:hover {
-  background: #fdf2f8;  /* 연한 핑크색 배경 */
+  background: #fdf2f8; /* 연한 핑크색 배경 */
   transform: translateY(-1px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
@@ -1100,7 +1121,7 @@ onMounted(() => {
 }
 
 .tab-button.active {
-  background: #87d1d4;
+  background: #4CAF50;
   color: white;
 }
 
@@ -1116,4 +1137,16 @@ onMounted(() => {
     text-align: center;
   }
 }
+
+.goods-link{
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.goods-link:hover{
+  color: #1EA571;
+  text-decoration: underline;
+}
+
 </style>
