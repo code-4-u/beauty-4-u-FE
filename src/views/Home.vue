@@ -32,6 +32,14 @@ const teamSelectedMonth = ref(new Date().getMonth() + 1);
 const promotionSelectedYear = ref(new Date().getFullYear());
 const promotionSelectedMonth = ref(new Date().getMonth() + 1);
 
+// 매출 상품 클릭 시 상품 분석 페이지 이동 함수
+const handleGoodsClick = (item) => {
+  console.log('상품코드: ',item.goodsCode)
+  router.push(`/goods/analysis?goodsCode=${item.goodsCode}`).catch((err) => {
+    console.error("페이지 이동 중 오류: ", err)
+  })
+};
+
 // 기간 변경 함수
 const changePeriod = async (periodType) => {
   selectedPeriod.value = periodType;
@@ -42,6 +50,7 @@ const changePeriod = async (periodType) => {
     const response = await getFetch(`goodsRate/list?${params.toString()}`);
 
     const {increase, decrease} = response.data.data;
+
     increaseTop5.value = increase;
     decreaseTop5.value = decrease;
   } catch (error) {
@@ -404,7 +413,11 @@ onMounted(() => {
           <h3 class="card-title">매출 상승 TOP 5</h3>
           <div class="stats-content">
             <div v-for="(item, index) in increaseTop5" :key="index" class="stats-item">
-              <span class="stats-label">{{ index + 1 }}. {{ item.goodsName }} ({{ item.brandName }})</span>
+              <span class="stats-label">{{ index + 1 }}.
+                <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
+                {{ item.goodsName }} ({{ item.brandName }})
+                </a>
+              </span>
               <span class="stats-value increase">{{ item.rateChange }}</span>
             </div>
           </div>
@@ -414,7 +427,11 @@ onMounted(() => {
           <h3 class="card-title">매출 하락 TOP 5</h3>
           <div class="stats-content">
             <div v-for="(item, index) in decreaseTop5" :key="index" class="stats-item">
-              <span class="stats-label">{{ index + 1 }}. {{ item.goodsName }} ({{ item.brandName }})</span>
+              <span class="stats-label">{{ index + 1 }}.
+                <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
+                {{ item.goodsName }} ({{ item.brandName }})
+              </a>
+              </span>
               <span class="stats-value decrease">{{ item.rateChange }}</span>
             </div>
           </div>
@@ -993,10 +1010,6 @@ onMounted(() => {
   padding: 0.6rem 1rem !important;
   border-radius: 0.5rem !important;
   transition: all 0.2s ease;
-  align-items: center !important;    /* 추가 */
-  justify-content: center !important; /* 추가 */
-  min-height: 38px !important;       /* 추가 */
-  line-height: 1 !important;         /* 추가 */
 }
 
 .calendar-wrapper :deep(.fc-button:hover) {

@@ -1,11 +1,15 @@
 <script setup>
-import {onMounted, ref} from 'vue';
+import {onMounted, ref, computed } from 'vue';
 import {useRoute, useRouter} from 'vue-router';
 import {getFetch, postFetch, putFetch} from "@/stores/apiClient.js";
 import BoardEditor from "@/components/board/editor/BoardEditor.vue";
 import ImageManagement from "@/components/board/editor/ImageManagement.vue";
+import { useAuthStore } from '@/stores/auth.js'; // 사용자 인증 정보 스토어
 
 const router = useRouter();
+const useAuth = useAuthStore();
+// 팀스페이스 ID를 전역 상태에서 가져옴
+const teamspaceId = computed(() => useAuth.teamspaceId);
 const route = useRoute();
 const teamBoardId = route.params['teamBoardId'];
 
@@ -69,7 +73,8 @@ const handleRemove = (fileId) => {
 };
 
 const goBack = () => {
-  router.push('/teamspace/board');
+  console.log('teamspaceId:', teamspaceId.value);
+  router.push(`/teamspace/${teamspaceId.value}/board`);
 };
 
 const updateTeamBoard = async () => {

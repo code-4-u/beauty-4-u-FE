@@ -248,8 +248,9 @@ onBeforeUnmount(() => {
 <style scoped>
 .chat-container {
   width: 100%;
-  max-width: 1000px;
-  margin: 30px auto 0; /* 상단 20px, 좌우 자동 정렬, 하단 0 */
+  max-width: 1200px;
+  height: calc(100vh - 30px); /* 전체 화면에서 상단 여백만큼 뺌 */
+  margin:  auto 0; /* 상단 20px, 좌우 자동 정렬, 하단 0 */
   padding: 20px;
   border: none;
   border-radius: 12px;
@@ -275,11 +276,11 @@ h1 {
   display: flex;
   flex-direction: column;
   gap: 15px; /* 메시지 간 간격 */
-  max-height: 450px;
+  max-height: 500px;
   overflow-y: auto; /* 세로 스크롤만 허용 */
   overflow-x: hidden; /* 가로 스크롤 제거 */
   padding: 20px;
-  background-color: #e3f2fd;
+  background-color: #d8efff;
   border-radius: 12px;
   box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
   word-wrap: break-word; /* 긴 단어를 줄바꿈 */
@@ -331,10 +332,10 @@ h1 {
 
 .participant-list {
   flex: 1;
-  background-color: #e3f2fd; /* 채팅 화면과 동일한 배경색 */
+  background-color: #d8efff; /* 채팅 화면과 동일한 배경색 */
   padding: 15px;
   border-radius: 12px;
-  max-height: 450px;
+  max-height: 500px;
   overflow-y: auto;
   box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.05);
 }
@@ -432,7 +433,7 @@ h1 {
   padding: 25px 20px;
   border: none;
   border-radius: 12px;
-  background-color: #007bff;
+  background-color: #5dade2;
   color: #fff;
   font-size: 1em;
   cursor: pointer;
@@ -442,4 +443,33 @@ h1 {
 .message-input button:hover {
   background-color: #0056b3;
 }
+/* 스크롤바 공통 스타일 */
+::-webkit-scrollbar {
+  width: 8px; /* 스크롤바 너비 */
+  height: 8px; /* 가로 스크롤바 높이 */
+}
+
+/* 스크롤바 트랙 (배경) */
+::-webkit-scrollbar-track {
+  background: #f4f4f4; /* 트랙 배경색 */
+  border-radius: 10px; /* 둥근 모서리 */
+}
+
+/* 스크롤바 핸들 (움직이는 부분) */
+::-webkit-scrollbar-thumb {
+  background: #b0b3b8; /* 핸들 색상 */
+  border-radius: 10px; /* 둥근 모서리 */
+}
+
+/* 스크롤바 핸들 호버 시 */
+::-webkit-scrollbar-thumb:hover {
+  background: #808080; /* 호버 시 색상 변경 */
+}
+
+/* 스크롤바 핸들 활성화 시 */
+::-webkit-scrollbar-thumb:active {
+  background: #606060; /* 클릭 시 색상 변경 */
+}
+
+
 </style>
