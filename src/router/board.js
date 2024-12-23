@@ -10,6 +10,18 @@ import FaqUpdate from "@/components/board/faq/FaqUpdate.vue";
 import QnaSave from "@/components/board/qna/QnaSave.vue";
 import QnaDetail from "@/components/board/qna/QnaDetail.vue";
 import QnaUpdate from "@/components/board/qna/QnaUpdate.vue";
+import { useAuthStore } from '@/stores/auth.js';
+
+// 관리자 권한 체크 함수
+const checkAdminRole = (to, from, next) => {
+    const userStore = useAuthStore();
+    if (userStore.userRole === 'ADMIN') {
+        next();
+    } else {
+        alert('관리자만 접근 가능합니다.');
+        next('/inform'); // 메인 공지사항 목록으로 리다이렉트
+    }
+};
 
 export default [
     {
@@ -21,7 +33,8 @@ export default [
             },
             {
                 path: 'save',
-                component: InformSave
+                component: InformSave,
+                beforeEnter: checkAdminRole // 관리자 권한 체크 추가
             },
             {
                 path: ':informId',
@@ -29,7 +42,8 @@ export default [
             },
             {
                 path: ':informId/update',
-                component: InformUpdate
+                component: InformUpdate,
+                beforeEnter: checkAdminRole // 관리자 권한 체크 추가
             },
         ],
     },
