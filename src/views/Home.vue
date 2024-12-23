@@ -514,7 +514,10 @@ onMounted(() => {
   <!-- 모달 -->
   <div v-if="isModalOpen" class="modal-overlay" @click="closeModal">
     <div class="modal-content" @click.stop>
-      <h3 class="modal-title">{{ eventForm.id ? '일정 수정' : '새 일정 추가' }}</h3>
+      <div class="modal-header">
+        <h3 class="modal-title">{{ eventForm.id ? '일정 수정' : '새 일정 추가' }}</h3>
+        <button class="close-button" @click="closeModal">✕</button>
+      </div>
       <div class="form-group">
         <label>제목</label>
         <input v-model="eventForm.title" type="text" placeholder="일정 제목">
@@ -553,6 +556,30 @@ onMounted(() => {
 </template>
 
 <style scoped>
+/* 모달 헤더 스타일 */
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0.5rem;
+  transition: color 0.2s;
+}
+
+.close-button:hover {
+  color: #111827;
+}
+
 .page-container {
   min-height: 100vh;
   background-color: var(--background-color);
@@ -823,10 +850,8 @@ onMounted(() => {
 .modal-title {
   font-size: 1.25rem;
   font-weight: 600;
-  color: #1f2937;
-  margin-bottom: 1rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid #e5e7eb;
+  color: #111827;
+  margin: 0;
 }
 
 .form-group {
@@ -921,6 +946,7 @@ onMounted(() => {
   background: #f9fafb;
   border-color: #d1d5db;
   transform: translateY(-1px);
+  color: #4b5563;
 }
 
 /* FullCalendar 커스터마이징 */
