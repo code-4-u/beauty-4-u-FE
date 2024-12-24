@@ -58,13 +58,17 @@ export const useAuthStore = defineStore('auth', () => {
         }
     });
 
-    function login(aToken, rToken) {
+    async function login(aToken, rToken) {
         accessToken.value = aToken;
         refreshToken.value = rToken;
         localStorage.setItem('accessToken', aToken);
         localStorage.setItem('refreshToken', rToken);
         setUserInfo(aToken);
-        sseStore.connectSSE();
+        try {
+            await sseStore.connectSSE();
+        } catch (error) {
+            console.error('SSE 연결 중 오류 발생:', error);
+        }
     }
 
     function logout() {

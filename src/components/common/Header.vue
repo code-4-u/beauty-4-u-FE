@@ -4,7 +4,9 @@ import {FontAwesomeIcon} from '@fortawesome/vue-fontawesome';
 import {computed, onMounted, onUnmounted, ref} from "vue";
 import {getFetch, putFetch} from "@/stores/apiClient.js";
 import userProfile from '@/assets/icons/profile.svg';
+import {useRouter} from "vue-router";
 
+const router = useRouter();
 const authStore = useAuthStore();
 const isAdmin = computed(() => authStore.isAuthorized('ADMIN'));
 const headerItems = ref([]);
@@ -95,7 +97,9 @@ const formatDate = (dateString) => {
 const handleLogoutClick = () => {
   authStore.logout();
   alert('로그아웃 성공');
-  window.location.reload();
+  router.push({
+    path: '/'
+  })
 };
 
 onMounted(() => {
