@@ -82,6 +82,16 @@ const closeDecreaseModal = () => {
   isDecreaseModalOpen.value = false;
 };
 
+// 메인화면 매출 증감률 개수 제한
+const visibleIncreaseData = computed(() => {
+  return increaseTop5.value.slice(0, 5);
+});
+
+const visibleDecreaseData = computed(() => {
+  return decreaseTop5.value.slice(0, 5);
+});
+
+
 // 기간 변경 함수
 const changePeriod = async (periodType) => {
   selectedPeriod.value = periodType;
@@ -455,7 +465,7 @@ onMounted(() => {
           <button class="more-button" @click="openIncreaseModal">더보기</button>
           </div>
           <div class="stats-content">
-            <div v-for="(item, index) in increaseTop5" :key="index" class="stats-item">
+            <div v-for="(item, index) in visibleIncreaseData" :key="index" class="stats-item">
               <span class="stats-label">{{ index + 1 }}.
                 <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
                 {{ item.goodsName }} ({{ item.brandName }})
@@ -472,7 +482,7 @@ onMounted(() => {
           <button class="more-button" @click="openDecreaseModal">더보기</button>
           </div>
           <div class="stats-content">
-            <div v-for="(item, index) in decreaseTop5" :key="index" class="stats-item">
+            <div v-for="(item, index) in visibleDecreaseData" :key="index" class="stats-item">
               <span class="stats-label">{{ index + 1 }}.
                 <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
                 {{ item.goodsName }} ({{ item.brandName }})
