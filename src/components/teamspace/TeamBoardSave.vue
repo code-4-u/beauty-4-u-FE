@@ -1,11 +1,14 @@
 <script setup>
-import {ref} from 'vue';
+import {ref, computed } from 'vue';
 import {useRouter} from 'vue-router';
 import {postFetch} from "@/stores/apiClient.js";
 import BoardEditor from "@/components/board/editor/BoardEditor.vue";
 import ImageManagement from "@/components/board/editor/ImageManagement.vue";
+import { useAuthStore } from '@/stores/auth.js'; // 사용자 인증 정보 스토어
 
 const router = useRouter();
+const useAuth = useAuthStore();
+const teamspaceId = computed(() => useAuth.teamspaceId); // 팀스페이스 ID를 전역 상태에서 가져옴
 const teamBoardTitle = ref('');
 const editorContent = ref('<p>내용을 입력해주세요.</p>');
 const selectedFiles = ref([]);
@@ -45,7 +48,7 @@ const handleRemove = (fileId) => {
 
 // 목록으로 돌아가기
 const goBack = () => {
-  router.push(`/teamspace/9/board`);
+  router.push(`/teamspace/${teamspaceId.value}/board`);
 };
 
 // 게시글 저장
@@ -92,7 +95,7 @@ const fetchSaveTeamBoard = async () => {
 
     // 5. 목록으로 이동
     await router.push({
-      path: `/teamspace/9/board`
+      path: `/teamspace/${teamspaceId.value}/board`
     });
   } catch (error) {
     console.error('저장에 실패했습니다.', error);

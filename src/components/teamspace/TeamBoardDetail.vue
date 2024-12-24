@@ -3,9 +3,13 @@ import {computed, onMounted, ref} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
 import {getFetch, postFetch, putFetch, delFetch} from "@/stores/apiClient.js";
 import {formatDate} from "@/stores/util.js";
+import { useAuthStore } from '@/stores/auth.js'; // 사용자 인증 정보 스토어
 
 const router = useRouter();
 const route = useRoute();
+const useAuth = useAuthStore();
+// 팀스페이스 ID를 전역 상태에서 가져옴
+const teamspaceId = computed(() => useAuth.teamspaceId);
 
 const teamBoardId = route.params['teamBoardId'];
 const teamBoardDetail = ref({});
@@ -30,7 +34,7 @@ const fetchTeamBoardDetail = async () => {
 }
 
 const goBack = () => {
-  router.push('/teamspace/board');
+  router.push(`/teamspace/${teamspaceId.value}/board`);
 };
 
 const editTeamBoard = () => {

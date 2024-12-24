@@ -3,8 +3,10 @@ import {computed, onMounted, ref} from "vue";
 import {getFetch, putFetch} from "@/stores/apiClient.js";
 import {formatDate} from "@/stores/util.js";
 import {useRouter} from 'vue-router';
+import {useAuthStore} from '@/stores/auth.js'; // userStore import 추가
 
 const router = useRouter();
+const userStore = useAuthStore(); // userStore 사용
 
 const informs = ref([]);
 
@@ -124,7 +126,12 @@ onMounted(() => {
       <div class="inform-section">
         <div class="header">
           <h2>공지사항</h2>
-          <button class="add-button" @click="goToInformSave">
+          <!-- 공지사항 등록 버튼에 v-if 조건 추가 -->
+          <button
+              v-if="userStore.userRole === 'ADMIN'"
+              class="add-button"
+              @click="goToInformSave"
+          >
             + 공지사항 등록
           </button>
         </div>

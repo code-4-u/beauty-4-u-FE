@@ -3,9 +3,11 @@ import {onMounted, ref} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
 import {delFetch, getFetch} from "@/stores/apiClient.js";
 import {formatDate} from "@/stores/util.js";
+import {useAuthStore} from "@/stores/auth.js"; // userStore import 추가
 
 const router = useRouter();
 const route = useRoute();
+const userStore = useAuthStore(); // userStore 인스턴스 생성
 
 const informId = route.params['informId'];
 const informDetail = ref({});
@@ -92,7 +94,8 @@ onMounted(() => {
           <span class="btn-text">목록으로</span>
         </button>
       </div>
-      <div class="right-buttons">
+      <!-- 수정, 삭제 버튼에 v-if 조건 추가 -->
+      <div v-if="userStore.userRole === 'ADMIN'" class="right-buttons">
         <button class="btn btn-primary" @click="editNotice">
           <span class="btn-text">수정</span>
         </button>

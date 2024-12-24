@@ -15,29 +15,99 @@ const authStore = useAuthStore();
 const increaseTop5 = ref([]);
 const decreaseTop5 = ref([]);
 
+// 매출 모달 상태 관리
+const isIncreaseModalOpen = ref(false);
+const isDecreaseModalOpen = ref(false);
+
+// 전체 상승/하락 데이터
+const allIncreaseData = ref([]);
+const allDecreaseData = ref([]);
+
 const periods = [
-  { type: 'DAILY', label: '일간' },
-  { type: 'WEEKLY', label: '주간' },
-  { type: 'MONTHLY', label: '월간' },
-  { type: 'QUARTER', label: '3개월' },
-  { type: 'HALF', label: '6개월' },
-  { type: 'YEARLY', label: '1년' }
+  {type: 'DAILY', label: '일간'},
+  {type: 'WEEKLY', label: '주간'},
+  {type: 'MONTHLY', label: '월간'},
+  {type: 'QUARTER', label: '3개월'},
+  {type: 'HALF', label: '6개월'},
+  {type: 'YEARLY', label: '1년'}
 ];
 
 const selectedPeriod = ref('DAILY');
-const selectedYear = ref(new Date().getFullYear());
-const selectedMonth = ref(new Date().getMonth() + 1);
+
+// 팀 일정과 프로모션의 연도/월 선택 분리
+const teamSelectedYear = ref(new Date().getFullYear());
+const teamSelectedMonth = ref(new Date().getMonth() + 1);
+const promotionSelectedYear = ref(new Date().getFullYear());
+const promotionSelectedMonth = ref(new Date().getMonth() + 1);
+
+// 매출 상품 클릭 시 상품 분석 페이지 이동 함수
+const handleGoodsClick = (item) => {
+  console.log('상품코드: ',item.goodsCode)
+  router.push(`/goods/analysis?goodsCode=${item.goodsCode}`).catch((err) => {
+    console.error("페이지 이동 중 오류: ", err)
+  })
+};
+
+// 상품 상승률 모달 열기 함수
+const openIncreaseModal = async () => {
+  try {
+    const params = new URLSearchParams({
+      periodType: selectedPeriod.value,
+      limit: 100  // 또는 원하는 제한 수
+    });
+    const response = await getFetch(`goodsRate/list?${params.toString()}`);
+    allIncreaseData.value = response.data.data.increase;
+    isIncreaseModalOpen.value = true;
+  } catch (error) {
+    console.error("Error fetching increase data:", error);
+  }
+};
+
+// 상품 하락률 모달 열기 함수
+const openDecreaseModal = async () => {
+  try {
+    const params = new URLSearchParams({
+      periodType: selectedPeriod.value,
+      limit: 100  // 또는 원하는 제한 수
+    });
+    const response = await getFetch(`goodsRate/list?${params.toString()}`);
+    allDecreaseData.value = response.data.data.decrease;
+    isDecreaseModalOpen.value = true;
+  } catch (error) {
+    console.error("Error fetching decrease data:", error);
+  }
+};
+
+const closeIncreaseModal = () => {
+  isIncreaseModalOpen.value = false;
+};
+
+const closeDecreaseModal = () => {
+  isDecreaseModalOpen.value = false;
+};
+
+// 메인화면 매출 증감률 개수 제한
+const visibleIncreaseData = computed(() => {
+  return increaseTop5.value.slice(0, 5);
+});
+
+const visibleDecreaseData = computed(() => {
+  return decreaseTop5.value.slice(0, 5);
+});
+
 
 // 기간 변경 함수
 const changePeriod = async (periodType) => {
   selectedPeriod.value = periodType;
   try {
     const params = new URLSearchParams({
-      periodType: periodType
+      periodType: periodType,
+      limit: 5
     });
     const response = await getFetch(`goodsRate/list?${params.toString()}`);
 
-    const { increase, decrease } = response.data.data;
+    const {increase, decrease} = response.data.data;
+
     increaseTop5.value = increase;
     decreaseTop5.value = decrease;
   } catch (error) {
@@ -86,16 +156,16 @@ const filteredEvents = computed(() => {
 const filteredTeamEvents = computed(() => {
   return teamEvents.value.filter(event => {
     const eventDate = new Date(event.start);
-    return eventDate.getFullYear() === selectedYear.value &&
-        eventDate.getMonth() + 1 === selectedMonth.value;
+    return eventDate.getFullYear() === teamSelectedYear.value &&
+        eventDate.getMonth() + 1 === teamSelectedMonth.value;
   });
 });
 
 const filteredPromotionEvents = computed(() => {
   return promotionEvents.value.filter(event => {
     const eventDate = new Date(event.start);
-    return eventDate.getFullYear() === selectedYear.value &&
-        eventDate.getMonth() + 1 === selectedMonth.value;
+    return eventDate.getFullYear() === promotionSelectedYear.value &&
+        eventDate.getMonth() + 1 === promotionSelectedMonth.value;
   });
 });
 
@@ -306,7 +376,9 @@ const fetchSchedules = async () => {
       content: schedule.scheduleContent,
       start: schedule.scheduleStart,
       end: schedule.scheduleEnd,
-      color: schedule.scheduleType === 'TEAMSPACE' ? '#2196F3' : '#FF4081',
+      color: schedule.scheduleType === 'TEAMSPACE' ?
+          ['#2196F3', '#1976D2', '#1565C0', '#0D47A1', '#82B1FF'][Math.floor(Math.random() * 5)] : // 파란색 계열
+          ['#F44336', '#E53935', '#D32F2F', '#C62828', '#FF8A80'][Math.floor(Math.random() * 5)], // 빨간색 계열
       type: schedule.scheduleType,
       scheduleUrl: schedule.scheduleUrl
     }));
@@ -395,20 +467,34 @@ onMounted(() => {
 
       <div class="stats-row">
         <div class="stats-card">
+          <div class="card-header">
           <h3 class="card-title">매출 상승 TOP 5</h3>
+          <button class="more-button" @click="openIncreaseModal">더보기</button>
+          </div>
           <div class="stats-content">
-            <div v-for="(item, index) in increaseTop5" :key="index" class="stats-item">
-              <span class="stats-label">{{ index + 1 }}. {{ item.goodsName }} ({{ item.brandName }})</span>
+            <div v-for="(item, index) in visibleIncreaseData" :key="index" class="stats-item">
+              <span class="stats-label">{{ index + 1 }}.
+                <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
+                {{ item.goodsName }} ({{ item.brandName }})
+                </a>
+              </span>
               <span class="stats-value increase">{{ item.rateChange }}</span>
             </div>
           </div>
         </div>
 
         <div class="stats-card">
+          <div class="card-header">
           <h3 class="card-title">매출 하락 TOP 5</h3>
+          <button class="more-button" @click="openDecreaseModal">더보기</button>
+          </div>
           <div class="stats-content">
-            <div v-for="(item, index) in decreaseTop5" :key="index" class="stats-item">
-              <span class="stats-label">{{ index + 1 }}. {{ item.goodsName }} ({{ item.brandName }})</span>
+            <div v-for="(item, index) in visibleDecreaseData" :key="index" class="stats-item">
+              <span class="stats-label">{{ index + 1 }}.
+                <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
+                {{ item.goodsName }} ({{ item.brandName }})
+              </a>
+              </span>
               <span class="stats-value decrease">{{ item.rateChange }}</span>
             </div>
           </div>
@@ -432,7 +518,7 @@ onMounted(() => {
             </div>
           </div>
           <div class="calendar-wrapper">
-            <FullCalendar :options="calendarOptions" />
+            <FullCalendar :options="calendarOptions"/>
           </div>
         </div>
 
@@ -442,15 +528,19 @@ onMounted(() => {
           <div class="event-card">
             <div class="card-header">
               <h3 class="card-title">프로모션</h3>
+              <!-- 프로모션 카드의 연도/월 선택 -->
               <div class="date-select">
-                <select v-model="selectedYear" class="year-select">
-                  <option v-for="year in [selectedYear - 1, selectedYear, selectedYear + 1]"
+                <select v-model="promotionSelectedYear" class="year-select">
+                  <option v-for="year in [
+      2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
+      2019, 2020, 2021, 2022, 2023, 2024, 2025
+    ]"
                           :key="year"
                           :value="year">
                     {{ year }}년
                   </option>
                 </select>
-                <select v-model="selectedMonth" class="month-select">
+                <select v-model="promotionSelectedMonth" class="month-select">
                   <option v-for="month in 12" :key="month" :value="month">
                     {{ month }}월
                   </option>
@@ -478,15 +568,19 @@ onMounted(() => {
           <div class="event-card">
             <div class="card-header">
               <h3 class="card-title">팀 일정</h3>
+              <!-- 팀 일정 카드의 연도/월 선택 -->
               <div class="date-select">
-                <select v-model="selectedYear" class="year-select">
-                  <option v-for="year in [selectedYear - 1, selectedYear, selectedYear + 1]"
+                <select v-model="teamSelectedYear" class="year-select">
+                  <option v-for="year in [
+      2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
+      2019, 2020, 2021, 2022, 2023, 2024, 2025
+    ]"
                           :key="year"
                           :value="year">
                     {{ year }}년
                   </option>
                 </select>
-                <select v-model="selectedMonth" class="month-select">
+                <select v-model="teamSelectedMonth" class="month-select">
                   <option v-for="month in 12" :key="month" :value="month">
                     {{ month }}월
                   </option>
@@ -553,9 +647,106 @@ onMounted(() => {
       </div>
     </div>
   </div>
+
+  <!-- 매출 상승률 모달 -->
+  <div v-if="isIncreaseModalOpen" class="modal-overlay" @click="closeIncreaseModal">
+    <div class="modal-content sales-modal" @click.stop>
+      <div class="modal-header">
+        <h3 class="modal-title">매출 상승률 전체 보기</h3>
+        <button class="close-button" @click="closeIncreaseModal">✕</button>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+          <tr>
+            <th>순위</th>
+            <th>상품명</th>
+            <th>브랜드</th>
+            <th>변동률</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-for="(item, index) in allIncreaseData" :key="index">
+            <td>{{ index + 1 }}</td>
+            <td>
+              <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
+                {{ item.goodsName }}
+              </a>
+            </td>
+            <td>{{ item.brandName }}</td>
+            <td class="increase">{{ item.rateChange }}</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" @click="closeIncreaseModal">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 매출 하락률 모달 -->
+  <div v-if="isDecreaseModalOpen" class="modal-overlay" @click="closeDecreaseModal">
+    <div class="modal-content sales-modal" @click.stop>
+      <div class="modal-header">
+        <h3 class="modal-title">매출 하락률 전체 보기</h3>
+        <button class="close-button" @click="closeDecreaseModal">✕</button>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+          <tr>
+            <th>순위</th>
+            <th>상품명</th>
+            <th>브랜드</th>
+            <th>변동률</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr v-for="(item, index) in allDecreaseData" :key="index">
+            <td>{{ index + 1 }}</td>
+            <td>
+              <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
+                {{ item.goodsName }}
+              </a>
+            </td>
+            <td>{{ item.brandName }}</td>
+            <td class="decrease">{{ item.rateChange }}</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" @click="closeDecreaseModal">닫기</button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <style scoped>
+/* 링크 스타일 수정 */
+.goods-link {
+  color: #374151;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.goods-link:hover {
+  color: #2563eb;  /* hover 시 파란색으로 변경 */
+  text-decoration: none;  /* 밑줄 제거 유지 */
+}
+
+.table-container .goods-link {
+  color: #374151;  /* 기본 색상을 어두운 회색으로 */
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.table-container .goods-link:hover {
+  color: #2563eb;  /* hover 시 파란색으로 변경 */
+  text-decoration: none;  /* 밑줄 제거 유지 */
+}
+
 /* 모달 헤더 스타일 */
 .modal-header {
   display: flex;
@@ -823,6 +1014,77 @@ onMounted(() => {
   color: white;
 }
 
+/* 매출 모달 스타일 */
+.sales-modal {
+  max-width: 600px !important;
+}
+
+/* 매출 모달 테이블 스타일 */
+.table-container {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.table-container table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table-container th {
+  background-color: #f8fafc;
+  padding: 0.5rem 0.75rem;  /* 패딩 더 축소 */
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.875rem;  /* 글자 크기 더 축소 */
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  white-space: nowrap;
+}
+
+.table-container td {
+  padding: 0.5rem 0.75rem;  /* 패딩 감소 */
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.8rem;
+  line-height: 1.25;  /* 줄 간격 감소 */
+}
+
+/* 열 너비 조정 */
+.table-container th:nth-child(1),
+.table-container td:nth-child(1) {
+  width: 5%;
+  text-align: center;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+
+.table-container th:nth-child(2),
+.table-container td:nth-child(2) {
+  width: 40%;
+  padding-right: 0.25rem;  /* 패딩 감소 */
+}
+
+.table-container th:nth-child(3),
+.table-container td:nth-child(3) {
+  width: 25%;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+
+.table-container th:nth-child(4),
+.table-container td:nth-child(4) {
+  width: 30%;
+  text-align: right;
+  padding-right: 0.5rem;
+  white-space: nowrap;
+}
+
+
 /* 모달 스타일 */
 .modal-overlay {
   position: fixed;
@@ -993,20 +1255,30 @@ onMounted(() => {
   box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06) !important;
 }
 
+/* 캘린더 이벤트 스타일 수정 - 여기가 핵심 변경 부분 */
 .calendar-wrapper :deep(.fc-event) {
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .calendar-wrapper :deep(.team-event) {
-  background-color: #60a5fa !important;
-  border-color: #3b82f6 !important;
   color: white !important;
 }
 
 .calendar-wrapper :deep(.promotion-event) {
-  background-color: #f472b6 !important;
-  border-color: #ec4899 !important;
+  color: white !important;
+}
+
+.calendar-wrapper :deep(.fc-event) {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.calendar-wrapper :deep(.team-event) {
+  color: white !important;
+}
+
+.calendar-wrapper :deep(.promotion-event) {
   color: white !important;
 }
 

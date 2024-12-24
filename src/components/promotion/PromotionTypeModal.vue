@@ -1,5 +1,5 @@
 <script setup>
-import {defineEmits, defineProps, onMounted, reactive, ref} from 'vue'
+import {onMounted, reactive, ref} from 'vue'
 import {delFetch, getFetch, postFetch, putFetch} from "@/stores/apiClient.js";
 import {FontAwesomeIcon} from "@fortawesome/vue-fontawesome";
 
