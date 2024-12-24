@@ -8,6 +8,7 @@ import { useAuthStore } from '@/stores/auth.js'; // 사용자 인증 정보 스�
 const router = useRouter();
 const route = useRoute();
 const useAuth = useAuthStore();
+const currentUserCode = computed(() => useAuth.userCode);
 // 팀스페이스 ID를 전역 상태에서 가져옴
 const teamspaceId = computed(() => useAuth.teamspaceId);
 
@@ -18,6 +19,16 @@ const teamBoardReplyList = ref([]);
 const newReplyContent = ref('');
 const editingReplyId = ref(null);
 const editReplyContent = ref('');
+
+// 게시글 작성자 여부를 확인하는 computed 속성
+const isAuthor = computed(() => {
+  return teamBoardDetail.value.userId === currentUserId.value;
+});
+
+// 댓글 작성자 여부를 확인하는 메서드
+const isReplyAuthor = (reply) => {
+  return reply.userId === currentUserId.value;
+};
 
 const publishedReplies = computed(() => {
   return teamBoardReplyList.value.filter(reply => reply.publishStatus === 'PUBLISHED');
@@ -202,8 +213,10 @@ onMounted(() => {
               {{ reply.teamBoardReplyContent }}
             </p>
             <div class="comment-actions">
-              <button class="comment-action-btn" @click="startEditReply(reply)">수정</button>
-              <button class="comment-action-btn" @click="deleteReply(reply.teamBoardReplyId)">삭제</button>
+              <template v-if="isReplyAuthor(reply)">
+                <button class="comment-action-btn" @click="startEditReply(reply)">수정</button>
+                <button class="comment-action-btn" @click="deleteReply(reply.teamBoardReplyId)">삭제</button>
+              </template>
             </div>
           </template>
         </div>
@@ -217,12 +230,14 @@ onMounted(() => {
         </button>
       </div>
       <div class="right-buttons">
-        <button class="btn btn-primary" @click="editTeamBoard">
-          <span class="btn-text">수정</span>
-        </button>
-        <button class="btn btn-danger" @click="deleteTeamBoard">
-          <span class="btn-text">삭제</span>
-        </button>
+        <template v-if="isAuthor">
+          <button class="btn btn-primary" @click="editTeamBoard">
+            <span class="btn-text">수정</span>
+          </button>
+          <button class="btn btn-danger" @click="deleteTeamBoard">
+            <span class="btn-text">삭제</span>
+          </button>
+        </template>
       </div>
     </div>
   </div>
