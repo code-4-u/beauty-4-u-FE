@@ -32,7 +32,15 @@ headerItems.value = [
       {id: 22, name: '프로모션 분석', link: '/promotion/analysis'},
     ]
   },
-  {id: 3, name: '팀 스페이스', link: '/teamspace'},
+  {
+    id: 3,
+    name: '워크스페이스',
+    link: '',
+    subItems: [
+      {id: 31, name: '채팅', link: '/workspace/chat'},
+      {id: 32, name: '팀게시판', link: '/workspace/board'},
+    ]
+  },
   {
     id: 4,
     name: '고객센터',

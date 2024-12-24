@@ -12,7 +12,8 @@ import customerRoutes from './customer.js'
 import goodsRoutes from './goods.js';
 import teamspaceRoutes from './teamspace.js';
 import analysisRoutes from './analysis.js';
-import promotionRoutes from './promotion.js'
+import promotionRoutes from './promotion.js';
+import workspaceRoutes from './workspace.js';
 
 const routes = [
     {
@@ -32,7 +33,8 @@ const routes = [
     ...teamspaceRoutes,
     ...goodsRoutes,
     ...analysisRoutes,
-    ...promotionRoutes
+    ...promotionRoutes,
+    ...workspaceRoutes
 ];
 
 const router = createRouter({
