@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { getFetch, postFetch } from "@/stores/apiClient.js"
 import { FontAwesomeIcon } from "@fortawesome/vue-fontawesome"
 
@@ -17,14 +17,61 @@ const users = ref([])
 const selectedUsers = ref([])
 const error = ref(null)
 
-// 필터링 조건
-const filters = reactive({
-  searchTerm: '',
-  sort: '',
-  order: 'desc',
-  page: 1,
-  count: 8
+// 검색어와 페이징 상태 관리
+const searchQuery = ref('')
+const currentPage = ref(1)
+const itemsPerPage = 10
+const totalItems = ref(0)
+
+// 총 페이지 수 계산
+const totalPages = computed(() => {
+  return Math.ceil(totalItems.value / itemsPerPage)
 })
+
+// 사용자 목록 가져오기
+const fetchUsers = async () => {
+  try {
+    const params = new URLSearchParams({
+      page: currentPage.value,
+      count: itemsPerPage
+    })
+
+    if (searchQuery.value) {
+      params.append('search', searchQuery.value)
+    }
+
+    const response = await getFetch(`/user/list?${params.toString()}`)
+    users.value = response.data.data.content.map(user => ({
+      userId: user.userCode,
+      name: user.userName,
+      email: user.userCode,
+      department: user.deptName
+    }))
+    totalItems.value = response.data.data.totalElements
+  } catch (e) {
+    error.value = '사용자 목록을 불러오는데 실패했습니다.'
+    console.error('Error fetching users:', e)
+  }
+}
+
+// 검색 처리
+const handleSearch = async () => {
+  currentPage.value = 1
+  await fetchUsers()
+}
+
+// 페이지 변경
+const changePage = async (page) => {
+  currentPage.value = page
+  await fetchUsers()
+}
+
+// 검색 초기화
+const resetSearch = () => {
+  searchQuery.value = ''
+  currentPage.value = 1
+  fetchUsers()
+}
 
 // 모달 닫기
 const closeModal = () => {
@@ -36,39 +83,8 @@ const closeModal = () => {
 // 폼 초기화
 const resetForm = () => {
   selectedUsers.value = []
-  filters.searchTerm = ''
-}
-
-// 사용자 목록 가져오기
-const fetchUsers = async () => {
-  try {
-    const queryParams = new URLSearchParams({
-      searchTerm: filters.searchTerm,
-      page: filters.page,
-      count: filters.count
-    })
-
-    const response = await getFetch(`/users?${queryParams}`)
-    users.value = response.data.data
-  } catch (e) {
-    error.value = '사용자 목록을 불러오는데 실패했습니다.'
-    console.error('Error fetching users:', e)
-  }
-}
-
-// 사용자 검색
-const handleSearch = () => {
-  filters.page = 1
-  fetchUsers()
-}
-
-// 검색 초기화
-const resetSearch = () => {
-  filters.searchTerm = ''
-  filters.sort = ''
-  filters.order = 'desc'
-  filters.page = 1
-  fetchUsers()
+  searchQuery.value = ''
+  currentPage.value = 1
 }
 
 // 사용자 선택/해제
@@ -89,9 +105,11 @@ const handleCreateRoom = async () => {
   }
 
   try {
-    const response = await postFetch('/chatrooms', {
-      participants: selectedUsers.value.map(user => user.userId)
-    })
+
+    // 채팅방 생성 api 연결 필요
+    // const response = await postFetch('/chatrooms', {
+    //   participants: selectedUsers.value.map(user => user.userId)
+    // })
 
     if (response.status === 200 || response.status === 201) {
       alert('채팅방이 성공적으로 생성되었습니다.')
@@ -121,11 +139,11 @@ onMounted(() => {
       <div class="search-section">
         <div class="search-box">
           <input
-              v-model="filters.searchTerm"
+              v-model="searchQuery"
               type="text"
-              placeholder="사용자 검색"
+              placeholder="이름, 사원번호로 검색"
               class="form-input search-input"
-              @keyup.enter="handleSearch"
+              @input="handleSearch"
           />
           <button @click="handleSearch" class="search-button">
             <font-awesome-icon :icon="['fas', 'search']" />
@@ -140,6 +158,7 @@ onMounted(() => {
       <div v-if="selectedUsers.length > 0" class="selected-users">
         <div v-for="user in selectedUsers" :key="user.userId" class="selected-user-tag">
           {{ user.name }}
+          <div class="sub-info">{{ user.department }}</div>
           <button @click="toggleUserSelection(user)" class="remove-user-button">✕</button>
         </div>
       </div>
@@ -149,16 +168,16 @@ onMounted(() => {
         <table>
           <thead>
           <tr>
-            <th>No.</th>
             <th>이름</th>
-            <th>이메일</th>
+            <th>부서</th>
+            <th>사원번호</th>
             <th>선택</th>
           </tr>
           </thead>
           <tbody>
-          <tr v-for="(user, index) in users" :key="user.userId">
-            <td>{{ index + 1 }}</td>
+          <tr v-for="user in users" :key="user.userId">
             <td>{{ user.name }}</td>
+            <td>{{ user.department }}</td>
             <td>{{ user.email }}</td>
             <td>
               <button
@@ -172,6 +191,30 @@ onMounted(() => {
           </tr>
           </tbody>
         </table>
+      </div>
+
+      <!-- 페이지네이션 -->
+      <div class="pagination">
+        <button
+            :disabled="currentPage === 1"
+            @click="changePage(currentPage - 1)"
+        >
+          이전
+        </button>
+        <button
+            v-for="page in totalPages"
+            :key="page"
+            :class="{ active: currentPage === page }"
+            @click="changePage(page)"
+        >
+          {{ page }}
+        </button>
+        <button
+            :disabled="currentPage === totalPages"
+            @click="changePage(currentPage + 1)"
+        >
+          다음
+        </button>
       </div>
 
       <!-- 하단 버튼 -->
@@ -245,23 +288,6 @@ onMounted(() => {
   color: #111827;
 }
 
-/* 상단 섹션 스타일 */
-.top-section {
-  background-color: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.divider {
-  width: 100%;
-  height: 1px;
-  background-color: #e5e7eb;
-  margin: 1rem 0;
-}
-
-/* 검색 섹션 */
 .search-section {
   margin-bottom: 1.5rem;
 }
@@ -270,21 +296,22 @@ onMounted(() => {
   display: flex;
   gap: 0.5rem;
   align-items: center;
+  width: 100%;
 }
 
-/* 입력 필드 공통 스타일 */
 .form-input {
   width: 100%;
-  padding: 0.5rem;
+  padding: 0.75rem 1rem;
   border: 1px solid #e5e7eb;
-  border-radius: 0.375rem;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
   transition: all 0.2s;
 }
 
 .form-input:focus {
   outline: none;
   border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 /* 버튼 스타일 */
@@ -341,6 +368,12 @@ onMounted(() => {
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
+}
+
+.sub-info {
+  color: #6b7280;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
 }
 
 .remove-user-button {
@@ -466,15 +499,47 @@ tr:last-child td {
   cursor: not-allowed;
 }
 
+/* 페이지네이션 */
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
+}
+
+.pagination button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #e5e7eb;
+  background-color: white;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  color: #374151;
+  font-weight: 500;
+}
+
+.pagination button:hover:not(:disabled) {
+  border-color: #3b82f6;
+  color: #3b82f6;
+  background-color: #eff6ff;
+}
+
+.pagination button.active {
+  background-color: #3b82f6;
+  color: white;
+  border-color: #3b82f6;
+}
+
+.pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 /* 반응형 스타일 */
 @media (max-width: 640px) {
   .modal-content {
     margin: 1rem;
     padding: 1rem;
-  }
-
-  .top-section {
-    flex-direction: column;
   }
 
   .search-box {
