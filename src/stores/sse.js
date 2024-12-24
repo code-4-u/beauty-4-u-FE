@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import {computed, ref} from 'vue'
 import { EventSourcePolyfill } from 'event-source-polyfill'
 import HeartIcon from '@/assets/icons/heart.png';
+import axios from "axios";
+import {useAuthStore} from "@/stores/auth.js";
 
 export const useSSEStore = defineStore('sse', () => {
     const notifications = ref([])
@@ -39,8 +41,67 @@ export const useSSEStore = defineStore('sse', () => {
         }
     }
 
-    const connectSSE = async () => {
+    // 토큰 갱신 함수
+    const refreshToken = async () => {
+        const authStore = useAuthStore()
+        try {
+            const response = await axios.post('http://localhost:8080/api/v1/auth/refresh', {}, {
+                withCredentials: true,
+                headers: {
+                    'Refresh-Token': authStore.refreshToken
+                }
+            })
 
+            const newAccessToken = response.headers['authorization']
+            const newRefreshToken = response.headers['refresh-token']
+
+            if (newAccessToken && newRefreshToken) {
+                console.log('새로운 토큰 발급 성공')
+                localStorage.setItem('accessToken', newAccessToken)
+                authStore.setAccessToken(newAccessToken)
+                authStore.setRefreshToken(newRefreshToken)
+                return newAccessToken
+            }
+            return null
+        } catch (error) {
+            console.error('토큰 갱신 실패:', error)
+            authStore.logout()
+            throw error
+        }
+    }
+
+    const beforeRequest = async (xhr) => {
+        // 요청 전 인터셉터
+        console.log('SSE 요청 인터셉터 실행')
+
+        // 현재 토큰 가져오기
+        const token = localStorage.getItem('accessToken')
+        if (token) {
+            xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+        }
+
+        // 에러 핸들링을 위한 이벤트 리스너 추가
+        xhr.addEventListener('error', async function() {
+            if (xhr.status === 401) {
+                console.log('SSE 연결 중 401 에러 발생')
+                try {
+                    const newToken = await refreshToken()
+                    if (newToken) {
+                        // 기존 연결 종료
+                        if (eventSource) {
+                            eventSource.close()
+                        }
+                        // 새 토큰으로 재연결
+                        await connectSSE()
+                    }
+                } catch (error) {
+                    console.error('토큰 갱신 실패:', error)
+                }
+            }
+        })
+    }
+
+    const connectSSE = async () => {
         if (connectionStatus.value === 'connecting' || connectionStatus.value === 'connected') {
             console.log('이미 SSE가 연결중이거나 연결된 상태입니다.')
             return
@@ -61,7 +122,8 @@ export const useSSEStore = defineStore('sse', () => {
         const options = {
             headers: { 'Authorization': `Bearer ${token}` },
             withCredentials: true,
-            heartbeatTimeout: 3600000
+            heartbeatTimeout: 3600000,
+            beforeRequest
         }
 
         try {
@@ -75,6 +137,8 @@ export const useSSEStore = defineStore('sse', () => {
             eventSource.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data)
+
+                    console.log(data)
                     if (data.notiType) {
                         notifications.value.push(data)
                         showBrowserNotification(data)
@@ -87,6 +151,8 @@ export const useSSEStore = defineStore('sse', () => {
             eventSource.onerror = (error) => {
                 console.error('SSE 에러:', error)
                 connectionStatus.value = 'error'
+
+                // 일반적인 연결 에러는 여기서 처리
                 if (eventSource) {
                     eventSource.close()
                     setTimeout(connectSSE, 5000)
