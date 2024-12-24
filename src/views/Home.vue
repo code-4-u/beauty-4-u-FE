@@ -11,6 +11,9 @@ import {useRouter} from "vue-router";
 const router = useRouter();
 const authStore = useAuthStore();
 
+// 팀 리더 여부 확인하는 computed 속성 추가
+const isTeamLeader = computed(() => authStore.userRole === 'LEADER');
+
 // 매출 상승, 하락 상품
 const increaseTop5 = ref([]);
 const decreaseTop5 = ref([]);
@@ -227,6 +230,12 @@ const closeModal = () => {
 
 // Event handlers
 const handleDateClick = (info) => {
+  // 리더가 아니면 일정 추가 불가
+  if (!isTeamLeader.value) {
+    alert('팀 일정은 팀장만 등록할 수 있습니다.');
+    return;
+  }
+
   eventForm.startDate = info.dateStr;
   eventForm.endDate = info.dateStr;
   isModalOpen.value = true;
@@ -237,6 +246,12 @@ const handleEventClick = (info) => {
   if (!event) return;
 
   if (event.type === 'PROMOTION') return;
+
+  // 리더가 아니면 일정 수정 불가
+  if (!isTeamLeader.value) {
+    alert('팀 일정은 팀장만 수정할 수 있습니다.');
+    return;
+  }
 
   const startDateTime = new Date(event.start);
   const endDateTime = new Date(event.end);
@@ -257,6 +272,13 @@ const handleEventClick = (info) => {
 };
 
 const handleEventDrop = async (info) => {
+  // 리더가 아니면 드래그 앤 드롭으로 일정 수정 불가
+  if (!isTeamLeader.value) {
+    alert('팀 일정은 팀장만 수정할 수 있습니다.');
+    info.revert(); // 드래그 앤 드롭 취소
+    return;
+  }
+
   const event = events.value.find(e => e.id === Number(info.event.id));
   if (!event) return;
 
@@ -273,6 +295,7 @@ const handleEventDrop = async (info) => {
   } catch (error) {
     console.error('일정 업데이트 실패:', error);
     alert('일정 변경에 실패했습니다.');
+    info.revert();
   }
 };
 
@@ -414,7 +437,7 @@ const calendarOptions = reactive({
     }
   },
   events: filteredEvents,
-  editable: true,
+  editable: isTeamLeader.value, // 리더만 드래그 앤 드롭 가능
   selectable: true,
   selectMirror: true,
   dayMaxEvents: true,
@@ -441,7 +464,7 @@ const calendarOptions = reactive({
       'calendar-event',
       arg.event.extendedProps.type === 'TEAMSPACE' ? 'team-event' : 'promotion-event'
     ];
-  }
+  },
 });
 
 onMounted(() => {
@@ -468,8 +491,8 @@ onMounted(() => {
       <div class="stats-row">
         <div class="stats-card">
           <div class="card-header">
-          <h3 class="card-title">매출 상승 TOP 5</h3>
-          <button class="more-button" @click="openIncreaseModal">더보기</button>
+            <h3 class="card-title">매출 상승 TOP 5</h3>
+            <button class="more-button" @click="openIncreaseModal">더보기</button>
           </div>
           <div class="stats-content">
             <div v-for="(item, index) in visibleIncreaseData" :key="index" class="stats-item">
@@ -485,8 +508,8 @@ onMounted(() => {
 
         <div class="stats-card">
           <div class="card-header">
-          <h3 class="card-title">매출 하락 TOP 5</h3>
-          <button class="more-button" @click="openDecreaseModal">더보기</button>
+            <h3 class="card-title">매출 하락 TOP 5</h3>
+            <button class="more-button" @click="openDecreaseModal">더보기</button>
           </div>
           <div class="stats-content">
             <div v-for="(item, index) in visibleDecreaseData" :key="index" class="stats-item">
@@ -505,7 +528,12 @@ onMounted(() => {
       <div class="content-row">
         <div class="calendar-card">
           <div class="card-header">
-            <h3 class="card-title">일정 캘린더</h3>
+            <div class="title-section">
+              <h3 class="card-title">일정 캘린더</h3>
+              <span v-if="!isTeamLeader" class="leader-notice">
+                (팀 일정은 팀장만 등록/수정 가능)
+              </span>
+            </div>
             <div class="filter-group">
               <label class="filter-label">
                 <input type="checkbox" v-model="selectedTypes.promotion">
@@ -532,9 +560,9 @@ onMounted(() => {
               <div class="date-select">
                 <select v-model="promotionSelectedYear" class="year-select">
                   <option v-for="year in [
-      2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
-      2019, 2020, 2021, 2022, 2023, 2024, 2025
-    ]"
+                    2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
+                    2019, 2020, 2021, 2022, 2023, 2024, 2025
+                  ]"
                           :key="year"
                           :value="year">
                     {{ year }}년
@@ -567,14 +595,18 @@ onMounted(() => {
           <!-- 팀 일정 카드 -->
           <div class="event-card">
             <div class="card-header">
-              <h3 class="card-title">팀 일정</h3>
-              <!-- 팀 일정 카드의 연도/월 선택 -->
+              <div class="title-section">
+                <h3 class="card-title">팀 일정</h3>
+                <span v-if="!isTeamLeader" class="leader-notice">
+                  (팀장만 등록/수정 가능)
+                </span>
+              </div>
               <div class="date-select">
                 <select v-model="teamSelectedYear" class="year-select">
                   <option v-for="year in [
-      2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
-      2019, 2020, 2021, 2022, 2023, 2024, 2025
-    ]"
+                    2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
+                    2019, 2020, 2021, 2022, 2023, 2024, 2025
+                  ]"
                           :key="year"
                           :value="year">
                     {{ year }}년
@@ -588,7 +620,10 @@ onMounted(() => {
               </div>
             </div>
             <div class="event-list">
-              <div v-for="event in filteredTeamEvents" :key="event.id" class="event-item">
+              <div v-for="event in filteredTeamEvents"
+                   :key="event.id"
+                   class="event-item"
+                   :class="{ 'editable': isTeamLeader }">
                 <div class="event-content">
                   <h4 class="event-item-title">{{ event.title }}</h4>
                   <p class="event-date">{{ formatDate(new Date(event.start)) }}</p>
@@ -605,8 +640,8 @@ onMounted(() => {
     </div>
   </div>
 
-  <!-- 모달 -->
-  <div v-if="isModalOpen" class="modal-overlay" @click="closeModal">
+  <!-- 이벤트 모달 (팀장만 접근 가능) -->
+  <div v-if="isModalOpen && isTeamLeader" class="modal-overlay" @click="closeModal">
     <div class="modal-content" @click.stop>
       <div class="modal-header">
         <h3 class="modal-title">{{ eventForm.id ? '일정 수정' : '새 일정 추가' }}</h3>
@@ -1329,5 +1364,28 @@ onMounted(() => {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.title-section {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.leader-notice {
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.event-item.editable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.event-item.editable:hover {
+  background: #f3f4f6;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 </style>
