@@ -29,6 +29,53 @@ const authObjectInfo = {
 // 날짜 포맷 함수
 const formatDate = (date) => new Date(date).toLocaleString();
 
+// 날짜 헤더 표시
+const formatDateHeader = (date) => {
+  const options = { year: "numeric", month: "long", day: "numeric", weekday: "long" };
+  return new Date(date).toLocaleDateString("ko-KR", options);
+};
+
+const getDateHeaderId = (date) => {
+  return `date-${new Date(date).toISOString().split("T")[0]}`; // 날짜별 ID 생성
+};
+
+const onDateSelected = async (event) => {
+  const selectedDate = event.target.value; // YYYY-MM-DD 형식
+  const headerId = `date-${selectedDate}`;
+
+  // 선택한 날짜의 헤더로 스크롤 이동
+  await nextTick();
+  const targetHeader = document.getElementById(headerId);
+
+
+  // 외부 스크롤이 아닌 message-list 내부 스크롤만 이동
+  const chatBox = document.querySelector(".message-list");
+  if (targetHeader && chatBox) {
+    const targetPosition = targetHeader.offsetTop - chatBox.offsetTop; // 내부 위치 계산
+    chatBox.scrollTo({
+      top: targetPosition,
+      behavior: "smooth",
+    });
+  } else {
+    alert("해당 날짜의 메시지가 없습니다.");
+  }
+};
+
+// 날짜 변경 감지 로직
+const shouldDisplayDateHeader = (index) => {
+  if (index === 0) {
+    // 첫 번째 메시지에는 항상 날짜 헤더를 표시
+    return true;
+  }
+
+  const currentMessageDate = new Date(messages.value[index].messageCreatedTime).toDateString();
+  const previousMessageDate = new Date(messages.value[index - 1].messageCreatedTime).toDateString();
+
+  // 날짜가 변경되었을 때 날짜 헤더를 표시
+  return currentMessageDate !== previousMessageDate;
+};
+
+
 // 스크롤 최하단으로 이동
 const scrollToBottom = async (smooth = false) => {
   await nextTick();
@@ -187,31 +234,47 @@ onBeforeUnmount(() => {
 <template>
 
   <div class="chat-container">
-    <h1>{{ TeamSpaceName }} 팀스페이스</h1>
+    <!-- 제목과 캘린더를 한 줄에 배치 -->
+    <div class="header-container">
+      <h1>{{ TeamSpaceName }} 팀스페이스</h1>
+      <div class="calendar-container">
+        <input type="date" @change="onDateSelected" class="calendar-input" />
+      </div>
+    </div>
+
+
     <div class="chat-wrapper">
 
+
+
       <div class="message-list">
-        <div
-            v-for="(message, index) in messages"
-            :key="index"
-            :class="['message-item', message.self ? 'self' : 'other']"
-        >
-          <!-- 사용자명 -->
-          <div class="user-name">
-            {{ message.self ? userName : message.userName || '알 수 없음' }}
+        <template v-for="(message, index) in messages" :key="index" :id="getDateHeaderId(message.messageCreatedTime)">
+          <!-- 날짜 헤더 -->
+          <div v-if="shouldDisplayDateHeader(index)" class="date-header" :id="getDateHeaderId(message.messageCreatedTime)">
+            {{ formatDateHeader(message.messageCreatedTime) }}
           </div>
 
-          <!-- 메시지 내용 -->
-          <div class="message-bubble">
-            {{ message.messageContent }}
-          </div>
+          <!-- 메시지 아이템 -->
+          <div :class="['message-item', message.self ? 'self' : 'other']">
+            <!-- 사용자명 -->
+            <div class="user-name">
+              {{ message.self ? userName : message.userName || '알 수 없음' }}
+            </div>
 
-          <!-- 생성 시간 -->
-          <div class="timestamp">
-            {{ formatDate(message.messageCreatedTime) }}
+            <!-- 메시지 내용 -->
+            <div class="message-bubble">
+              {{ message.messageContent }}
+            </div>
+
+            <!-- 생성 시간 -->
+            <div class="timestamp">
+              {{ formatDate(message.messageCreatedTime) }}
+            </div>
           </div>
-        </div>
+        </template>
       </div>
+
+
 
       <!-- 참여자 목록 -->
       <div class="participant-list">
@@ -275,7 +338,7 @@ h1 {
   flex:4;
   display: flex;
   flex-direction: column;
-  gap: 15px; /* 메시지 간 간격 */
+  gap: 5px; /* 메시지 간 간격 */
   max-height: 500px;
   overflow-y: auto; /* 세로 스크롤만 허용 */
   overflow-x: hidden; /* 가로 스크롤 제거 */
@@ -299,7 +362,7 @@ h1 {
 
 .user-name {
   margin-left: 5px;
-  font-size: 0.9em;
+  font-size: 0.8em;
   font-weight: bold;
   color: #333; /* 진한 회색 */
   margin-bottom: 5px; /* 메시지와 사용자명 간 간격 */
@@ -309,7 +372,7 @@ h1 {
   background-color: #ffffff;
   border-radius: 12px;
   padding: 10px 15px;
-  font-size: 1em;
+  font-size: 0.9em;
   color: #495057;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   max-width: 100%; /* 메시지의 최대 가로 길이를 부모 컨테이너에 맞춤 */
@@ -323,7 +386,7 @@ h1 {
 }
 
 .timestamp {
-  font-size: 0.8em; /* 생성 시간의 작은 텍스트 크기 */
+  font-size: 0.7em; /* 생성 시간의 작은 텍스트 크기 */
   color: #868e96; /* 연한 회색 */
   text-align: right; /* 생성 시간을 우측 정렬 */
   margin-top: 5px; /* 메시지와 시간 간 간격 */
@@ -471,5 +534,66 @@ h1 {
   background: #606060; /* 클릭 시 색상 변경 */
 }
 
+/* 날짜 헤더 스타일 */
+.date-header {
+  text-align: center;
+  margin: 10px auto; /* 위, 아래 여백과 가운데 정렬 */
+  font-size: 0.9em;
+  color: #495057;
+  font-weight: bold;
+  background-color: #f1f3f5;
+  padding: 4px 12px;
+  border-radius: 30px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.calendar-container {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.calendar-input {
+  padding: 8px 12px;
+  font-size: 1em;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.calendar-input:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 5px rgba(0, 123, 255, 0.3);
+}
+
+.date-header {
+  display: inline-block;
+  margin: 15px auto;
+  font-size: 0.9em;
+  color: #495057;
+  font-weight: bold;
+  background-color: #f1f3f5;
+  padding: 4px 12px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+/* 헤더 컨테이너 */
+.header-container {
+  position: relative; /* 캘린더의 절대 위치를 기준으로 설정 */
+  display: flex; /* Flexbox 활성화 */
+  align-items: center; /* 수직 중앙 정렬 */
+  justify-content: center; /* 팀스페이스 명칭을 가운데로 정렬 */
+  height: 50px; /* 헤더 높이 설정 */
+}
+
+/* 캘린더 컨테이너 */
+.calendar-container {
+  position: absolute; /* 절대 위치 설정 */
+  right: 20px; /* 오른쪽에 고정 */
+  top: 20px;
+  transform: translateY(-50%); /* 수직 가운데 정렬 보정 */
+}
 
 </style>
