@@ -20,11 +20,23 @@ ChartJS.register(
 /* 프로모션 종류 저장 변수 */
 const promotionType = ref([]);
 
+/* 프로모션 id 저장 변수 */
+const promotionIds = ref([]);
+
 /* 프로모션 검색 결과 저장 변수 */
 const promotionSearchResult = ref([]);
 
 /* 프로모션 별 매출액 조회 저장 변수 */
 const promotionByYearSales = ref([]);
+
+/* 프로모션 별 제품 별 제품 리스트 저장 변수 */
+const promotionByGoods = ref();
+
+/* 적용 리스트를 보여줄 2개의 배열 생성 */
+const promotionByGoodsList = ref([null, null]);
+
+/* 적용 프로모션 리스트 제품 비교 */
+const promotionByComparison = ref([]);
 
 /* 통신 완료 여부 함수 */
 const loadFin = ref(false);
@@ -81,54 +93,37 @@ const toggleSearch = () => {
   isSearchOpen.value = !isSearchOpen.value;
 };
 
-/* 데이터 통신 */
-/* 프로모션 종류 데이터 조회 */
-const loadPromotionType = async () => {
-  try {
-    const response = await getFetch(`/promotion-statistical/type`);
-    promotionType.value = response.data.data;
-  } catch(e) {
-    console.log("프로모션 종류 데이터 조회 실패", e);
+/* 상품 적용 리스트 관련 함수 */
+const addGoodsList = (newData) => {
+  // 이미 존재하는 같은 년도의 데이터 확인
+  const existingIndex = promotionByGoodsList.value.findIndex(
+      item => item !== null && item.promotionYear === newData.promotionYear
+  );
+
+  // 같은 년도의 데이터가 있으면 삭제
+  if (existingIndex !== -1) {
+    promotionByGoodsList.value[existingIndex] = null;
+    return; // 함수 종료
   }
-}
 
-/* 프로모션 검색 */
-const loadSearchPromotion = async () => {
-  try {
-    const searchParams = new URLSearchParams();
-
-    if(searchKeyword.value) searchParams.append('searchKeyword', searchKeyword.value);
-    if(startDate.value) searchParams.append('startDate', startDate.value);
-    if(endDate.value) searchParams.append('endDate', endDate.value);
-    if(promotionTypeId.value) searchParams.append('promotionTypeId', promotionTypeId.value);
-    if(promotionStatus.value) searchParams.append('promotionStatus', promotionStatus.value);
-
-    const response = await getFetch(`/promotion-statistical/search-promotion?${searchParams.toString()}`);
-    promotionSearchResult.value = response.data.data;
-  } catch(e) {
-    console.log("프로모션 검색 실패", e);
-  } finally {
-    console.log(promotionList);
-    resetSearchKeyword();
+  const nullIndex = promotionByGoodsList.value.findIndex(item => item === null);
+  if (nullIndex !== -1) {
+    promotionByGoodsList.value[nullIndex] = newData;
+  } else {
+    promotionByGoodsList.value[0] = newData;
   }
-}
 
-/* 프로모션 년도별 매출액 조회 */
-const loadPromotionByYearSales = async (promotionTypeId) => {
-  try {
-    const promotionIds = computed(() => getPromotionIdsByType(promotionTypeId));
-    const params = new URLSearchParams();
+  const validData = promotionByGoodsList.value.filter(item => item !== null);
+  validData.sort((a,b) => a.promotionYear - b.promotionYear);
 
-    promotionIds.value.forEach(id => {
-      params.append("promotionIds", id);
-    });
+  promotionByGoodsList.value = [...validData];
+  while(promotionByGoodsList.value.length < 2) {
+    promotionByGoodsList.value.push(null);
+  }
 
-    const response = await getFetch(`/promotion-statistical/by-year-sales?${params.toString()}`);
-    promotionByYearSales.value = response.data.data;
-  } catch(e) {
-    console.log("프로모션 년도별 매출 조회중 오류가 났습니다.", e);
-  } finally {
-    loadFin.value = true;
+  // 배열의 모든 요소가 null이 아닌지 체크
+  if (!promotionByGoodsList.value.some(item => item === null)) {
+    loadPromotionByComparison();
   }
 }
 
@@ -193,6 +188,89 @@ const captureScreen = async () => {
   }
 };
 
+/* 데이터 통신 */
+/* 프로모션 종류 데이터 조회 */
+const loadPromotionType = async () => {
+  try {
+    const response = await getFetch(`/promotion-statistical/type`);
+    promotionType.value = response.data.data;
+  } catch(e) {
+    console.log("프로모션 종류 데이터 조회 실패", e);
+  }
+}
+
+/* 프로모션 검색 */
+const loadSearchPromotion = async () => {
+  try {
+    const searchParams = new URLSearchParams();
+
+    if(searchKeyword.value) searchParams.append('searchKeyword', searchKeyword.value);
+    if(startDate.value) searchParams.append('startDate', startDate.value);
+    if(endDate.value) searchParams.append('endDate', endDate.value);
+    if(promotionTypeId.value) searchParams.append('promotionTypeId', promotionTypeId.value);
+    if(promotionStatus.value) searchParams.append('promotionStatus', promotionStatus.value);
+
+    const response = await getFetch(`/promotion-statistical/search-promotion?${searchParams.toString()}`);
+    promotionSearchResult.value = response.data.data;
+  } catch(e) {
+    console.log("프로모션 검색 실패", e);
+  } finally {
+    resetSearchKeyword();
+  }
+}
+
+/* 프로모션 년도별 매출액 조회 */
+const loadPromotionByYearSales = async (promotionTypeId) => {
+  try {
+    promotionIds.value = getPromotionIdsByType(promotionTypeId);
+    const params = new URLSearchParams();
+
+    promotionIds.value.forEach(id => {
+      params.append("promotionIds", id);
+    });
+
+    const response = await getFetch(`/promotion-statistical/by-year-sales?${params.toString()}`);
+    promotionByYearSales.value = response.data.data;
+    promotionByYearSales.value.sort((a,b) => a.promoYear - b.promoYear);
+  } catch(e) {
+    console.log("프로모션 년도별 매출 조회중 오류가 났습니다.", e);
+  } finally {
+    loadFin.value = true;
+  }
+}
+
+/* 프로모션 적용 상품 조회 */
+const loadPromotionByGoodsSales = async (promotionId) => {
+  try {
+    const params = new URLSearchParams();
+    params.append("promotionId", promotionId);
+
+    const response = await getFetch(`/promotion-statistical/by-goods-sales?${params.toString()}`);
+    promotionByGoods.value = response.data.data;
+  } catch(e) {
+    console.log("프로모션 별 상품 리스트 조회 중 오류가 났습니다.", e);
+  }
+}
+
+/* 프로모션 비교 리스트 조회 */
+const loadPromotionByComparison = async() => {
+  try {
+    const params = new URLSearchParams();
+
+    // promotionByGoodsList에서 각 프로모션의 ID를 추출하여 params에 추가
+    if (promotionByGoodsList.value[0] && promotionByGoodsList.value[1]) {
+      params.append("promotionId1", promotionByGoodsList.value[0].promotionId);
+      params.append("promotionId2", promotionByGoodsList.value[1].promotionId);
+    }
+
+    const response = await getFetch(`/promotion-statistical/by-comparison-promotion?${params.toString()}`);
+    promotionByComparison.value = response.data.data;
+  } catch(e) {
+    console.log("비교 리스트를 조회하는데 오류가 발생 했습니다.", e);
+  }
+}
+
+
 /* 데이터 차트 관련 */
 const years = computed(() => promotionByYearSales.value.map(item => item.promoYear));
 const sales = computed(() => promotionByYearSales.value.map(item => item.totalPromotionSales));
@@ -202,9 +280,14 @@ const chartData = computed(() => ({
   datasets: [
     {
       data: sales.value,
+      promotionIds: promotionIds.value,
+      promotionYears: years.value,
       backgroundColor: '#4CAF50',
       borderColor: '#4CAF50',
-      borderWidth: 1
+      borderWidth: 1,
+      hoverBackgroundColor: '#2E7D32',
+      hoverBorderColor: '#2E7D32',
+      hoverBorderWidth: 2
     }
   ]
 }));
@@ -251,7 +334,29 @@ const chartOption = computed(() => {
       }
     },
     barThickness: 40, // 막대 두께 조절 (더 얇게)
-    maxBarThickness: 40 // 최대 막대 두께 제한
+    maxBarThickness: 40, // 최대 막대 두께 제한
+    onClick: (event, elements) => {
+      if (elements.length > 0) {
+        const element = elements[0];
+        const dataIndex = element.index;
+        const promotionId = chartData.value.datasets[0].promotionIds[dataIndex];
+        const promotionYear = chartData.value.datasets[0].promotionYears[dataIndex];
+
+        loadPromotionByGoodsSales(promotionId).then(() => {
+          console.log("promotionByGoodsAfter : ", promotionByGoods.value);
+
+          const newData = {
+            promotionId: promotionId,
+            promotionYear:promotionYear,
+            promotionGoodsList:promotionByGoods.value
+          }
+
+          console.log("newData", newData);
+          addGoodsList(newData);
+          console.log("promotionByGoodsList : ",promotionByGoodsList.value);
+        });
+      }
+    }
   }
 });
 
@@ -301,17 +406,53 @@ onMounted(()=> {
           <!-- 리스트 블록들 -->
           <div class="list-blocks">
             <div class="list-block">
-              <h3>적용 상품 리스트1</h3>
+              <h3>{{ promotionByGoodsList[0] ? `${promotionByGoodsList[0].promotionYear}년도` : '' }} 상품 리스트</h3>
               <div class="list-content">
-                <!-- 리스트 내용 -->
-                [상품 리스트1]
+                <table class="data-table">
+                  <thead>
+                  <tr>
+                    <th>제품명</th>
+                    <th>매출액</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                   <template v-if="promotionByGoodsList[0]">
+                    <tr v-for="item in promotionByGoodsList[0].promotionGoodsList"
+                        :key="item.goodsId">
+                      <td>{{item.goodsName}}</td>
+                      <td>{{item.totalGoodsSales}}</td>
+                    </tr>
+                   </template>
+                   <div v-else class="empty-message">
+                     데이터 선택
+                   </div>
+                  </tbody>
+                </table>
               </div>
             </div>
             <div class="list-block">
-              <h3>적용 상품 리스트2</h3>
+              <h3>{{ promotionByGoodsList[1] ? `${promotionByGoodsList[1].promotionYear}년도` : '' }} 상품 리스트</h3>
               <div class="list-content">
-                <!-- 리스트 내용 -->
-                [상품 리스트2]
+                <table class="data-table">
+                  <thead>
+                  <tr>
+                    <th>제품명</th>
+                    <th>매출액</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <template v-if="promotionByGoodsList[1]">
+                    <tr v-for="item in promotionByGoodsList[1].promotionGoodsList"
+                        :key="item.goodsId">
+                      <td>{{item.goodsName}}</td>
+                      <td>{{item.totalGoodsSales}}</td>
+                    </tr>
+                  </template>
+                  <div v-else class="empty-message">
+                    데이터 선택
+                  </div>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -322,8 +463,31 @@ onMounted(()=> {
           <div class="ranking-block">
             <h3>순위 비교</h3>
             <div class="ranking-content">
-              <!-- 순위 리스트 내용 -->
-              [순위 비교 리스트]
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                  <tr>
+                    <th>작년</th>
+                    <th>올해</th>
+                    <th>작년 매출</th>
+                    <th>올해 매출</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <template v-if="promotionByComparison && promotionByComparison.length > 0">
+                    <tr v-for="item in promotionByComparison" :key="item.goodsName1">
+                      <td>{{item.goodsName1}}</td>
+                      <td>{{item.goodsName2}}</td>
+                      <td class="text-right">{{Number(item.sales1).toLocaleString()}}원</td>
+                      <td class="text-right">{{Number(item.sales2).toLocaleString()}}원</td>
+                    </tr>
+                  </template>
+                  <tr v-else>
+                    <td colspan="4" class="empty-message">두 개의 연도를 선택하면 비교 결과가 표시됩니다</td>
+                  </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
         </div>
@@ -693,5 +857,134 @@ h3 {
 .chart-placeholder {
   height: 100%;
   width: 100%;
+}
+
+/* 테이블 관련 스타일 추가 */
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 auto;  /* 테이블 중앙 정렬 */
+  background: white;
+}
+
+.data-table th,
+.data-table td {
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+}
+
+.data-table th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+  text-align: center;
+}
+
+.data-table td {
+  text-align: left;
+}
+
+.text-right {
+  text-align: right !important;
+}
+
+.empty-message {
+  text-align: center !important;
+  color: #666;
+  padding: 20px !important;
+}
+
+/* 리스트 콘텐츠 영역 수정 */
+.list-content {
+  margin-top: 16px;
+  min-height: 200px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  padding: 16px;
+  overflow-x: auto;  /* 가로 스크롤 필요시 추가 */
+}
+
+/* 홀수/짝수 행 배경색 구분 */
+.data-table tbody tr:nth-child(odd) {
+  background-color: #ffffff;
+}
+
+.data-table tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+/* 호버 효과 */
+.data-table tbody tr:hover {
+  background-color: #f5f5f5;
+}
+
+/* 랭킹 블록 스타일 */
+.ranking-block {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  height: 100%;
+}
+
+.ranking-content {
+  margin-top: 16px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  padding: 16px;
+  overflow-x: auto;
+}
+
+/* 테이블 컨테이너 스타일 */
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 8px;
+}
+
+/* 데이터 테이블 스타일 */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 auto;
+  background: white;
+}
+
+.data-table th,
+.data-table td {
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  text-align: center;
+}
+
+.data-table th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+}
+
+.data-table tbody tr:nth-child(odd) {
+  background-color: #ffffff;
+}
+
+.data-table tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.data-table tbody tr:hover {
+  background-color: #f5f5f5;
+}
+
+.text-right {
+  text-align: right !important;
+}
+
+.empty-message {
+  text-align: center !important;
+  color: #666;
+  padding: 20px !important;
 }
 </style>
