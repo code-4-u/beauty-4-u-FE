@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onMounted, ref } from "vue";
-import { getFetch, putFetch } from "@/stores/apiClient.js";
+import { getFetch } from "@/stores/apiClient.js";
 import { formatDate } from "@/stores/util.js";
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth.js';
@@ -11,19 +11,17 @@ const userStore = useAuthStore();
 const works = ref([]);
 const totalCount = ref(0);
 const currentPage = ref(1);
-const itemsPerPage = ref(12); // 카드 형태이므로 한 페이지당 더 많은 항목 표시
+const itemsPerPage = ref(12);
 const startDate = ref('');
 const endDate = ref('');
 const workTitle = ref('');
 const sort = ref('');
 const order = ref('');
 
-// 썸네일 이미지 추출 함수
-const extractThumbnail = (content) => {
-  if (!content) return null;
-  const imageRegex = /<img[^>]*src="([^"]*)"[^>]*>/;
-  const match = content.match(imageRegex);
-  return match ? match[1] : null;
+// 게시글의 첫 번째 이미지 파일 ID를 찾는 함수
+const findFirstImageFileId = (fileList) => {
+  if (!fileList || fileList.length === 0) return null;
+  return fileList[0];
 };
 
 const fetchWorks = async () => {
@@ -40,11 +38,34 @@ const fetchWorks = async () => {
 
   try {
     const response = await getFetch(`/teamspace/board/list?${searchParams}`);
-    // 각 게시글에 썸네일 URL 추가
-    works.value = response.data.data.teamBoardList.map(work => ({
-      ...work,
-      thumbnailUrl: extractThumbnail(work.teamBoardContent)
-    }));
+    const boardList = response.data.data.teamBoardList;
+
+    // 각 게시글의 파일 목록을 가져옴
+    const worksWithThumbnails = await Promise.all(
+        boardList.map(async (work) => {
+          try {
+            // 게시글에 연결된 파일 목록 조회
+            const fileResponse = await getFetch(`/file/list?fileUrl=/teamboard/${work.teamBoardId}`);
+            const fileList = fileResponse.data.data.fileList;
+
+            // S3 URL을 직접 썸네일로 사용
+            const thumbnailUrl = findFirstImageFileId(fileList);
+
+            return {
+              ...work,
+              thumbnailUrl
+            };
+          } catch (error) {
+            console.error(`파일 목록을 가져오는데 실패했습니다: ${work.teamBoardId}`, error);
+            return {
+              ...work,
+              thumbnailUrl: null
+            };
+          }
+        })
+    );
+
+    works.value = worksWithThumbnails;
     totalCount.value = response.data.data.totalCount;
   } catch (error) {
     console.error("워크보드 데이터를 가져오는 데 오류가 발생했습니다:", error);
