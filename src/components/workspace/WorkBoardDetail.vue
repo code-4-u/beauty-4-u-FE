@@ -32,16 +32,39 @@ const publishedReplies = computed(() => {
   return teamBoardReplyList.value.filter(reply => reply.publishStatus === 'PUBLISHED');
 });
 
-// script 부분 수정사항
+const imageList = ref([]);
+
+// 파일 목록을 가져오는 함수
+const fetchImageList = async () => {
+  try {
+    const response = await getFetch(`/file/list?fileUrl=/teamboard/${teamBoardId}`);
+    imageList.value = response.data.data.fileList || [];
+  } catch (error) {
+    console.error("이미지 목록을 가져오는 데 실패했습니다:", error);
+    imageList.value = [];
+  }
+};
+
+// HTML에서 이미지 태그를 제거하는 함수
+const removeImagesFromContent = (content) => {
+  if (!content) return '';
+  return content.replace(/<img[^>]*>/g, '');
+};
+
 const fetchTeamBoardDetail = async () => {
   try {
-    const response = await getFetch(`/teamspace/board/${teamBoardId}`)
-    teamBoardDetail.value = response.data.data.teamBoardDetailDTO;
+    const response = await getFetch(`/teamspace/board/${teamBoardId}`);
+    teamBoardDetail.value = {
+      ...response.data.data.teamBoardDetailDTO,
+      // 본문에서 이미지 태그 제거
+      teamBoardContent: removeImagesFromContent(response.data.data.teamBoardDetailDTO.teamBoardContent)
+    };
     teamBoardReplyList.value = response.data.data.teamBoardReplyList;
+    await fetchImageList(); // 이미지 목록 가져오기
   } catch (error) {
     console.error("워크보드 상세 정보를 가져오는 데 오류가 발생했습니다:", error);
   }
-}
+};
 
 const goBack = () => {
   router.push('/workspace/board');
@@ -160,9 +183,27 @@ onMounted(() => {
       </div>
     </div>
 
+    <!-- 이미지 갤러리 섹션 -->
+    <div v-if="imageList.length > 0" class="gallery-section">
+      <h4 class="section-title">첨부된 이미지</h4>
+      <div class="image-gallery">
+        <div v-for="(imageUrl, index) in imageList"
+             :key="index"
+             class="gallery-item">
+          <img :src="imageUrl"
+               :alt="`첨부 이미지 ${index + 1}`"
+               class="gallery-image"
+               @click="() => window.open(imageUrl, '_blank')" />
+        </div>
+      </div>
+    </div>
+
+    <!-- 본문 섹션 -->
     <div class="content-section">
+      <h4 class="section-title">본문</h4>
       <div v-html="teamBoardDetail.teamBoardContent" class="post-content"></div>
     </div>
+
     <div class="comments-section">
       <div class="comments-header">
         <h4 class="comments-title">
@@ -489,7 +530,74 @@ onMounted(() => {
   color: #29C458;
 }
 
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 1rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #29C458;
+}
+
+.gallery-section {
+  margin: 2rem 0;
+  padding: 1rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.image-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.gallery-item {
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.gallery-item:hover {
+  transform: scale(1.05);
+}
+
+.gallery-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.content-section {
+  margin: 2rem 0;
+  padding: 1.5rem;
+  background-color: #fff;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.post-content {
+  line-height: 1.6;
+  color: #333;
+}
+
 @media (max-width: 768px) {
+  .image-gallery {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 0.5rem;
+  }
+
+  .gallery-section,
+  .content-section {
+    margin: 1rem 0;
+    padding: 0.75rem;
+  }
+
   .board-detail-container {
     margin: 0.75rem;
     padding: 0.75rem;
