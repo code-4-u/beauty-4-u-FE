@@ -22,28 +22,20 @@ const handleFileChange = async (event) => {
 
   if (validFiles.length > 0) {
     for (const file of validFiles) {
-      try {
-        // 1. S3 업로드
-        const formData = new FormData();
-        formData.append('image', file);
-        const response = await postFetch('/file/s3/upload', formData);
-        const imageUrl = response.data.data;
+      const tempUrl = URL.createObjectURL(file);
+      const fileInfo = {
+        file,
+        id: Date.now() + Math.random(),
+        name: file.name,
+        size: file.size,
+        tempUrl: tempUrl
+      };
 
-        // 2. 에디터에 이미지 삽입
-        emit('insertToEditor', imageUrl);
+      // 파일 정보 emit
+      emit('upload', [fileInfo]);
 
-        // 3. 파일 정보 저장 및 emit
-        emit('upload', [{
-          file,
-          id: Date.now() + Math.random(),
-          name: file.name,
-          size: file.size,
-          url: imageUrl  // 실제 URL을 같이 저장
-        }]);
-
-      } catch (error) {
-        console.error('파일 업로드 실패:', error);
-      }
+      // 에디터에 임시 이미지 삽입
+      emit('insertToEditor', tempUrl);
     }
   }
   event.target.value = '';
