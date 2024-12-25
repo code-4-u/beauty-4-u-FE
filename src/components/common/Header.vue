@@ -108,6 +108,7 @@ const handleLogoutClick = () => {
   router.push({
     path: '/'
   })
+  window.location.reload();
 };
 
 onMounted(() => {
