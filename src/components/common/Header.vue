@@ -30,6 +30,7 @@ headerItems.value = [
     subItems: [
       {id: 21, name: '프로모션 관리', link: '/promotion/manage'},
       {id: 22, name: '프로모션 분석', link: '/promotion/analysis'},
+      {id: 23, name: '프로모션 알림 발송', link: '/promotion/notisend'}
     ]
   },
   {

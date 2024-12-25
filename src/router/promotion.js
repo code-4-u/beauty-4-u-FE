@@ -3,6 +3,8 @@ import PromotionAnalysis from "@/components/promotion/PromotionAnalysis.vue";
 import PromotionHome from "@/views/promotion/PromotionHome.vue";
 import PromotionList from "@/components/promotion/PromotionList.vue";
 import PromotionDetail from "@/components/promotion/PromotionDetail.vue";
+import PromotionNotiSend from "@/components/promotion/PromotionNotiSend.vue";
+import PromotionNotiModal from "@/components/promotion/PromotionNotiModal.vue";
 
 export default [
     {
@@ -28,6 +30,14 @@ export default [
                 path: 'analysis',
                 component: PromotionAnalysis
             },
+            {
+                path: 'notisend',
+                component: PromotionNotiSend
+            },
+            {
+                path: 'notiSelect',
+                component: PromotionNotiModal
+            }
         ]
     }
 ];
