@@ -1,10 +1,10 @@
 <script setup>
-import {ref, computed} from 'vue';
+import {ref} from 'vue';
 import {useRouter} from 'vue-router';
 import {postFetch} from "@/stores/apiClient.js";
 import BoardEditor from "@/components/board/editor/BoardEditor.vue";
-import ImageManagement from "@/components/board/editor/ImageManagement.vue";
 import {useAuthStore} from '@/stores/auth.js';
+import WorkBoardImageManagement from "@/components/board/editor/WorkBoardImageManagement.vue";
 
 const router = useRouter();
 const useAuth = useAuthStore();
@@ -13,28 +13,13 @@ const editorContent = ref('<p>내용을 입력해주세요.</p>');
 const selectedFiles = ref([]);
 const imageUrls = ref([]);
 const boardEditorRef = ref(null);
-const uploadStatus = ref('');
-
-const insertImageAtCursor = (imageUrl, removeUrl) => {
-  if (boardEditorRef.value) {
-    if (removeUrl) {
-      // 이미지 제거
-      boardEditorRef.value.removeImage(removeUrl);
-    } else if (imageUrl) {
-      // 이미지 추가
-      boardEditorRef.value.insertImage(imageUrl);
-    }
-  }
-};
 
 // 이미지 관리 핸들러
 const handleUpload = (files) => {
-  uploadStatus.value = '업로드 중';
   selectedFiles.value = [
     ...selectedFiles.value,
     ...files
   ];
-  uploadStatus.value = '업로드 완료';
 };
 
 const handleRemove = (fileId) => {
@@ -52,17 +37,12 @@ const goBack = () => {
 // 워크보드 저장
 const saveWorkBoard = async () => {
   try {
-    // 입력값 검증
     if (!teamBoardTitle.value.trim()) {
       alert('제목을 입력해주세요.');
       return;
     }
 
-    // 1. 현재 에디터 내용 가져오기
-    let currentContent = editorContent.value;
-    console.log('Original content:', currentContent); // 디버깅용
-
-    // 2. 선택된 모든 파일들을 S3에 업로드하고 URL 매핑 생성
+    // 1. 선택된 모든 파일들을 S3에 업로드
     const uploadedImages = [];
     for (const fileInfo of selectedFiles.value) {
       try {
@@ -70,16 +50,9 @@ const saveWorkBoard = async () => {
         formData.append('image', fileInfo.file);
         const response = await postFetch('/file/s3/upload', formData);
         const s3Url = response.data.data;
-
-        // URL 매핑 저장
         uploadedImages.push({
           tempUrl: fileInfo.tempUrl,
           permanentUrl: s3Url
-        });
-
-        console.log('URL Mapping:', { // 디버깅용
-          temp: fileInfo.tempUrl,
-          permanent: s3Url
         });
       } catch (error) {
         console.error('이미지 업로드 실패:', error);
@@ -87,30 +60,13 @@ const saveWorkBoard = async () => {
       }
     }
 
-    // 3. 에디터 내용에서 임시 URL을 실제 S3 URL로 교체
-    uploadedImages.forEach(({tempUrl, permanentUrl}) => {
-      const escapedTempUrl = tempUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const urlRegex = new RegExp(escapedTempUrl, 'g');
-
-      console.log('Replacing:', { // 디버깅용
-        from: tempUrl,
-        to: permanentUrl,
-        regex: urlRegex
-      });
-
-      // 실제 교체 수행
-      currentContent = currentContent.replace(urlRegex, permanentUrl);
-    });
-
-    console.log('Final content:', currentContent); // 디버깅용
-
-    // 4. 워크보드 저장
+    // 2. 워크보드 저장
     const response = await postFetch('/teamspace/board', {
       teamBoardTitle: teamBoardTitle.value,
-      teamBoardContent: currentContent, // 교체된 내용 사용
+      teamBoardContent: editorContent.value
     });
 
-    // 5. 이미지 엔티티 저장
+    // 3. 이미지 엔티티 저장
     if (uploadedImages.length > 0) {
       await postFetch('/file/save', {
         entityId: response.data.data,
@@ -119,10 +75,7 @@ const saveWorkBoard = async () => {
       });
     }
 
-    // 6. 성공 메시지 표시
     alert('저장되었습니다.');
-
-    // 7. 목록으로 이동
     await router.push('/workspace/board');
   } catch (error) {
     console.error('워크보드 저장에 실패했습니다.', error);
@@ -147,7 +100,7 @@ const saveWorkBoard = async () => {
 
     <div class="info-section"></div>
 
-    <image-management
+    <work-board-image-management
         :selected-files="selectedFiles"
         :image-urls="imageUrls"
         @upload="handleUpload"
