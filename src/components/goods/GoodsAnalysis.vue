@@ -7,6 +7,8 @@ import GoodsChart from "@/components/goods/GoodsChart.vue";
 import GoodsCompare from "@/components/goods/GoodsCompare.vue";
 import {useRoute, useRouter} from "vue-router";
 import CaptureModal from "@/components/capture/CaptureModal.vue";
+import AiReview from "@/components/goods/AiReview.vue";
+import AprioriTable from "@/components/goods/AprioriTable.vue";
 
 // 캡처 모달
 const captureModal = ref(null);
@@ -267,14 +269,20 @@ const handleCapture = async () => {
           <div class="analysis-block">
             <h3>리뷰 요약</h3>
             <div class="block-content">
-<!--              <Review/>-->
+              <AiReview
+                  v-if="selectedGoodsCode"
+                  :goods-code="selectedGoodsCode"/>
             </div>
           </div>
 
           <!-- 추천 조합 블록 -->
           <div class="analysis-block">
             <h3>추천 조합</h3>
-            <div class="block-content"></div>
+            <div class="block-content">
+              <AprioriTable
+                  v-if="selectedGoodsCode"
+                  :goods-code="selectedGoodsCode"/>
+            </div>
           </div>
         </div>
       </div>
@@ -457,9 +465,10 @@ const handleCapture = async () => {
 /* 오른쪽 분석 섹션 스타일 */
 .analysis-section {
   display: grid;
-  grid-template-rows: 1fr 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 24px;
   height: calc(100vh - 72px);
+  overflow: hidden;
 }
 
 .analysis-block {
@@ -467,16 +476,39 @@ const handleCapture = async () => {
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 첫 번째 analysis-block (리뷰 요약)에만 적용 */
+.analysis-block:first-child {
+  height: fit-content;
+}
+
+/* 두 번째 analysis-block (추천 조합)에만 적용 */
+.analysis-block:last-child {
+  height: 100%;
 }
 
 .block-content {
   margin-top: 16px;
-  height: calc(100% - 40px);
   background: #f8f9fa;
   border-radius: 8px;
+  overflow-y: auto;
 }
 
-/* 검색 패널 스타일 */
+/* 첫 번째 블록의 content에만 적용 */
+.analysis-block:first-child .block-content {
+  height: fit-content;
+}
+
+/* 두 번째 블록의 content에만 적용 */
+.analysis-block:last-child .block-content {
+  height: calc(100% - 40px);
+}
+
+/* 검색 패널 관련 스타일 */
 .search-trigger-btn {
   position: fixed;
   left: 0;
@@ -495,15 +527,14 @@ const handleCapture = async () => {
   transition: left 0.3s ease;
 }
 
-/* 캡처 버튼 스타일 추가 */
 .capture-btn {
   position: fixed;
   left: 0;
-  top: 28%;  /* 검색 버튼 아래에 위치 */
+  top: 28%;
   transform: translateY(-50%);
   width: 48px;
   height: 48px;
-  background: #4CAF50;  /* 검색 버튼과 동일한 색상 */
+  background: #4CAF50;
   border: none;
   border-radius: 0 8px 8px 0;
   color: white;
@@ -530,7 +561,7 @@ const handleCapture = async () => {
   top: 0;
   width: 25%;
   height: 100%;
-  padding-bottom: 60px; /* 하단 여백 추가 */
+  padding-bottom: 60px;
   background: white;
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
   transition: left 0.3s ease;
@@ -602,9 +633,6 @@ h3 {
 }
 
 .form-group select {
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
   background-color: white;
   cursor: pointer;
 }
@@ -618,7 +646,6 @@ h3 {
   padding: 8px;
 }
 
-/* 검색 결과 영역 스타일 */
 .search-results {
   padding: 24px;
   margin-top: 24px;
