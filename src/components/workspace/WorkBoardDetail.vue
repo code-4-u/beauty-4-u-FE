@@ -330,6 +330,7 @@ onMounted(() => {
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  animation: fade-in 0.3s ease-out;
 }
 
 .modal-content {
@@ -341,6 +342,27 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   margin: 20px;
+  animation: slide-up 0.3s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .title-wrapper {
