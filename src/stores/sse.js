@@ -137,8 +137,6 @@ export const useSSEStore = defineStore('sse', () => {
             eventSource.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data)
-
-                    console.log(data)
                     if (data.notiType) {
                         notifications.value.push(data)
                         showBrowserNotification(data)

@@ -1,6 +1,6 @@
+<!-- ImageManagement.vue -->
 <script setup>
-import {computed, ref} from 'vue';
-import {postFetch} from "@/stores/apiClient.js";
+import { computed, ref } from 'vue';
 
 const props = defineProps({
   selectedFiles: {
@@ -13,8 +13,9 @@ const props = defineProps({
   }
 });
 
-const emit = defineEmits(['upload', 'remove', 'insertToEditor']);
+const emit = defineEmits(['upload', 'remove']);
 const uploadStatus = ref('');
+const selectedImage = ref(null);
 
 const handleFileChange = async (event) => {
   const files = Array.from(event.target.files);
@@ -31,23 +32,15 @@ const handleFileChange = async (event) => {
         tempUrl: tempUrl
       };
 
-      // 파일 정보 emit
+      // 파일 정보만 emit하고 에디터에는 삽입하지 않음
       emit('upload', [fileInfo]);
-
-      // 에디터에 임시 이미지 삽입
-      emit('insertToEditor', tempUrl);
     }
   }
   event.target.value = '';
 };
 
 const handleRemove = (fileId) => {
-  const fileToRemove = props.selectedFiles.find(f => f.id === fileId);
-  if (fileToRemove && fileToRemove.url) {
-    // 에디터에서 이미지 제거 신호 보내기
-    emit('insertToEditor', null, fileToRemove.url);
-    emit('remove', fileId);
-  }
+  emit('remove', fileId);
 };
 
 const formatSize = (bytes) => {
@@ -57,6 +50,10 @@ const formatSize = (bytes) => {
 const totalSize = computed(() => {
   return props.selectedFiles.reduce((acc, file) => acc + file.size, 0);
 });
+
+const handleImageClick = (file) => {
+  selectedImage.value = selectedImage.value === file ? null : file;
+};
 </script>
 
 <template>
@@ -81,27 +78,35 @@ const totalSize = computed(() => {
       </div>
     </div>
 
-    <!-- 업로드 상태 표시 -->
     <div v-if="uploadStatus" class="image-management__status-bar">
       {{ uploadStatus }}
     </div>
 
-    <!-- 이미지 목록 부분 복원 -->
-    <div v-if="selectedFiles.length > 0" class="image-management__list">
-      <div v-for="file in selectedFiles" :key="file.id" class="image-management__item">
-        <span class="image-management__filename">{{ file.name }}</span>
-        <span class="image-management__filesize">({{ formatSize(file.size) }}MB)</span>
-        <button
-            class="image-management__remove-btn"
-            @click="handleRemove(file.id)"
-        >
-          삭제
-        </button>
+    <!-- 이미지 미리보기 그리드 -->
+    <div v-if="selectedFiles.length > 0" class="image-management__grid">
+      <div
+          v-for="file in selectedFiles"
+          :key="file.id"
+          class="image-management__grid-item"
+          :class="{ 'selected': selectedImage === file }"
+          @click="handleImageClick(file)"
+      >
+        <img :src="file.tempUrl" :alt="file.name" class="image-management__preview" />
+        <div class="image-management__item-info">
+          <span class="image-management__filename">{{ file.name }}</span>
+          <span class="image-management__filesize">({{ formatSize(file.size) }}MB)</span>
+          <button
+              class="image-management__remove-btn"
+              @click.stop="handleRemove(file.id)"
+          >
+            삭제
+          </button>
+        </div>
       </div>
+    </div>
 
-      <div class="image-management__summary">
-        총 {{ selectedFiles.length }}개 파일 ({{ formatSize(totalSize) }}MB)
-      </div>
+    <div v-if="selectedFiles.length > 0" class="image-management__summary">
+      총 {{ selectedFiles.length }}개 파일 ({{ formatSize(totalSize) }}MB)
     </div>
   </div>
 </template>
@@ -122,6 +127,41 @@ const totalSize = computed(() => {
   margin-bottom: 1rem;
 }
 
+.image-management__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.image-management__grid-item {
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.image-management__grid-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.image-management__grid-item.selected {
+  border: 2px solid #4CAF50;
+}
+
+.image-management__preview {
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+}
+
+.image-management__item-info {
+  padding: 0.5rem;
+}
+
+/* 기존 스타일 유지 */
 .image-management__title {
   font-size: 1rem;
   font-weight: 600;
@@ -145,42 +185,23 @@ const totalSize = computed(() => {
   background-color: #e9ecef;
 }
 
-.image-management__status-bar {
-  padding: 0.5rem;
-  margin-bottom: 1rem;
-  background-color: #f8f9fa;
-  border-radius: 4px;
-  font-size: 0.875rem;
-}
-
-.image-management__list {
-  border-top: 1px solid #e0e0e0;
-  padding-top: 1rem;
-}
-
-.image-management__item {
-  display: flex;
-  align-items: center;
-  padding: 0.5rem;
-  background-color: #f8f9fa;
-  border-radius: 4px;
-  margin-bottom: 0.5rem;
-}
-
 .image-management__filename {
-  flex: 1;
-  margin-right: 0.5rem;
+  display: block;
+  font-size: 0.875rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .image-management__filesize {
+  display: block;
   color: #6c757d;
-  margin-right: 1rem;
+  font-size: 0.75rem;
 }
 
 .image-management__remove-btn {
+  width: 100%;
+  margin-top: 0.5rem;
   padding: 0.25rem 0.5rem;
   background-color: #dc3545;
   color: white;
@@ -203,17 +224,8 @@ const totalSize = computed(() => {
 }
 
 @media (max-width: 768px) {
-  .image-management__item {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .image-management__filename {
-    margin-bottom: 0.25rem;
-  }
-
-  .image-management__filesize {
-    margin-bottom: 0.25rem;
+  .image-management__grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   }
 }
 </style>

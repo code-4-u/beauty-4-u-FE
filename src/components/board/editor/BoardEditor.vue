@@ -14,46 +14,100 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"]);
 
-const editor = useEditor({
-  content: props.modelValue,
-  extensions: [StarterKit, Image],
-  onUpdate: () => {
-    emit("update:modelValue", editor.value.getHTML());
+// Image 익스텐션 설정 강화
+const CustomImage = Image.configure({
+  inline: true,
+  allowBase64: true,
+  HTMLAttributes: {
+    class: 'editor-image',
   },
 });
 
+const editor = useEditor({
+  content: props.modelValue,
+  extensions: [StarterKit, CustomImage],
+  onUpdate: ({editor}) => {
+    emit("update:modelValue", editor.getHTML());
+  },
+});
+
+// 이미지 삽입 함수 개선
 const insertImage = (url) => {
-  editor.value?.chain().focus().setImage({ src: url }).run();
-};
+  if (!editor.value || !url) return;
 
-const removeImage = (url) => {
-  if (!editor.value) return;
+  editor.value.chain()
+      .focus()
+      .setImage({
+        src: url,
+        alt: 'Uploaded image',
+        title: 'Uploaded image'
+      })
+      .run();
 
-  // 현재 에디터의 모든 이미지 노드를 찾아서 순회
-  editor.value.state.doc.descendants((node, pos) => {
-    if (node.type.name === 'image' && node.attrs.src === url) {
-      // 해당 URL을 가진 이미지 노드를 찾으면 삭제
-      editor.value.commands.deleteRange({
-        from: pos,
-        to: pos + node.nodeSize
-      });
-    }
-  });
-
-  // 컨텐츠가 업데이트되었음을 알림
+  // 명시적으로 콘텐츠 업데이트 emit
   emit("update:modelValue", editor.value.getHTML());
 };
 
-watch(() => props.modelValue, (value) => {
-  const isSame = editor.value.getHTML() === value;
-  if (!isSame) {
-    editor.value.commands.setContent(value, false);
+// 이미지 제거 함수 개선
+const removeImage = (url) => {
+  if (!editor.value || !url) return;
+
+  const transaction = editor.value.state.tr;
+  let hasChanges = false;
+
+  editor.value.state.doc.descendants((node, pos) => {
+    if (node.type.name === 'image' && node.attrs.src === url) {
+      transaction.delete(pos, pos + node.nodeSize);
+      hasChanges = true;
+    }
+  });
+
+  if (hasChanges) {
+    editor.value.view.dispatch(transaction);
+    // 명시적으로 콘텐츠 업데이트 emit
+    emit("update:modelValue", editor.value.getHTML());
   }
-});
+};
+
+// URL 교체를 위한 새로운 메소드 추가
+const replaceImageUrls = (urlMap) => {
+  if (!editor.value) return;
+
+  const transaction = editor.value.state.tr;
+  let hasChanges = false;
+
+  editor.value.state.doc.descendants((node, pos) => {
+    if (node.type.name === 'image') {
+      const oldUrl = node.attrs.src;
+      const newUrl = urlMap[oldUrl];
+
+      if (newUrl) {
+        transaction.setNodeMarkup(pos, null, {
+          ...node.attrs,
+          src: newUrl
+        });
+        hasChanges = true;
+      }
+    }
+  });
+
+  if (hasChanges) {
+    editor.value.view.dispatch(transaction);
+    emit("update:modelValue", editor.value.getHTML());
+  }
+};
+
+// watch 로직 개선
+watch(() => props.modelValue, (newValue) => {
+  if (editor.value && newValue !== editor.value.getHTML()) {
+    editor.value.commands.setContent(newValue, false);
+  }
+}, { deep: true });
 
 defineExpose({
   insertImage,
-  removeImage
+  removeImage,
+  replaceImageUrls // 새로운 메소드 노출
 });
 
 onBeforeUnmount(() => {
