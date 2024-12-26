@@ -5,11 +5,10 @@ import {getFetch} from "@/stores/apiClient.js";
 import PromotionList from "@/components/goods/PromotionList.vue";
 import GoodsChart from "@/components/goods/GoodsChart.vue";
 import GoodsCompare from "@/components/goods/GoodsCompare.vue";
-import html2canvas from "html2canvas";
-import { useRoute } from "vue-router";
-import { useRouter } from "vue-router";
+import {useRoute, useRouter} from "vue-router";
 import CaptureModal from "@/components/capture/CaptureModal.vue";
 
+// 캡처 모달
 const captureModal = ref(null);
 
 const searchWord = ref('');
