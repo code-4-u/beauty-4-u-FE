@@ -18,6 +18,22 @@ const newReplyContent = ref('');
 const editingReplyId = ref(null);
 const editReplyContent = ref('');
 
+// 이미지 미리보기 위한 상태
+const isImagePreviewOpen = ref(false);
+const previewImageUrl = ref('');
+
+// 이미지 미리보기 열기 함수
+const openImagePreview = (imageUrl) => {
+  previewImageUrl.value = imageUrl;
+  isImagePreviewOpen.value = true;
+}
+
+// 이미지 미리보기 닫기 함수
+const closeImagePreview = () => {
+  isImagePreviewOpen.value = false;
+  previewImageUrl.value = '';
+}
+
 // 게시글 작성자 여부를 확인하는 computed 속성
 const isAuthor = computed(() => {
   return teamBoardDetail.value.userCode === currentUserCode.value;
@@ -193,8 +209,26 @@ onMounted(() => {
           <img :src="imageUrl"
                :alt="`첨부 이미지 ${index + 1}`"
                class="gallery-image"
-               @click="() => window.open(imageUrl, '_blank')" />
+               @click="openImagePreview(imageUrl)" />
         </div>
+      </div>
+    </div>
+
+<!--    이미지 미리보기 모달 -->
+    <div v-if="isImagePreviewOpen" class="modal-overlay">
+      <div class="modal-content">
+        <div class="title-wrapper">
+          <h2 class="title-label">이미지 미리보기</h2>
+        </div>
+
+        <div class="preview-container">
+          <img :src="previewImageUrl" alt="미리보기" class="capture-preview"/>
+        </div>
+
+        <div class="button-group">
+          <button @click="closeImagePreview" class="cancel-btn">닫기</button>
+        </div>
+
       </div>
     </div>
 
@@ -284,6 +318,103 @@ onMounted(() => {
 </template>
 
 <style scoped>
+/* 이미지 미리보기 모달 스타일 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  animation: fade-in 0.3s ease-out;
+}
+
+.modal-content {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  max-width: 80vh;
+  max-height: 110vh;
+  display: flex;
+  flex-direction: column;
+  margin: 20px;
+  animation: slide-up 0.3s ease-out;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.title-wrapper {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.title-label {
+  margin: 0;
+  color: #333;
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.preview-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 20px 0;
+  height: calc(80vh - 120px);
+}
+
+.capture-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.button-group {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.cancel-btn {
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+}
+
+.cancel-btn:hover {
+  background-color: #e5e5e5;
+}
+
 .board-detail-container {
   max-width: 1200px;
   padding: 1.5rem;
@@ -640,6 +771,19 @@ onMounted(() => {
   .comment-info {
     flex-direction: column;
     gap: 0.25rem;
+  }
+
+  .modal-content {
+    max-width: 95%;
+    padding: 15px;
+  }
+
+  .title-wrapper {
+    padding-bottom: 0.5rem;
+  }
+
+  .preview-container {
+    margin: 15px 0;
   }
 }
 </style>
