@@ -11,11 +11,34 @@ const authStore = useAuthStore();
 
 const userCode = ref('');
 const userPassword = ref('');
+const formErrors = ref({
+  userCode: '',
+  userPassword: ''
+});
 
 const showResetPasswordModal = ref(false);
 const showFindIdModal = ref(false);
 
 const saveUser = async () => {
+  // 폼 유효성 검사
+  let hasError = false;
+  formErrors.value = {
+    userCode: '',
+    userPassword: ''
+  };
+
+  if (!userCode.value.trim()) {
+    formErrors.value.userCode = '사원번호를 입력해주세요.';
+    hasError = true;
+  }
+
+  if (!userPassword.value.trim()) {
+    formErrors.value.userPassword = '비밀번호를 입력해주세요.';
+    hasError = true;
+  }
+
+  if (hasError) return;
+
   try {
     const response = await axios.post('http://localhost:8080/api/v1/user/login',
         {
@@ -25,12 +48,17 @@ const saveUser = async () => {
     );
 
     if (response.status === 200) {
-      authStore.login(response.headers['authorization'], response.headers['refresh-token']);
-      alert('로그인 성공');
+      if (response.data.message === '계정이 비활성화된 상태입니다.') {
+        alert(response.data.message);
+      } else {
+        authStore.login(response.headers['authorization'], response.headers['refresh-token']);
+        alert('로그인 성공');
+      }
     }
 
     await router.push('/');
   } catch (error) {
+    alert('사용자 정보가 틀렸습니다.');
     console.log('로그인 실패', error);
   }
 };
@@ -58,19 +86,23 @@ const goToFindId = () => {
               id="userCode"
               required
               class="form-input"
+              :class="{ 'error': formErrors.userCode }"
               placeholder="사번 입력"
           />
+          <span v-if="formErrors.userCode" class="error-message">{{ formErrors.userCode }}</span>
         </div>
         <div class="form-group">
           <label for="userPassword">비밀번호</label>
           <input
-              type="text"
+              type="password"
               v-model="userPassword"
               id="userPassword"
               required
               class="form-input"
+              :class="{ 'error': formErrors.userPassword }"
               placeholder="비밀번호 입력"
           />
+          <span v-if="formErrors.userPassword" class="error-message">{{ formErrors.userPassword }}</span>
         </div>
         <button type="submit" class="submit-button">로그인</button>
       </form>
@@ -141,6 +173,22 @@ const goToFindId = () => {
   outline: none;
   border-color: var(--main-green);
   box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+.form-input.error {
+  border-color: #dc3545;
+  background-color: #fff8f8;
+}
+
+.form-input.error:focus {
+  border-color: #dc3545;
+  box-shadow: 0 0 0 2px rgba(220, 53, 69, 0.25);
+}
+
+.error-message {
+  color: #dc3545;
+  font-size: 0.8rem;
+  margin-top: 0.25rem;
 }
 
 .submit-button {
