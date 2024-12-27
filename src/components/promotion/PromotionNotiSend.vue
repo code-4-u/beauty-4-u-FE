@@ -1,5 +1,5 @@
 <script setup>
-import {ref, onMounted, reactive, computed} from 'vue'
+import {ref, onMounted, computed} from 'vue'
 import {getFetch, postFetch} from "@/stores/apiClient.js";
 import {FontAwesomeIcon} from "@fortawesome/vue-fontawesome";
 import PromotionNotiModal from "@/components/promotion/PromotionNotiModal.vue";
@@ -8,7 +8,6 @@ const isTypeModalOpen = ref(false);
 
 // 상태 관리
 const loading = ref(false);
-const sending = ref(false);
 const error = ref(null);
 
 const openTypeModal = () => {
@@ -20,6 +19,8 @@ const viewCount = ref(10);
 const totalCount = ref(0);  // 추가
 const targetingCustomer = ref([]);
 const selectedPromotion = ref('');
+const currAnalysisNumber = ref(0);
+const isLoadingModalOpen = ref(false);  // 로딩 모달 상태 추가
 
 const handlePromotionSelect = (promotion) => {
   selectedPromotion.value = promotion;
@@ -74,6 +75,29 @@ const sendNotiCustomer = async () => {
   }
 }
 
+/* 최근의 분석 번호 조회 */
+const findCurrentAnalysisNumber = async () => {
+  try {
+    const response = await getFetch(`/promotionNoti/number`);
+    currAnalysisNumber.value = response.data;
+  } catch (e) {
+    console.log("최근 분석 번호를 조회하는데 실패하였습니다.", e)
+  }
+}
+
+/* 고갹별 맞춤 추천 재실행 */
+const runningRecommend = async () => {
+  try {
+    isLoadingModalOpen.value = true;
+    const response = await getFetch(`/collaboFilter/goods`);
+    currAnalysisNumber.value = response.data.analysisId;
+  } catch (e) {
+    console.log("고객별 맞춤 추천 하는데 실패하였습니다.", e);
+  } finally {
+    isLoadingModalOpen.value = false;
+  }
+}
+
 // 날짜 포맷팅
 const formatDate = (dateString) => {
   if (!dateString) return '-'
@@ -89,7 +113,7 @@ const formatDate = (dateString) => {
 
 // 컴포넌트 마운트 시 데이터 로드
 onMounted(() => {
-
+  findCurrentAnalysisNumber();
 })
 </script>
 
@@ -111,6 +135,14 @@ onMounted(() => {
           @selectPromotion="handlePromotionSelect"
           @closed="fetchCustomer"
       />
+
+      <!-- 로딩 모달 추가 -->
+      <div v-if="isLoadingModalOpen" class="modal-overlay">
+        <div class="loading-modal">
+          <div class="spinner"></div>
+          <p>재추천 실행중...</p>
+        </div>
+      </div>
 
       <!-- 선택한 프로모션 띄우는 곳 -->
       <div v-if="selectedPromotion" class="selected-promotion-box">
@@ -136,12 +168,19 @@ onMounted(() => {
       <div class="table-container">
         <div class="header">
           <h5>프로모션 알림 대상자 목록</h5>
-          <button
-              class="search-button"
-              @click="sendNotiCustomer"
-              :disabled="!selectedPromotion || targetingCustomer.length === 0">
-            알림 발송
-          </button>
+          <div class="button-group">
+            <button
+                class="search-button"
+                @click="runningRecommend">
+              고객별 재추천 실행
+            </button>
+            <button
+                class="search-button"
+                @click="sendNotiCustomer"
+                :disabled="!selectedPromotion || targetingCustomer.length === 0">
+              알림발송
+            </button>
+          </div>
         </div>
         <table>
           <thead>
@@ -316,29 +355,9 @@ td {
   display: inline-block;
 }
 
-.badge.before {
-  background-color: #fef3c7;
-  color: #92400e;
-}
-
-.badge.ongoing {
-  background-color: #dcfce7;
-  color: #15803d;
-}
-
-.badge.ended {
-  background-color: #f3f4f6;
-  color: #4b5563;
-}
-
 .badge.type {
   background-color: #dbeafe;
   color: #1e40af;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.5rem;
 }
 
 .action-buttons button {
@@ -347,17 +366,6 @@ td {
   font-size: 0.875rem;
   cursor: pointer;
   transition: all 0.2s;
-}
-
-.action-buttons .delete {
-  background-color: white;
-  border: 1px solid #ef4444;
-  color: #ef4444;
-}
-
-.action-buttons .delete:hover {
-  border-color: #dc2626;
-  background-color: #fef2f2;
 }
 
 .pagination {
@@ -389,12 +397,6 @@ td {
   background-color: #f0fdf4;
 }
 
-.page-button.active {
-  background-color: #4CAF50;
-  color: white;
-  border-color: #4CAF50;
-}
-
 .page-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
@@ -414,37 +416,6 @@ td {
   border: none;
 }
 
-.sub-info {
-  color: #6b7280;
-  font-size: 0.875rem;
-  margin-top: 0.25rem;
-}
-
-.add-button {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.5rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.add-button:hover {
-  background-color: #45a049;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.add-button:active {
-  transform: translateY(0);
-  box-shadow: none;
-}
-
 .promotion-row {
   cursor: pointer;
   transition: background-color 0.2s;
@@ -452,11 +423,6 @@ td {
 
 .promotion-row:hover {
   background-color: #f9fafb;
-}
-
-/* 버튼 호버 시 행 배경색 변경 방지 */
-.promotion-row:hover .action-buttons {
-  background-color: transparent;
 }
 
 .header-buttons {
@@ -496,8 +462,7 @@ td {
     flex-direction: column;
   }
 
-  .manage-button,
-  .add-button {
+  .manage-button {
     width: 100%;
     justify-content: center;
   }
@@ -516,14 +481,6 @@ td {
     align-items: flex-start;
   }
 
-  .search-bar {
-    flex-direction: column;
-  }
-
-  .action-buttons {
-    flex-direction: column;
-  }
-
   .pagination {
     gap: 0.25rem;
   }
@@ -540,11 +497,6 @@ td {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-}
-
-.promotion-title {
-  font-weight: 500;
-  color: #374151;
 }
 
 .selected-promotion-box {
@@ -570,15 +522,6 @@ td {
   margin: 0;
 }
 
-.promotion-type {
-  background-color: #dbeafe;
-  color: #1e40af;
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
-  font-size: 0.875rem;
-  font-weight: 500;
-}
-
 .detail-info {
   display: flex;
   gap: 2rem;
@@ -598,5 +541,50 @@ td {
 .info-group span {
   color: #374151;
   font-weight: 500;
+}
+
+.button-group {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.header .search-button {
+  min-width: 120px;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.loading-modal {
+  background-color: white;
+  padding: 2rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  text-align: center;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  margin: 0 auto 1rem;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #4CAF50;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 </style>
