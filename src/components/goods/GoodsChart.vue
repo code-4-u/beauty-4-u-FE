@@ -44,7 +44,19 @@ const emit = defineEmits(['monthClick']);
 const yearOptions = [
   { value: '2024', label: '2024년' },
   { value: '2023', label: '2023년' },
-  { value: '2022', label: '2022년' }
+  { value: '2022', label: '2022년' },
+  { value: '2021', label: '2021년' },
+  { value: '2020', label: '2020년' },
+  { value: '2019', label: '2019년' },
+  { value: '2018', label: '2018년' },
+  { value: '2017', label: '2017년' },
+  { value: '2016', label: '2016년' },
+  { value: '2015', label: '2015년' },
+  { value: '2014', label: '2014년' },
+  { value: '2013', label: '2013년' },
+  { value: '2012', label: '2012년' },
+  { value: '2011', label: '2011년' },
+  { value: '2010', label: '2010년' },
 ];
 
 const chart = ref(null);
@@ -83,14 +95,14 @@ const createChart = async () => {
     return;
   }
 
-  // 그라데이션 설정
+  // Enhanced gradients
   const currentYearGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  currentYearGradient.addColorStop(0, 'rgba(53, 162, 235, 0.3)');
-  currentYearGradient.addColorStop(1, 'rgba(53, 162, 235, 0)');
+  currentYearGradient.addColorStop(0, 'rgba(74, 144, 226, 0.2)');
+  currentYearGradient.addColorStop(1, 'rgba(74, 144, 226, 0.0)');
 
   const previousYearGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-  previousYearGradient.addColorStop(0, 'rgba(255, 99, 132, 0.3)');
-  previousYearGradient.addColorStop(1, 'rgba(255, 99, 132, 0)');
+  previousYearGradient.addColorStop(0, 'rgba(252, 92, 125, 0.2)');
+  previousYearGradient.addColorStop(1, 'rgba(252, 92, 125, 0.0)');
 
   if (chart.value) {
     chart.value.destroy();
@@ -104,30 +116,36 @@ const createChart = async () => {
         {
           label: `${year.value}년 ${props.label}`,
           data: currentYearData.value,
-          borderColor: 'rgb(53, 162, 235)',
+          borderColor: 'rgb(74, 144, 226)',
           backgroundColor: currentYearGradient,
-          tension: 0.4,
+          tension: 0.35,
           fill: true,
-          borderWidth: 2,
-          pointBackgroundColor: 'white',
-          pointBorderColor: 'rgb(53, 162, 235)',
+          borderWidth: 2.5,
+          pointBackgroundColor: '#FFFFFF',
+          pointBorderColor: 'rgb(74, 144, 226)',
           pointBorderWidth: 2,
-          pointRadius: 4,
-          pointHoverRadius: 6
+          pointRadius: 3,
+          pointHoverRadius: 5,
+          pointHoverBorderWidth: 3,
+          pointHoverBackgroundColor: 'rgb(74, 144, 226)',
+          pointHoverBorderColor: '#FFFFFF'
         },
         {
           label: `${Number(year.value) - 1}년 ${props.label}`,
           data: previousYearData.value,
-          borderColor: 'rgb(255, 99, 132)',
+          borderColor: 'rgb(252, 92, 125)',
           backgroundColor: previousYearGradient,
-          tension: 0.4,
+          tension: 0.35,
           fill: true,
-          borderWidth: 2,
-          pointBackgroundColor: 'white',
-          pointBorderColor: 'rgb(255, 99, 132)',
+          borderWidth: 2.5,
+          pointBackgroundColor: '#FFFFFF',
+          pointBorderColor: 'rgb(252, 92, 125)',
           pointBorderWidth: 2,
           pointRadius: 4,
-          pointHoverRadius: 6
+          pointHoverRadius: 7,
+          pointHoverBorderWidth: 3,
+          pointHoverBackgroundColor: 'rgb(252, 92, 125)',
+          pointHoverBorderColor: '#FFFFFF'
         }
       ]
     },
@@ -140,13 +158,23 @@ const createChart = async () => {
       },
       plugins: {
         tooltip: {
-          backgroundColor: 'white',
-          titleColor: '#333',
-          bodyColor: '#666',
-          borderColor: '#ddd',
+          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          titleColor: '#1a202c',
+          bodyColor: '#4a5568',
+          borderColor: '#e2e8f0',
           borderWidth: 1,
-          padding: 10,
+          padding: { x: 12, y: 8 },
+          cornerRadius: 8,
           displayColors: true,
+          titleFont: {
+            size: 13,
+            weight: '600',
+            family: "'Noto Sans KR', sans-serif"
+          },
+          bodyFont: {
+            size: 12,
+            family: "'Noto Sans KR', sans-serif"
+          },
           callbacks: {
             label: (context) => {
               return `${context.dataset.label}: ${formatNumber(context.raw)}원`;
@@ -159,16 +187,40 @@ const createChart = async () => {
             usePointStyle: true,
             padding: 20,
             font: {
+              size: 13,
               family: "'Noto Sans KR', sans-serif"
-            }
+            },
+            color: '#4a5568'
           }
         }
       },
       scales: {
         y: {
           beginAtZero: true,
+          grid: {
+            color: '#f7fafc',
+            drawBorder: false
+          },
           ticks: {
+            padding: 8,
+            color: '#718096',
+            font: {
+              size: 11,
+              family: "'Noto Sans KR', sans-serif"
+            },
             callback: (value) => formatNumber(value) + '원'
+          }
+        },
+        x: {
+          grid: {
+            display: false
+          },
+          ticks: {
+            color: '#718096',
+            font: {
+              size: 11,
+              family: "'Noto Sans KR', sans-serif"
+            }
           }
         }
       },
@@ -247,41 +299,43 @@ onMounted(() => {
 .chart-wrapper {
   width: fit-content;
   background: white;
-  border-radius: 12px;
-  padding: 20px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
 .filter-group {
-  margin-bottom: 16px;
+  margin-bottom: 20px;
   text-align: right;
 }
 
 .year-select {
   padding: 8px 16px;
   border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 14px;
   color: #4a5568;
   background-color: white;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.2s ease;
 }
 
 .year-select:hover {
-  border-color: #cbd5e0;
+  border-color: #a0aec0;
+  background-color: #f7fafc;
 }
 
 .year-select:focus {
   outline: none;
-  border-color: #4299e1;
-  box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.1);
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.15);
 }
 
 .chart-container {
   position: relative;
   width: 400px;
-  height: 300px;
+  height: 280px;
+  margin: 0 auto;
 }
 
 .loading-overlay {
@@ -290,20 +344,21 @@ onMounted(() => {
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.9);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1;
+  border-radius: 12px;
 }
 
 .loading-spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid #f3f3f3;
-  border-top: 3px solid #3498db;
+  width: 36px;
+  height: 36px;
+  border: 3px solid #edf2f7;
+  border-top: 3px solid #4a90e2;
   border-radius: 50%;
-  animation: spin 1s linear infinite;
+  animation: spin 0.8s linear infinite;
 }
 
 .error-message {
@@ -314,24 +369,25 @@ onMounted(() => {
   color: #e53e3e;
   text-align: center;
   font-size: 14px;
-  background: rgba(255, 255, 255, 0.9);
-  padding: 8px 16px;
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.95);
+  padding: 12px 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 @keyframes spin {
-  0% {
-    transform: rotate(0deg);
-  }
-  100% {
-    transform: rotate(360deg);
-  }
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
 @media (max-width: 768px) {
   .chart-container {
     width: 300px;
-    height: 250px;
+    height: 240px;
+  }
+
+  .chart-wrapper {
+    padding: 16px;
   }
 }
 </style>
