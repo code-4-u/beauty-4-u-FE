@@ -14,8 +14,85 @@ const props = defineProps({
 
 const emit = defineEmits(["update:modelValue"]);
 
-// Image 익스텐션 설정 강화
-const CustomImage = Image.configure({
+// Image 익스텐션 수정
+const CustomImage = Image.extend({
+  addAttributes() {
+    return {
+      ...Image.options.addAttributes?.() || {},
+      src: {
+        default: null,
+      },
+      alt: {
+        default: null,
+      },
+      title: {
+        default: null,
+      },
+      width: {
+        default: '150',
+        renderHTML: attributes => ({
+          width: attributes.width,
+        }),
+      },
+      height: {
+        default: 'auto',
+        renderHTML: attributes => ({
+          height: attributes.height,
+        }),
+      },
+    }
+  },
+  addNodeView() {
+    return ({ node, HTMLAttributes, getPos, editor }) => {
+      const container = document.createElement('div');
+      container.classList.add('image-resizable-container');
+
+      const img = document.createElement('img');
+      Object.entries(HTMLAttributes).forEach(([key, value]) => {
+        img.setAttribute(key, value);
+      });
+
+      // 크기 조절 핸들 추가
+      const resizeHandle = document.createElement('div');
+      resizeHandle.classList.add('resize-handle');
+
+      let startX, startWidth;
+
+      resizeHandle.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        startX = e.clientX;
+        startWidth = img.offsetWidth;
+
+        const onMouseMove = (e) => {
+          const dx = e.clientX - startX;
+          const newWidth = startWidth + dx;
+          if (newWidth > 50) { // 최소 크기 제한
+            img.style.width = `${newWidth}px`;
+          }
+        };
+
+        const onMouseUp = () => {
+          document.removeEventListener('mousemove', onMouseMove);
+          document.removeEventListener('mouseup', onMouseUp);
+
+          // 새 크기를 에디터 상태에 저장
+          if (typeof getPos === 'function') {
+            editor.commands.updateAttributes('image', {
+              width: img.style.width,
+            }, { at: getPos() });
+          }
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
+      });
+
+      container.appendChild(img);
+      container.appendChild(resizeHandle);
+      return { dom: container };
+    };
+  },
+}).configure({
   inline: true,
   allowBase64: true,
   HTMLAttributes: {
@@ -31,8 +108,8 @@ const editor = useEditor({
   },
 });
 
-// 이미지 삽입 함수 개선
-const insertImage = (url) => {
+// 이미지 삽입 함수
+const insertImage = (url, options = {}) => {
   if (!editor.value || !url) return;
 
   editor.value.chain()
@@ -40,15 +117,16 @@ const insertImage = (url) => {
       .setImage({
         src: url,
         alt: 'Uploaded image',
-        title: 'Uploaded image'
+        title: 'Uploaded image',
+        width: '150px',
+        height: 'auto'
       })
       .run();
 
-  // 명시적으로 콘텐츠 업데이트 emit
   emit("update:modelValue", editor.value.getHTML());
 };
 
-// 이미지 제거 함수 개선
+// 이미지 제거 함수
 const removeImage = (url) => {
   if (!editor.value || !url) return;
 
@@ -64,12 +142,11 @@ const removeImage = (url) => {
 
   if (hasChanges) {
     editor.value.view.dispatch(transaction);
-    // 명시적으로 콘텐츠 업데이트 emit
     emit("update:modelValue", editor.value.getHTML());
   }
 };
 
-// URL 교체를 위한 새로운 메소드 추가
+// URL 교체를 위한 새로운 메소드
 const replaceImageUrls = (urlMap) => {
   if (!editor.value) return;
 
@@ -97,7 +174,7 @@ const replaceImageUrls = (urlMap) => {
   }
 };
 
-// watch 로직 개선
+// watch 로직
 watch(() => props.modelValue, (newValue) => {
   if (editor.value && newValue !== editor.value.getHTML()) {
     editor.value.commands.setContent(newValue, false);
@@ -107,7 +184,7 @@ watch(() => props.modelValue, (newValue) => {
 defineExpose({
   insertImage,
   removeImage,
-  replaceImageUrls // 새로운 메소드 노출
+  replaceImageUrls
 });
 
 onBeforeUnmount(() => {
@@ -183,64 +260,40 @@ onBeforeUnmount(() => {
   padding: 0.5rem;
   margin-bottom: 1rem;
 }
-.button-group {
-  display: flex;
-  gap: 4px;
-}
 
-button {
-  background-color: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 10px;
-  margin: 5px;
-  color: #000;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 36px;
-  height: 36px;
+.image-resizable-container {
+  display: inline-block;
   position: relative;
+  margin: 0 4px;
 
-  &:hover {
-    background-color: rgba(0, 0, 0, 0.1);
+  img {
+    display: block;
+    max-width: 100%;
+    height: auto;
   }
 
-  &.is-active {
-    color: #1976d2;
-    background-color: rgba(25, 118, 210, 0.1);
+  .resize-handle {
+    position: absolute;
+    right: -6px;
+    bottom: -6px;
+    width: 12px;
+    height: 12px;
+    background-color: #1976d2;
+    border: 2px solid white;
+    border-radius: 50%;
+    cursor: se-resize;
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+
+    &:hover {
+      transform: scale(1.1);
+    }
   }
 
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+  &:hover .resize-handle {
+    opacity: 1;
   }
-
-  .heading-level {
-    font-size: 0.8em;
-    margin-left: 2px;
-  }
-}
-
-.heading-select {
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background-color: white;
-  font-size: 14px;
-  cursor: pointer;
-  min-width: 120px;
-
-  &:focus {
-    outline: none;
-    border-color: #1976d2;
-    box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
-  }
-}
-
-.editor-content {
-  margin-top: 1rem;
 }
 
 .ProseMirror {
@@ -296,9 +349,11 @@ button {
     }
   }
 
-  img {
+  .editor-image {
+    min-width: 50px;
     max-width: 100%;
     height: auto;
+    vertical-align: middle;
   }
 
   blockquote {
