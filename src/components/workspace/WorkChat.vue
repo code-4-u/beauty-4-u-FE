@@ -332,7 +332,7 @@ const scrollToBottom = async (smooth = false) => {
 // 채팅방 목록 가져오기
 const fetchChatRooms = async () => {
   try {
-    const response = await getFetch("/chat/room");
+    const response = await getFetch("/chat/rooms");
     console.log("채팅방 목록 테스트");
     chatRooms.value = response.data.data;
     console.log(chatRooms);
