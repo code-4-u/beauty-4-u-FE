@@ -18,7 +18,6 @@ const props = defineProps({
 });
 
 const compareData = ref({});
-
 const loading = ref(false);
 const error = ref(null);
 
@@ -31,7 +30,6 @@ const fetchCompareData = async () => {
   error.value = null;
 
   try {
-
     const queryParams = new URLSearchParams({
       year: props.selectedYear,
       month: props.selectedMonth
@@ -73,31 +71,28 @@ const formatCurrency = (value) => {
     <div v-if="loading">데이터를 불러오는 중...</div>
     <div v-else-if="error">{{ error }}</div>
     <div v-else-if="compareData">
-      <div class="comparison-data">
-        <div class="stats-container">
-          <div class="stat-box">
-            <h4>{{ selectedYear }}년 {{ selectedMonth }}월</h4>
-            <div class="amount-display">
-              {{ formatCurrency(compareData.currentYearMonthlySales) }}
-              <i v-if="compareData.currentYearMonthlySales > compareData.lastYearMonthlySales"
-                 class="fas fa-arrow-up trend-arrow up"></i>
-            </div>
+      <div class="comparison-section">
+        <!-- 2021년 데이터 -->
+        <div class="year-box">
+          <h4>{{ selectedYear - 1 }}년 {{ selectedMonth }}월</h4>
+          <div class="amount-display">
+            {{ formatCurrency(compareData.lastYearMonthlySales) }}
           </div>
+        </div>
 
-          <div class="comparison-arrows">
-            <div class="percent-change"
-                 :class="{ 'increase': compareData.percent > 0, 'decrease': compareData.percent < 0 }">
-              {{ compareData.percent }}%
-            </div>
+        <!-- 퍼센트 변화 표시 -->
+        <div class="percent-change-box">
+          <div class="percent-change"
+               :class="{ 'increase': compareData.percent > 0, 'decrease': compareData.percent < 0 }">
+            {{ compareData.percent }}%
           </div>
+        </div>
 
-          <div class="stat-box">
-            <h4>{{ selectedYear - 1 }}년 {{ selectedMonth }}월</h4>
-            <div class="amount-display">
-              {{ formatCurrency(compareData.lastYearMonthlySales) }}
-              <i v-if="compareData.lastYearMonthlySales < compareData.currentYearMonthlySales"
-                 class="fas fa-arrow-down trend-arrow down"></i>
-            </div>
+        <!-- 2022년 데이터 -->
+        <div class="year-box">
+          <h4>{{ selectedYear }}년 {{ selectedMonth }}월</h4>
+          <div class="amount-display">
+            {{ formatCurrency(compareData.currentYearMonthlySales) }}
           </div>
         </div>
       </div>
@@ -109,61 +104,49 @@ const formatCurrency = (value) => {
 </template>
 
 <style scoped>
-.comparison-data {
-  padding: 20px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+.compare-container {
+  width: 100%;
+  max-width: 700px;
+  padding: 16px;
+  box-sizing: border-box;
+  margin: 0 auto;
 }
 
-.stats-container {
+.comparison-section {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
+  width: 100%;
 }
 
-.stat-box {
-  flex: 1;
-  padding: 20px;
+.year-box {
   background-color: #f8f9fa;
+  padding: 12px 14px;
   border-radius: 8px;
+  flex: 1;
   text-align: center;
+  min-width: 130px;
+  max-width: 180px;
 }
 
-.stat-box h4 {
-  margin: 0 0 10px 0;
+.year-box h4 {
+  margin: 0 0 8px 0;
   color: #666;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
 }
 
 .amount-display {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  font-size: 24px;
+  font-size: 16px;
   font-weight: 600;
   color: #333;
 }
 
-.trend-arrow {
-  font-size: 16px;
-}
-
-.trend-arrow.up {
-  color: #dc3545;  /* 빨간색 */
-}
-
-.trend-arrow.down {
-  color: #0d6efd;  /* 파란색 */
-}
-
-.comparison-arrows {
+.percent-change-box {
   display: flex;
-  flex-direction: column;
   align-items: center;
+  padding: 0 12px;
 }
 
 .percent-change {
@@ -171,6 +154,7 @@ const formatCurrency = (value) => {
   font-weight: 600;
   padding: 8px 16px;
   border-radius: 20px;
+  white-space: nowrap;
 }
 
 .increase {
@@ -187,5 +171,20 @@ const formatCurrency = (value) => {
   text-align: center;
   padding: 20px;
   color: #666;
+}
+
+@media (max-width: 768px) {
+  .comparison-section {
+    flex-direction: column;
+  }
+
+  .year-box {
+    width: 100%;
+    max-width: none;
+  }
+
+  .percent-change-box {
+    padding: 10px 0;
+  }
 }
 </style>

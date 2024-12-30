@@ -11,6 +11,12 @@ import {useRouter} from "vue-router";
 const router = useRouter();
 const authStore = useAuthStore();
 
+// 로딩 상태
+const isLoading = ref(false);
+
+// 팀 리더 여부 확인하는 computed 속성 추가
+const isTeamLeader = computed(() => authStore.userRole === 'LEADER');
+
 // 매출 상승, 하락 상품
 const increaseTop5 = ref([]);
 const decreaseTop5 = ref([]);
@@ -22,6 +28,8 @@ const isDecreaseModalOpen = ref(false);
 // 전체 상승/하락 데이터
 const allIncreaseData = ref([]);
 const allDecreaseData = ref([]);
+
+const searchQuery = ref('');
 
 const periods = [
   {type: 'DAILY', label: '일간'},
@@ -42,41 +50,60 @@ const promotionSelectedMonth = ref(new Date().getMonth() + 1);
 
 // 매출 상품 클릭 시 상품 분석 페이지 이동 함수
 const handleGoodsClick = (item) => {
-  console.log('상품코드: ',item.goodsCode)
   router.push(`/goods/analysis?goodsCode=${item.goodsCode}`).catch((err) => {
     console.error("페이지 이동 중 오류: ", err)
   })
 };
 
-// 상품 상승률 모달 열기 함수
+// openIncreaseModal 함수 수정
 const openIncreaseModal = async () => {
+  isIncreaseModalOpen.value = true;  // 모달 먼저 열기
   try {
+    isLoading.value = true;
     const params = new URLSearchParams({
       periodType: selectedPeriod.value,
-      limit: 100  // 또는 원하는 제한 수
+      limit: 100
     });
     const response = await getFetch(`goodsRate/list?${params.toString()}`);
     allIncreaseData.value = response.data.data.increase;
-    isIncreaseModalOpen.value = true;
   } catch (error) {
     console.error("Error fetching increase data:", error);
+  } finally {
+    isLoading.value = false;
   }
 };
 
-// 상품 하락률 모달 열기 함수
+// openDecreaseModal 함수도 동일하게 수정
 const openDecreaseModal = async () => {
+  isDecreaseModalOpen.value = true;
   try {
+    isLoading.value = true;
     const params = new URLSearchParams({
       periodType: selectedPeriod.value,
-      limit: 100  // 또는 원하는 제한 수
+      limit: 100
     });
     const response = await getFetch(`goodsRate/list?${params.toString()}`);
     allDecreaseData.value = response.data.data.decrease;
-    isDecreaseModalOpen.value = true;
   } catch (error) {
     console.error("Error fetching decrease data:", error);
+  } finally {
+    isLoading.value = false;
   }
 };
+
+const filteredIncreaseData = computed(() => {
+  if (!searchQuery.value) return allIncreaseData.value;
+  return allIncreaseData.value.filter(item =>
+      item.goodsName.toLowerCase().includes(searchQuery.value.toLowerCase())
+  );
+});
+
+const filteredDecreaseData = computed(() => {
+  if (!searchQuery.value) return allDecreaseData.value;
+  return allDecreaseData.value.filter(item =>
+      item.goodsName.toLowerCase().includes(searchQuery.value.toLowerCase())
+  );
+});
 
 const closeIncreaseModal = () => {
   isIncreaseModalOpen.value = false;
@@ -95,23 +122,24 @@ const visibleDecreaseData = computed(() => {
   return decreaseTop5.value.slice(0, 5);
 });
 
-
 // 기간 변경 함수
 const changePeriod = async (periodType) => {
   selectedPeriod.value = periodType;
+  isLoading.value = true;
+
   try {
     const params = new URLSearchParams({
       periodType: periodType,
       limit: 5
     });
     const response = await getFetch(`goodsRate/list?${params.toString()}`);
-
     const {increase, decrease} = response.data.data;
-
     increaseTop5.value = increase;
     decreaseTop5.value = decrease;
   } catch (error) {
     console.error("Error 매출 상승,하락률: ", error);
+  } finally {
+    isLoading.value = false;
   }
 };
 
@@ -227,6 +255,10 @@ const closeModal = () => {
 
 // Event handlers
 const handleDateClick = (info) => {
+  if (!isTeamLeader.value) {
+    alert('팀 일정은 팀장만 등록할 수 있습니다.');
+    return;
+  }
   eventForm.startDate = info.dateStr;
   eventForm.endDate = info.dateStr;
   isModalOpen.value = true;
@@ -237,6 +269,11 @@ const handleEventClick = (info) => {
   if (!event) return;
 
   if (event.type === 'PROMOTION') return;
+
+  if (!isTeamLeader.value) {
+    alert('팀 일정은 팀장만 수정할 수 있습니다.');
+    return;
+  }
 
   const startDateTime = new Date(event.start);
   const endDateTime = new Date(event.end);
@@ -257,6 +294,12 @@ const handleEventClick = (info) => {
 };
 
 const handleEventDrop = async (info) => {
+  if (!isTeamLeader.value) {
+    alert('팀 일정은 팀장만 수정할 수 있습니다.');
+    info.revert();
+    return;
+  }
+
   const event = events.value.find(e => e.id === Number(info.event.id));
   if (!event) return;
 
@@ -273,6 +316,7 @@ const handleEventDrop = async (info) => {
   } catch (error) {
     console.error('일정 업데이트 실패:', error);
     alert('일정 변경에 실패했습니다.');
+    info.revert();
   }
 };
 
@@ -377,8 +421,8 @@ const fetchSchedules = async () => {
       start: schedule.scheduleStart,
       end: schedule.scheduleEnd,
       color: schedule.scheduleType === 'TEAMSPACE' ?
-          ['#2196F3', '#1976D2', '#1565C0', '#0D47A1', '#82B1FF'][Math.floor(Math.random() * 5)] : // 파란색 계열
-          ['#F44336', '#E53935', '#D32F2F', '#C62828', '#FF8A80'][Math.floor(Math.random() * 5)], // 빨간색 계열
+          ['#2196F3', '#1976D2', '#1565C0', '#0D47A1', '#82B1FF'][Math.floor(Math.random() * 5)] :
+          ['#F44336', '#E53935', '#D32F2F', '#C62828', '#FF8A80'][Math.floor(Math.random() * 5)],
       type: schedule.scheduleType,
       scheduleUrl: schedule.scheduleUrl
     }));
@@ -414,7 +458,7 @@ const calendarOptions = reactive({
     }
   },
   events: filteredEvents,
-  editable: true,
+  editable: isTeamLeader.value,
   selectable: true,
   selectMirror: true,
   dayMaxEvents: true,
@@ -441,7 +485,7 @@ const calendarOptions = reactive({
       'calendar-event',
       arg.event.extendedProps.type === 'TEAMSPACE' ? 'team-event' : 'promotion-event'
     ];
-  }
+  },
 });
 
 onMounted(() => {
@@ -453,7 +497,7 @@ onMounted(() => {
 <template>
   <div class="page-container">
     <div class="main-content">
-      <!-- 상단 통계 카드 -->
+      <!-- 기간 선택 탭 -->
       <div class="period-tabs">
         <button
             v-for="period in periods"
@@ -465,38 +509,59 @@ onMounted(() => {
         </button>
       </div>
 
+      <!-- 매출 통계 -->
       <div class="stats-row">
+        <!-- 매출 상승 -->
         <div class="stats-card">
           <div class="card-header">
-          <h3 class="card-title">매출 상승 TOP 5</h3>
-          <button class="more-button" @click="openIncreaseModal">더보기</button>
+            <h3 class="card-title">매출 상승 TOP 5</h3>
+            <button class="more-button" @click="openIncreaseModal">더보기</button>
           </div>
           <div class="stats-content">
-            <div v-for="(item, index) in visibleIncreaseData" :key="index" class="stats-item">
-              <span class="stats-label">{{ index + 1 }}.
-                <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
-                {{ item.goodsName }} ({{ item.brandName }})
-                </a>
-              </span>
-              <span class="stats-value increase">{{ item.rateChange }}</span>
+            <div v-if="isLoading" class="loading-state">
+              <div class="loading-spinner"></div>
+              <p>데이터를 불러오는 중입니다...</p>
             </div>
+            <template v-else>
+              <div v-for="(item, index) in visibleIncreaseData" :key="index" class="stats-item">
+               <span class="stats-label">{{ index + 1 }}.
+                 <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
+                   {{ item.goodsName }} ({{ item.brandName }})
+                 </a>
+               </span>
+                <span class="stats-value increase">{{ item.rateChange }}</span>
+              </div>
+              <div v-if="!visibleIncreaseData.length && !isLoading" class="no-data">
+                표시할 데이터가 없습니다.
+              </div>
+            </template>
           </div>
         </div>
 
+        <!-- 매출 하락 -->
         <div class="stats-card">
           <div class="card-header">
-          <h3 class="card-title">매출 하락 TOP 5</h3>
-          <button class="more-button" @click="openDecreaseModal">더보기</button>
+            <h3 class="card-title">매출 하락 TOP 5</h3>
+            <button class="more-button" @click="openDecreaseModal">더보기</button>
           </div>
           <div class="stats-content">
-            <div v-for="(item, index) in visibleDecreaseData" :key="index" class="stats-item">
-              <span class="stats-label">{{ index + 1 }}.
-                <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
-                {{ item.goodsName }} ({{ item.brandName }})
-              </a>
-              </span>
-              <span class="stats-value decrease">{{ item.rateChange }}</span>
+            <div v-if="isLoading" class="loading-state">
+              <div class="loading-spinner"></div>
+              <p>데이터를 불러오는 중입니다...</p>
             </div>
+            <template v-else>
+              <div v-for="(item, index) in visibleDecreaseData" :key="index" class="stats-item">
+               <span class="stats-label">{{ index + 1 }}.
+                 <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
+                   {{ item.goodsName }} ({{ item.brandName }})
+                 </a>
+               </span>
+                <span class="stats-value decrease">{{ item.rateChange }}</span>
+              </div>
+              <div v-if="!visibleDecreaseData.length && !isLoading" class="no-data">
+                표시할 데이터가 없습니다.
+              </div>
+            </template>
           </div>
         </div>
       </div>
@@ -505,7 +570,12 @@ onMounted(() => {
       <div class="content-row">
         <div class="calendar-card">
           <div class="card-header">
-            <h3 class="card-title">일정 캘린더</h3>
+            <div class="title-section">
+              <h3 class="card-title">일정 캘린더</h3>
+              <span v-if="!isTeamLeader" class="leader-notice">
+               (팀 일정은 팀장만 등록/수정 가능)
+             </span>
+            </div>
             <div class="filter-group">
               <label class="filter-label">
                 <input type="checkbox" v-model="selectedTypes.promotion">
@@ -522,21 +592,16 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- 이벤트 리스트 섹션 -->
+        <!-- 이벤트 리스트 -->
         <div class="events-column">
-          <!-- 프로모션 카드 -->
+          <!-- 프로모션 일정 -->
           <div class="event-card">
             <div class="card-header">
               <h3 class="card-title">프로모션</h3>
-              <!-- 프로모션 카드의 연도/월 선택 -->
               <div class="date-select">
                 <select v-model="promotionSelectedYear" class="year-select">
-                  <option v-for="year in [
-      2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
-      2019, 2020, 2021, 2022, 2023, 2024, 2025
-    ]"
-                          :key="year"
-                          :value="year">
+                  <option v-for="year in [2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
+                   2019, 2020, 2021, 2022, 2023, 2024, 2025]" :key="year" :value="year">
                     {{ year }}년
                   </option>
                 </select>
@@ -564,19 +629,19 @@ onMounted(() => {
             </div>
           </div>
 
-          <!-- 팀 일정 카드 -->
+          <!-- 팀 일정 -->
           <div class="event-card">
             <div class="card-header">
-              <h3 class="card-title">팀 일정</h3>
-              <!-- 팀 일정 카드의 연도/월 선택 -->
+              <div class="title-section">
+                <h3 class="card-title">팀 일정</h3>
+                <span v-if="!isTeamLeader" class="leader-notice">
+                 (팀장만 등록/수정 가능)
+               </span>
+              </div>
               <div class="date-select">
                 <select v-model="teamSelectedYear" class="year-select">
-                  <option v-for="year in [
-      2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
-      2019, 2020, 2021, 2022, 2023, 2024, 2025
-    ]"
-                          :key="year"
-                          :value="year">
+                  <option v-for="year in [2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018,
+                   2019, 2020, 2021, 2022, 2023, 2024, 2025]" :key="year" :value="year">
                     {{ year }}년
                   </option>
                 </select>
@@ -588,7 +653,10 @@ onMounted(() => {
               </div>
             </div>
             <div class="event-list">
-              <div v-for="event in filteredTeamEvents" :key="event.id" class="event-item">
+              <div v-for="event in filteredTeamEvents"
+                   :key="event.id"
+                   class="event-item"
+                   :class="{ 'editable': isTeamLeader }">
                 <div class="event-content">
                   <h4 class="event-item-title">{{ event.title }}</h4>
                   <p class="event-date">{{ formatDate(new Date(event.start)) }}</p>
@@ -605,8 +673,8 @@ onMounted(() => {
     </div>
   </div>
 
-  <!-- 모달 -->
-  <div v-if="isModalOpen" class="modal-overlay" @click="closeModal">
+  <!-- 일정 모달 -->
+  <div v-if="isModalOpen && isTeamLeader" class="modal-overlay" @click="closeModal">
     <div class="modal-content" @click.stop>
       <div class="modal-header">
         <h3 class="modal-title">{{ eventForm.id ? '일정 수정' : '새 일정 추가' }}</h3>
@@ -640,9 +708,7 @@ onMounted(() => {
         <button class="btn btn-primary" @click="handleSubmit">
           {{ eventForm.id ? '수정' : '저장' }}
         </button>
-        <button v-if="eventForm.id" class="btn btn-danger" @click="handleDelete">
-          삭제
-        </button>
+        <button v-if="eventForm.id" class="btn btn-danger" @click="handleDelete">삭제</button>
         <button class="btn btn-secondary" @click="closeModal">취소</button>
       </div>
     </div>
@@ -655,29 +721,44 @@ onMounted(() => {
         <h3 class="modal-title">매출 상승률 전체 보기</h3>
         <button class="close-button" @click="closeIncreaseModal">✕</button>
       </div>
+      <div class="search-box">
+        <input
+            type="text"
+            v-model="searchQuery"
+            placeholder="제품명으로 검색..."
+            class="search-input"
+        >
+      </div>
       <div class="table-container">
-        <table>
-          <thead>
-          <tr>
-            <th>순위</th>
-            <th>상품명</th>
-            <th>브랜드</th>
-            <th>변동률</th>
-          </tr>
-          </thead>
-          <tbody>
-          <tr v-for="(item, index) in allIncreaseData" :key="index">
-            <td>{{ index + 1 }}</td>
-            <td>
-              <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
-                {{ item.goodsName }}
-              </a>
-            </td>
-            <td>{{ item.brandName }}</td>
-            <td class="increase">{{ item.rateChange }}</td>
-          </tr>
-          </tbody>
-        </table>
+        <div v-if="isLoading" class="loading-state">
+          <div class="loading-spinner"></div>
+          <p>데이터를 불러오는 중입니다...</p>
+        </div>
+        <template v-else>
+          <table v-if="filteredIncreaseData.length">
+            <thead>
+            <tr>
+              <th>순위</th>
+              <th>상품명</th>
+              <th>브랜드</th>
+              <th>변동률</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="(item, index) in filteredIncreaseData" :key="index">
+              <td>{{ index + 1 }}</td>
+              <td>
+                <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
+                  {{ item.goodsName }}
+                </a>
+              </td>
+              <td>{{ item.brandName }}</td>
+              <td class="increase">{{ item.rateChange }}</td>
+            </tr>
+            </tbody>
+          </table>
+          <div v-else class="no-data">검색 결과가 없습니다.</div>
+        </template>
       </div>
       <div class="modal-actions">
         <button class="btn btn-secondary" @click="closeIncreaseModal">닫기</button>
@@ -692,29 +773,44 @@ onMounted(() => {
         <h3 class="modal-title">매출 하락률 전체 보기</h3>
         <button class="close-button" @click="closeDecreaseModal">✕</button>
       </div>
+      <div class="search-box">
+        <input
+            type="text"
+            v-model="searchQuery"
+            placeholder="제품명으로 검색..."
+            class="search-input"
+        >
+      </div>
       <div class="table-container">
-        <table>
-          <thead>
-          <tr>
-            <th>순위</th>
-            <th>상품명</th>
-            <th>브랜드</th>
-            <th>변동률</th>
-          </tr>
-          </thead>
-          <tbody>
-          <tr v-for="(item, index) in allDecreaseData" :key="index">
-            <td>{{ index + 1 }}</td>
-            <td>
-              <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
-                {{ item.goodsName }}
-              </a>
-            </td>
-            <td>{{ item.brandName }}</td>
-            <td class="decrease">{{ item.rateChange }}</td>
-          </tr>
-          </tbody>
-        </table>
+        <div v-if="isLoading" class="loading-state">
+          <div class="loading-spinner"></div>
+          <p>데이터를 불러오는 중입니다...</p>
+        </div>
+        <template v-else>
+          <table v-if="filteredDecreaseData.length">
+            <thead>
+            <tr>
+              <th>순위</th>
+              <th>상품명</th>
+              <th>브랜드</th>
+              <th>변동률</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr v-for="(item, index) in filteredDecreaseData" :key="index">
+              <td>{{ index + 1 }}</td>
+              <td>
+                <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
+                  {{ item.goodsName }}
+                </a>
+              </td>
+              <td>{{ item.brandName }}</td>
+              <td class="decrease">{{ item.rateChange }}</td>
+            </tr>
+            </tbody>
+          </table>
+          <div v-else class="no-data">검색 결과가 없습니다.</div>
+        </template>
       </div>
       <div class="modal-actions">
         <button class="btn btn-secondary" @click="closeDecreaseModal">닫기</button>
@@ -732,19 +828,19 @@ onMounted(() => {
 }
 
 .goods-link:hover {
-  color: #2563eb;  /* hover 시 파란색으로 변경 */
-  text-decoration: none;  /* 밑줄 제거 유지 */
+  color: #2563eb; /* hover 시 파란색으로 변경 */
+  text-decoration: none; /* 밑줄 제거 유지 */
 }
 
 .table-container .goods-link {
-  color: #374151;  /* 기본 색상을 어두운 회색으로 */
+  color: #374151; /* 기본 색상을 어두운 회색으로 */
   text-decoration: none;
   transition: color 0.2s;
 }
 
 .table-container .goods-link:hover {
-  color: #2563eb;  /* hover 시 파란색으로 변경 */
-  text-decoration: none;  /* 밑줄 제거 유지 */
+  color: #2563eb; /* hover 시 파란색으로 변경 */
+  text-decoration: none; /* 밑줄 제거 유지 */
 }
 
 /* 모달 헤더 스타일 */
@@ -1014,18 +1110,43 @@ onMounted(() => {
   color: white;
 }
 
-/* 매출 모달 스타일 */
 .sales-modal {
-  max-width: 600px !important;
+  max-width: 800px !important;
+  width: 800px !important;
+  height: 600px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
 }
 
-/* 매출 모달 테이블 스타일 */
 .table-container {
+  height: 350px !important;
+  overflow-y: auto !important;
+  margin-bottom: 1rem !important;
+  flex: 1 !important;
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
-  overflow: hidden;
-  max-height: 70vh;
-  overflow-y: auto;
+}
+
+/* 테이블 헤더 width 비율 조정 */
+.table-container th:nth-child(1),
+.table-container td:nth-child(1) {
+  width: 10%;
+}
+
+.table-container th:nth-child(2),
+.table-container td:nth-child(2) {
+  width: 45%;
+}
+
+.table-container th:nth-child(3),
+.table-container td:nth-child(3) {
+  width: 25%;
+}
+
+.table-container th:nth-child(4),
+.table-container td:nth-child(4) {
+  width: 20%;
 }
 
 .table-container table {
@@ -1036,10 +1157,10 @@ onMounted(() => {
 
 .table-container th {
   background-color: #f8fafc;
-  padding: 0.5rem 0.75rem;  /* 패딩 더 축소 */
+  padding: 0.5rem 0.75rem; /* 패딩 더 축소 */
   text-align: left;
   font-weight: 600;
-  font-size: 0.875rem;  /* 글자 크기 더 축소 */
+  font-size: 0.875rem; /* 글자 크기 더 축소 */
   color: #374151;
   border-bottom: 1px solid #e5e7eb;
   position: sticky;
@@ -1048,10 +1169,10 @@ onMounted(() => {
 }
 
 .table-container td {
-  padding: 0.5rem 0.75rem;  /* 패딩 감소 */
+  padding: 0.5rem 0.75rem; /* 패딩 감소 */
   border-bottom: 1px solid #e5e7eb;
   font-size: 0.8rem;
-  line-height: 1.25;  /* 줄 간격 감소 */
+  line-height: 1.25; /* 줄 간격 감소 */
 }
 
 /* 열 너비 조정 */
@@ -1066,7 +1187,7 @@ onMounted(() => {
 .table-container th:nth-child(2),
 .table-container td:nth-child(2) {
   width: 40%;
-  padding-right: 0.25rem;  /* 패딩 감소 */
+  padding-right: 0.25rem; /* 패딩 감소 */
 }
 
 .table-container th:nth-child(3),
@@ -1329,5 +1450,93 @@ onMounted(() => {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+.title-section {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.leader-notice {
+  font-size: 0.8rem;
+  color: #6b7280;
+  font-style: italic;
+}
+
+.event-item.editable {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.event-item.editable:hover {
+  background: #f3f4f6;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* 로딩 상태 스타일 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  color: #6b7280;
+}
+
+.loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spinner 0.8s linear infinite;
+  margin-bottom: 1rem;
+}
+
+.no-data {
+  text-align: center;
+  padding: 1rem;
+  color: #6b7280;
+  font-style: italic;
+  background: #f8fafc;
+  border-radius: 0.5rem;
+}
+
+@keyframes spinner {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 모달 내 로딩 상태 스타일 조정 */
+.table-container .loading-state {
+  min-height: 200px;
+}
+
+/* 통계 카드 내 로딩 상태 스타일 조정 */
+.stats-content .loading-state {
+  min-height: 150px;
+}
+
+.search-box {
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
 }
 </style>
