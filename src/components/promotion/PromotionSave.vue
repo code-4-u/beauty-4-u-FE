@@ -21,6 +21,8 @@ const promotionTypes = ref([])
 const searchTerm = ref('')
 const suggestions = ref([])
 const selectedBrand = ref(null)
+const totalItems = ref(0)
+const totalPages = ref(0)
 
 // 상품 검색 관련 상태
 const searchFilters = reactive({
@@ -67,7 +69,7 @@ const handleSearchInput = async () => {
   if (!searchTerm.value) {
     suggestions.value = []
     return
-  }a
+  }
   try {
     const response = await getFetch(`/goods/search/${searchTerm.value}`)
     suggestions.value = response.data.data
@@ -91,10 +93,14 @@ const search = async () => {
     })
 
     const response = await getFetch(`/goods/search?${queryParams.toString()}`)
+    console.log('response: ', response.data.data);
     if (response?.data?.data) {
-      products.value = response.data.data
+      products.value = response.data.data.goodsList
+      totalItems.value = response.data.data.totalCount
     } else {
       products.value = []
+      totalItems.value = 0
+      totalPages.value = 0
     }
   } catch (e) {
     error.value = '상품 검색 중 오류가 발생했습니다.'
@@ -117,18 +123,26 @@ const selectSuggestion = (item) => {
   search()
 }
 
+// 페이지 변경 핸들러
+const handlePageChange = (newPage) => {
+  searchFilters.page = newPage
+  search()
+}
+
 // 검색 초기화
 const resetSearch = () => {
   Object.assign(searchFilters, {
     goodsName: '',
     brandCode: '',
     page: 1,
-    count: 8,
+    count: 12,
     sort: '',
     order: 'desc'
   })
   products.value = []
-  error.value = null 
+  error.value = null
+  totalItems.value = 0
+  totalPages.value = 0
 }
 
 // 정렬 처리
@@ -178,7 +192,6 @@ const getSelectedProductDiscountRate = (productId) => {
 
 // 폼 제출 처리
 const handleSubmit = async () => {
-  // 필수값 검증
   if (!promotionData.value.promotionTitle) {
     alert('프로모션명을 입력해주세요.')
     return
@@ -203,7 +216,6 @@ const handleSubmit = async () => {
   let promotionId = null
 
   try {
-
     // 1. 프로모션 기본 정보 등록
     const promotionReqData = {
       promotionTypeId: Number(promotionData.value.promotionTypeId),
@@ -214,13 +226,10 @@ const handleSubmit = async () => {
       promotionStatus: promotionData.value.promotionStatus
     }
 
-    // 프로모션 등록 API 호출
     const promotionResponse = await postFetch('/promotion', promotionReqData)
 
     if (promotionResponse.status === 200 || promotionResponse.status === 201) {
-      // 2. 프로모션 상품 등록
-
-      promotionId = promotionResponse.data.data  // 응답에서 받은 프로모션 ID
+      promotionId = promotionResponse.data.data
 
       const promotionGoodsData = {
         promotionId: promotionId,
@@ -241,9 +250,8 @@ const handleSubmit = async () => {
         }
       }
 
-      await postFetch('/schedule', createScheduleReqData);
+      await postFetch('/schedule', createScheduleReqData)
 
-      // 프로모션 상품 등록 API 호출
       const goodsResponse = await postFetch(`/promotionGoods`, promotionGoodsData)
 
       if (goodsResponse.status === 200 || goodsResponse.status === 201) {
@@ -434,6 +442,34 @@ onMounted(async () => {
                   </template>
                 </div>
 
+                <!-- 페이지네이션 -->
+                <div v-if="totalPages > 0" class="pagination">
+                  <button
+                      :disabled="searchFilters.page === 1"
+                      @click="handlePageChange(searchFilters.page - 1)"
+                      class="pagination-button"
+                  >
+                    이전
+                  </button>
+                  <div class="page-numbers">
+                    <button
+                        v-for="pageNum in totalPages"
+                        :key="pageNum"
+                        @click="handlePageChange(pageNum)"
+                        :class="['page-number', { active: pageNum === searchFilters.page }]"
+                    >
+                      {{ pageNum }}
+                    </button>
+                  </div>
+                  <button
+                      :disabled="searchFilters.page === totalPages"
+                      @click="handlePageChange(searchFilters.page + 1)"
+                      class="pagination-button"
+                  >
+                    다음
+                  </button>
+                </div>
+
                 <!-- 선택된 상품 요약 -->
                 <div class="selected-products-summary">
                   <div class="summary-header">
@@ -451,8 +487,8 @@ onMounted(async () => {
                           <span class="original-price">{{ product.goodsPrice.toLocaleString() }}원</span>
                           <span class="arrow">→</span>
                           <span class="discounted-price">
-                {{ calculateDiscountedPrice(product.goodsPrice, product.discountRate).toLocaleString() }}원
-            </span>
+                            {{ calculateDiscountedPrice(product.goodsPrice, product.discountRate).toLocaleString() }}원
+                          </span>
                         </div>
                       </div>
                       <div class="selected-product-actions">
@@ -521,7 +557,6 @@ onMounted(async () => {
   margin: 0 auto;
 }
 
-/* 좌우 분할 레이아웃 */
 .split-layout {
   display: flex;
   gap: 2rem;
@@ -555,7 +590,6 @@ onMounted(async () => {
   flex-direction: column;
 }
 
-/* 폼 요소 스타일 */
 .form-group {
   margin-bottom: 1.5rem;
   width: 100%;
@@ -591,12 +625,6 @@ onMounted(async () => {
   font-family: inherit;
 }
 
-.content-textarea:focus {
-  outline: none;
-  border-color: #4CAF50;
-  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
-}
-
 .date-inputs {
   display: flex;
   gap: 1rem;
@@ -608,14 +636,6 @@ onMounted(async () => {
   flex: 1;
 }
 
-/* 상품 검색 영역 스타일 */
-.product-filters {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-
-/* 검색 필터 영역 스타일 */
 .filter-section {
   background-color: #f9fafb;
   padding: 1.5rem;
@@ -628,22 +648,6 @@ onMounted(async () => {
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
   margin-bottom: 1rem;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.form-group label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #374151;
-}
-
-.search-input-wrapper {
-  position: relative;
 }
 
 .button-group {
@@ -681,32 +685,6 @@ onMounted(async () => {
   background-color: #6b7280;
 }
 
-/* 드롭다운 스타일 수정 */
-.suggestions-dropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  width: 100%;
-  max-height: 200px;
-  overflow-y: auto;
-  background-color: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.375rem;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-  z-index: 1000;
-  margin-top: 0.25rem;
-}
-
-.suggestion-item {
-  padding: 0.75rem 1rem;
-  cursor: pointer;
-}
-
-.suggestion-item:hover {
-  background-color: #f3f4f6;
-}
-
-/* 상품 목록 영역 */
 .products-section {
   display: flex;
   flex-direction: column;
@@ -719,11 +697,9 @@ onMounted(async () => {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 1rem;
-  overflow-y: auto;
   padding: 0.5rem;
   background: #f9fafb;
   border-radius: 4px;
-  max-height: 400px;
 }
 
 .product-item {
@@ -747,34 +723,71 @@ onMounted(async () => {
   border-color: #4CAF50;
 }
 
-.product-info {
-  flex: 1;
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding: 1rem;
+  background-color: white;
+  border-radius: 0.5rem;
 }
 
-.product-name {
-  font-weight: 500;
-  margin-bottom: 0.25rem;
-}
-
-.product-category {
-  color: #6b7280;
-  font-size: 0.875rem;
-  margin-bottom: 0.25rem;
-}
-
-.product-price {
+.pagination-button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #e5e7eb;
+  background-color: white;
   color: #374151;
-  font-weight: 500;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
 }
 
-/* 선택된 상품 영역 */
+.pagination-button:hover:not(:disabled) {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.pagination-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-numbers {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.page-number {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #e5e7eb;
+  background-color: white;
+  color: #374151;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.page-number:hover {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.page-number.active {
+  background-color: #4CAF50;
+  color: white;
+  border-color: #4CAF50;
+}
+
 .selected-products-summary {
   background-color: #f9fafb;
   border-radius: 6px;
   padding: 1rem;
   margin-top: auto;
   min-height: 200px;
-  max-height: 200px;
   display: flex;
   flex-direction: column;
 }
@@ -837,32 +850,6 @@ onMounted(async () => {
   font-weight: 500;
 }
 
-.discount-input-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  min-width: 80px;
-}
-
-.discount-input {
-  width: 60px;
-  padding: 4px 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  text-align: right;
-}
-
-.discount-symbol {
-  color: #6b7280;
-}
-
-.discount-info {
-  font-size: 0.75rem;
-  color: #4CAF50;
-  margin-top: 0.25rem;
-}
-
-/* 버튼 스타일 */
 .form-footer {
   display: flex;
   justify-content: flex-end;
@@ -900,56 +887,31 @@ onMounted(async () => {
   background-color: #45a049;
 }
 
-.selected-product-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
+@media (max-width: 768px) {
+  .page-container {
+    padding: 16px;
+  }
+
+  .split-layout {
+    flex-direction: column;
+  }
+
+  .left-section {
+    border-right: none;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .form-content {
+    padding: 16px;
+  }
+
+  .search-bar {
+    grid-template-columns: 1fr;
+  }
 }
 
-.remove-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border: none;
-  background-color: #fee2e2;
-  color: #ef4444;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1.2rem;
-  line-height: 1;
-  padding: 0;
-  transition: all 0.2s;
-}
-
-.remove-button:hover {
-  background-color: #fecaca;
-  color: #dc2626;
-}
-
-.clear-button {
-  position: absolute;
-  right: 8px;
-  top: 50%;
-  transform: translateY(-50%);
-  border: none;
-  background: none;
-  cursor: pointer;
-  color: #666;
-  padding: 4px;
-  font-size: 1.2rem;
-}
-
+.loading-indicator,
 .empty-state {
-  grid-column: 1 / -1;
-  text-align: center;
-  padding: 2rem;
-  color: #6b7280;
-}
-
-/* 로딩 인디케이터 */
-.loading-indicator {
   grid-column: 1 / -1;
   text-align: center;
   padding: 2rem;
@@ -958,27 +920,23 @@ onMounted(async () => {
 
 /* 스크롤바 스타일링 */
 .products-grid::-webkit-scrollbar,
-.selected-products-list::-webkit-scrollbar,
-.suggestions-dropdown::-webkit-scrollbar {
+.selected-products-list::-webkit-scrollbar {
   width: 4px;
 }
 
 .products-grid::-webkit-scrollbar-track,
-.selected-products-list::-webkit-scrollbar-track,
-.suggestions-dropdown::-webkit-scrollbar-track {
+.selected-products-list::-webkit-scrollbar-track {
   background: #f1f1f1;
 }
 
 .products-grid::-webkit-scrollbar-thumb,
-.selected-products-list::-webkit-scrollbar-thumb,
-.suggestions-dropdown::-webkit-scrollbar-thumb {
+.selected-products-list::-webkit-scrollbar-thumb {
   background: #ddd;
   border-radius: 2px;
 }
 
 .products-grid::-webkit-scrollbar-thumb:hover,
-.selected-products-list::-webkit-scrollbar-thumb:hover,
-.suggestions-dropdown::-webkit-scrollbar-thumb:hover {
+.selected-products-list::-webkit-scrollbar-thumb:hover {
   background: #cdcdcd;
 }
 
