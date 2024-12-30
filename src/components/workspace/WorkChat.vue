@@ -155,7 +155,7 @@ const openCreateRoomModal = async() => {
 
 const closeCreateRoomModal = () => {
   isCreateRoomModalOpen.value = false;
-  // newRoomName.value = '';
+  newRoomName.value = '';
   searchedUsers.value = [];
   selectedUsers.value = [];
 };
@@ -188,7 +188,10 @@ const isDisabled = (user) => {
 
 // 새로운 채팅방 생성
 const createNewRoom = async() => {
-  // if (!newRoomName.value.trim()) return;
+  if (!newRoomName.value.trim()) {
+    alert("채팅방 이름을 입력해주세요.");
+    return;
+  }
 
   try {
     console.log(selectedUsers.value);
@@ -197,8 +200,14 @@ const createNewRoom = async() => {
     const userCodes = selectedUsers.value.map(user => user.userId);
     console.log(userCodes);
 
+    // 요청 데이터 구성
+    const requestData = {
+      chatRoomName: newRoomName.value.trim(), // 채팅방 이름
+      invitedUsers: userCodes // 초대된 사용자 ID 리스트
+    };
+
     const response = await postFetch(`/chat/create`,
-        userCodes
+        requestData
     );
 
     // 채팅방 생성시 응답 정보 추가
@@ -474,11 +483,11 @@ const handleKeyPress = (e) => {
 };
 
 // 채팅방 선택
-const selectRoom = async (roomId) => {
+const selectRoom = async (roomId, roomName) => {
 
   if (!roomId) return;
 
-  selectedRoom.value = roomId;
+  selectedRoom.value = roomName;
   chatRoomId.value = roomId;
 
   console.log("Selected room:", selectedRoom.value);
@@ -534,10 +543,10 @@ onMounted(() => {
                 :key="room.chatRoomId"
                 class="room-item"
                 :class="{ 'selected': selectedRoom && selectedRoom === room.chatRoomId }"
-                @click="selectRoom(room.chatRoomId)"
+                @click="selectRoom(room.chatRoomId, room.chatRoomName)"
             >
               <div class="room-info">
-                <div class="room-name">{{ room.chatRoomId }}</div>
+                <div class="room-name">{{ room.chatRoomName }}</div>
 <!--                <div class="last-message">{{ room.lastMessage }}</div>-->
               </div>
 <!--              <div class="room-meta">-->
@@ -553,7 +562,7 @@ onMounted(() => {
         <!-- 채팅 내용 -->
         <div class="chat-content" v-if="selectedRoom">
           <div class="chat-header">
-            <h3>{{ selectedRoom }}</h3>
+              <h3>{{ selectedRoom }}</h3>
             <button class="participants-btn" @click="openParticipantModal">사용자 목록</button>
             <button class="invite-btn" @click="openInviteModal">+ 사용자 추가</button>
           </div>
@@ -722,11 +731,13 @@ onMounted(() => {
           <h3>새 채팅방 추가</h3>
           <button class="close-button" @click="closeCreateRoomModal">✕</button>
         </div>
-<!--        <input-->
-<!--            class="modal-input"-->
-<!--            v-model="newRoomName"-->
-<!--            placeholder="채팅방 이름 입력"-->
-<!--        />-->
+
+        <input
+            class="modal-input"
+            v-model="newRoomName"
+            placeholder="채팅방 이름 입력"
+            type="text"
+        />
 
         <!-- 사용자 목록 -->
         <ul class="user-list">
