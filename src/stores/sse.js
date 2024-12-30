@@ -169,6 +169,10 @@ export const useSSEStore = defineStore('sse', () => {
         notifications.value = notifications.value.filter(noti => noti.notiId !== notiId);
     }
 
+    const markAllAsRead = () => {
+        notifications.value = [];
+    }
+
     const isConnected = computed(() => connectionStatus.value === 'connected')
 
     return {
@@ -178,6 +182,7 @@ export const useSSEStore = defineStore('sse', () => {
         disconnectSSE,
         isConnected,
         loadInitialNotifications,
-        markAsRead
+        markAsRead,
+        markAllAsRead
     }
 })

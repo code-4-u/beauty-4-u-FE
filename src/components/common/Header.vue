@@ -79,6 +79,18 @@ const handleNotiClick = async (noti) => {
   }
 };
 
+const handleReadAllNotis = async () => {
+  try {
+    const notiIds = notis.value.map(noti => noti.notiId);
+    await putFetch('/noti/all', {
+      notiIdList: notiIds
+    });
+    sseStore.markAllAsRead();
+  } catch (error) {
+    console.error('알림 전체 읽음 처리 중 에러가 발생했습니다.', error);
+  }
+};
+
 const toggleNotis = async () => {
   showNotis.value = !showNotis.value;
   if (showNotis.value) {
@@ -169,6 +181,11 @@ onUnmounted(() => {
         <font-awesome-icon :icon="['fas', 'bell']"/>
         <span v-if="notis.length" class="notification-count">{{ notis.length }}</span>
         <div v-if="showNotis" class="notifications-dropdown">
+          <div v-if="notis.length" class="notifications-header">
+            <button class="read-all-btn" @click="handleReadAllNotis">
+              모두 읽음
+            </button>
+          </div>
           <div v-if="notis.length" class="notifications-list">
             <div v-for="noti in notis"
                  :key="noti.notiId"
@@ -426,6 +443,28 @@ onUnmounted(() => {
   width: 300px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   z-index: 1000;
+}
+
+.notifications-header {
+  padding: 8px 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.read-all-btn {
+  padding: 4px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  color: #666;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.read-all-btn:hover {
+  background-color: rgba(46, 125, 50, 0.1);
+  color: var(--menu-green);
+  border-color: var(--menu-green);
 }
 
 .notifications-list {
