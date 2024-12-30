@@ -17,7 +17,18 @@ const authObjectInfo = {
 };
 
 // 날짜 포맷 함수
-const formatDate = (date) => new Date(date).toLocaleString();
+const formatDate = (date) => {
+  return new Date(date).toLocaleString("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false, // 24시간 형식
+    timeZone: "Asia/Seoul", // 한국 시간대
+  });
+};
+
 
 // 날짜 헤더 표시
 const formatDateHeader = (date) => {
@@ -41,7 +52,7 @@ const shouldDisplayDateHeader = (index) => {
 const isCreateRoomModalOpen = ref(false);
 const chatRooms = ref([]); // 채팅방 목록
 const chatRoomId = ref(null);
-const selectedRoom = ref(); // 선택된 채팅방
+const selectedRoomName = ref(); // 선택된 채팅방 이름
 
 const messages = ref([]); // 메시지 목록
 const messageContent = ref(''); // 메세지 내용
@@ -220,6 +231,7 @@ const createNewRoom = async() => {
   }
 
   closeCreateRoomModal();
+  window.location.reload(); // 현재 페이지 새로고침
 };
 
 
@@ -240,7 +252,6 @@ const fetchUsers = async () => {
     users.value = response.data.data.content.map(user => ({
       userId: user.userCode,
       name: user.userName,
-      email: user.userCode,
       department: user.deptName
     }))
     totalItems.value = response.data.data.totalElements
@@ -477,10 +488,10 @@ const selectRoom = async (roomId, roomName) => {
 
   if (!roomId) return;
 
-  selectedRoom.value = roomName;
+  selectedRoomName.value = roomName;
   chatRoomId.value = roomId;
 
-  console.log("Selected room:", selectedRoom.value);
+  console.log("Selected room 이름:", selectedRoomName.value);
   console.log("chatRooms ", chatRooms)
   console.log("Selected Room:", roomId);
 
@@ -532,7 +543,7 @@ onMounted(() => {
                 v-for="room in chatRooms"
                 :key="room.chatRoomId"
                 class="room-item"
-                :class="{ 'selected': selectedRoom && selectedRoom === room.chatRoomId }"
+                :class="{ 'selected': selectedRoomName && selectedRoomName === room.chatRoomName }"
                 @click="selectRoom(room.chatRoomId, room.chatRoomName)"
             >
               <div class="room-info">
@@ -550,9 +561,9 @@ onMounted(() => {
         </div>
 
         <!-- 채팅 내용 -->
-        <div class="chat-content" v-if="selectedRoom">
+        <div class="chat-content" v-if="selectedRoomName">
           <div class="chat-header">
-              <h3>{{ selectedRoom }}</h3>
+              <h3>{{ selectedRoomName }}</h3>
             <button class="participants-btn" @click="openParticipantModal">사용자 목록</button>
             <button class="invite-btn" @click="openInviteModal">+ 사용자 추가</button>
           </div>
@@ -642,7 +653,7 @@ onMounted(() => {
                 :key="participant.userCode"
             >
               {{ participant.userName || "이름 없음" }}
-              ({{ participant.email }})
+              ({{ participant.deptName }}, {{ participant.email }})
             </li>
           </ul>
         </div>
