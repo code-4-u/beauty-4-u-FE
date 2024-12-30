@@ -4,6 +4,7 @@ import { ref, computed, onMounted, onBeforeUnmount, nextTick  } from 'vue';
 import { getFetch, postFetch } from "@/stores/apiClient.js"
 import { useAuthStore } from '@/stores/auth.js';
 import axios from 'axios';
+import ImageManagement from "@/components/board/editor/ImageManagement.vue";
 
 // 유저 정보 관리
 const useAuth = useAuthStore();
@@ -72,15 +73,62 @@ const totalItems = ref(0)
 // 파일 첨부 기능
 
 const attachedFiles = ref([]); // 첨부된 파일 목록
+const uploadStatus = ref('');
+const selectedFiles = ref([]); // 선택된 파일들
+const imageUrls = ref([]);
+const chatEditorRef = ref(null);
+const isSubmitting = ref(false);
 
-const handleFileChange = (event) => {
-  const files = Array.from(event.target.files);
-  attachedFiles.value.push(...files);
+
+const insertImageAtCursor = (imageUrl, options = {}) => {
+  if (!chatEditorRef.value) return;
+
+  try {
+    if (options.removeUrl) {  // 이미지 제거 케이스
+      chatEditorRef.value.removeImage(options.removeUrl);
+    } else if (options.file) {    // 이미지 추가 케이스
+      // ImageManagement에서 이미 생성된 tempUrl 사용
+      chatEditorRef.value.insertImage(imageUrl, {
+        style: `max-width: ${options.width || 400}px; height: ${options.height || 'auto'};`,
+        'data-temp-url': 'true'
+      });
+    }
+  } catch (error) {
+    console.error('이미지 삽입 중 오류:', error);
+  }
 };
 
-const removeFile = (index) => {
-  attachedFiles.value.splice(index, 1);
+// 이미지 관리 핸들러
+const handleUpload = (files) => {
+  uploadStatus.value = '업로드 중...';
+
+  // selectedFiles에 파일 추가
+  selectedFiles.value = [
+    ...selectedFiles.value,
+    ...files
+  ];
+
+  uploadStatus.value = '';
 };
+
+const handleRemove = (fileId) => {
+  const fileToRemove = selectedFiles.value.find(f => f.id === fileId);
+  if (fileToRemove) {
+    // 임시 URL 제거
+    if (fileToRemove.tempUrl) {
+      URL.revokeObjectURL(fileToRemove.tempUrl);
+    }
+    // 목록에서 제거
+    selectedFiles.value = selectedFiles.value.filter(f => f.id !== fileId);
+
+    // 본문에서 이미지 제거
+    if (fileToRemove.tempUrl) {
+      const regex = new RegExp(`<img[^>]*src="${fileToRemove.tempUrl}"[^>]*>`, 'g');
+      messageContent.value = messageContent.value.replace(regex, '');
+    }
+  }
+};
+
 
 // 총 페이지 수 계산
 const totalPages = computed(() => {
@@ -282,8 +330,10 @@ const fetchChatRooms = async () => {
       },
     });
     console.log("채팅방 목록 가져오기 확인 전");
-    chatRooms.value = response.data;
+    chatRooms.value = response.data.data;
+    // chatRoomId.value = response.data.data[0].chatRoomId;
     console.log(chatRooms);
+    console.log(response.data.data);
     console.log("채팅방 목록 가져오기 확인 후");
 
     console.log("내 채팅방 목록:", response.data);
@@ -301,12 +351,14 @@ const fetchChatInfo = async (roomId) => {
         Authorization: `Bearer ${authObjectInfo.accessToken}`,
       },
     });
-    const data = response.data;
+    const data = response.data.data;
+    console.log(data);
     participants.value = data.participants;
     messages.value = data.messages;
 
     console.log("채팅방 정보 불러온 뒤 채팅 사용자 정보 조회");
     console.log(participants.value);
+    console.log(data.messages);
     // 메시지에 self 속성 추가
     messages.value = addSelfToMessages(data.messages); // 헬퍼 함수 사용
 
@@ -375,6 +427,8 @@ const connectWebSocket = (roomId) => {
 };
 
 
+
+
 // 메시지 전송
 const sendMessage = async () => {
   if (!stompClient || !stompClient.connected) {
@@ -382,29 +436,11 @@ const sendMessage = async () => {
     return;
   }
 
-  if (!messageContent.value.trim() && attachedFiles.value.length === 0) return;
+  if (!messageContent.value.trim() && !isSubmitting.value) return;
 
   // 파일 업로드
-  // const fileUrls = [];
-  // if (attachedFiles.value.length > 0) {
-  //   const formData = new FormData();
-  //   attachedFiles.value.forEach((file) => {
-  //     formData.append('files', file);
-  //   });
-  //
-  //   try {
-  //     const response = await fetch('/api/files/upload', {
-  //       method: 'POST',
-  //       body: formData,
-  //     });
-  //     const result = await response.json();
-  //     fileUrls.push(...result.urls); // 서버에서 반환된 파일 URL
-  //   } catch (error) {
-  //     console.error('파일 업로드 실패:', error);
-  //     alert('파일 업로드에 실패했습니다.');
-  //     return;
-  //   }
-  // }
+  const uploadedS3Urls = []; // S3에 업로드된 URL들을 추적
+  const originalFileNames = []; // 원본 파일명 추적
 
 
 
@@ -447,7 +483,7 @@ const selectRoom = async (roomId) => {
 
   console.log("Selected room:", selectedRoom.value);
   console.log("chatRooms ", chatRooms)
-  console.log("Selected Room:", roomId.chatRoomId);
+  console.log("Selected Room:", roomId);
 
   // 채팅방 정보 가져오기
   await fetchChatInfo(roomId);
@@ -554,11 +590,24 @@ onMounted(() => {
           <div class="message-input">
             <textarea
                 v-model="messageContent"
+                :disabled="isSubmitting"
                 placeholder="메시지 입력"
                 @keypress="handleKeyPress"
             ></textarea>
 
             <!-- 파일 첨부 -->
+
+            <image-management
+                :selected-files="selectedFiles"
+                :image-urls="imageUrls"
+                @upload="handleUpload"
+                @remove="handleRemove"
+                @insert-to-editor="insertImageAtCursor"
+                :disabled="isSubmitting"
+            />
+
+
+
 <!--            <input-->
 <!--                type="file"-->
 <!--                multiple-->
