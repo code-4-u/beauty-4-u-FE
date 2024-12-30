@@ -1,107 +1,180 @@
 <script setup>
-import {ref, computed } from 'vue';
+import {onBeforeUnmount, ref, computed} from 'vue';
 import {useRouter} from 'vue-router';
 import {postFetch} from "@/stores/apiClient.js";
 import BoardEditor from "@/components/board/editor/BoardEditor.vue";
 import ImageManagement from "@/components/board/editor/ImageManagement.vue";
-import { useAuthStore } from '@/stores/auth.js'; // 사용자 인증 정보 스토어
+import { useAuthStore } from '@/stores/auth.js';
 
 const router = useRouter();
 const useAuth = useAuthStore();
-const teamspaceId = computed(() => useAuth.teamspaceId); // 팀스페이스 ID를 전역 상태에서 가져옴
+const teamspaceId = computed(() => useAuth.teamspaceId);
 const teamBoardTitle = ref('');
 const editorContent = ref('<p>내용을 입력해주세요.</p>');
 const selectedFiles = ref([]);
 const imageUrls = ref([]);
 const boardEditorRef = ref(null);
 const uploadStatus = ref('');
+const isSubmitting = ref(false);
 
-const insertImageAtCursor = (imageUrl, removeUrl) => {
-  if (boardEditorRef.value) {
-    if (removeUrl) {
-      // 이미지 제거
-      boardEditorRef.value.removeImage(removeUrl);
-    } else if (imageUrl) {
-      // 이미지 추가
-      boardEditorRef.value.insertImage(imageUrl);
+const insertImageAtCursor = (imageUrl, options = {}) => {
+  if (!boardEditorRef.value) return;
+
+  try {
+    if (options.removeUrl) {  // 이미지 제거 케이스
+      boardEditorRef.value.removeImage(options.removeUrl);
+    } else if (options.file) {    // 이미지 추가 케이스
+      // ImageManagement에서 이미 생성된 tempUrl 사용
+      boardEditorRef.value.insertImage(imageUrl, {
+        style: `max-width: ${options.width || 400}px; height: ${options.height || 'auto'};`,
+        'data-temp-url': 'true'
+      });
     }
+  } catch (error) {
+    console.error('이미지 삽입 중 오류:', error);
   }
 };
 
 // 이미지 관리 핸들러
 const handleUpload = (files) => {
-  uploadStatus.value = '업로드 중';
+  uploadStatus.value = '업로드 중...';
+
+  // selectedFiles에 파일 추가
   selectedFiles.value = [
     ...selectedFiles.value,
     ...files
   ];
-  uploadStatus.value = '업로드 완료';
+
+  uploadStatus.value = '';
 };
 
 const handleRemove = (fileId) => {
   const fileToRemove = selectedFiles.value.find(f => f.id === fileId);
   if (fileToRemove) {
+    // 임시 URL 제거
+    if (fileToRemove.tempUrl) {
+      URL.revokeObjectURL(fileToRemove.tempUrl);
+    }
     // 목록에서 제거
     selectedFiles.value = selectedFiles.value.filter(f => f.id !== fileId);
+
+    // 본문에서 이미지 제거
+    if (fileToRemove.tempUrl) {
+      const regex = new RegExp(`<img[^>]*src="${fileToRemove.tempUrl}"[^>]*>`, 'g');
+      editorContent.value = editorContent.value.replace(regex, '');
+    }
   }
 };
 
 // 목록으로 돌아가기
 const goBack = () => {
+  // 임시 URL 정리
+  selectedFiles.value.forEach(file => {
+    if (file.tempUrl) {
+      URL.revokeObjectURL(file.tempUrl);
+    }
+  });
   router.push(`/teamspace/${teamspaceId.value}/board`);
 };
 
 // 게시글 저장
 const fetchSaveTeamBoard = async () => {
-  try {
-    // 1. 모든 이미지가 업로드될 때까지 대기
-    if (uploadStatus.value === '업로드 중') {
-      await new Promise(resolve => {
-        const checkUpload = setInterval(() => {
-          if (uploadStatus.value !== '업로드 중') {
-            clearInterval(checkUpload);
-            resolve();
-          }
-        }, 500);
-      });
-    }
+  if (isSubmitting.value) return;
 
-    // 입력값 검증
+  const uploadedS3Urls = []; // S3에 업로드된 URL들을 추적
+  const originalFileNames = []; // 원본 파일명 추적
+
+  try {
+    isSubmitting.value = true;
+    uploadStatus.value = '저장 중...';
+
     if (!teamBoardTitle.value.trim()) {
       alert('제목을 입력해주세요.');
       return;
     }
 
-    // 2. 본문에서 이미지 URL 추출
-    const imageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
-    const content = editorContent.value;
-    const imageMatches = [...content.matchAll(imageRegex)];
-    const imageUrls = imageMatches.map(match => match[1]);
+    // 1. 선택된 파일들을 S3에 업로드
+    const uploadPromises = selectedFiles.value.map(async (fileInfo) => {
+      const formData = new FormData();
+      formData.append('image', fileInfo.file);
 
-    // 3. 게시글 저장
-    const response = await postFetch(`/teamspace/board`, {
-      teamBoardTitle: teamBoardTitle.value,
-      teamBoardContent: editorContent.value
+      try {
+        const response = await postFetch('/file/s3/upload', formData);
+        const s3Url = response.data.data;
+
+        uploadedS3Urls.push(s3Url);
+        originalFileNames.push(fileInfo.name);
+
+        // tempUrl을 실제 S3 URL로 교체
+        editorContent.value = editorContent.value.replace(
+            fileInfo.tempUrl,
+            s3Url
+        );
+        return s3Url;
+      } catch (error) {
+        console.error('이미지 업로드 실패:', error);
+        throw error;
+      }
     });
 
-    // 4. 저장된 게시글의 ID로 이미지 저장
-    if (imageUrls.length > 0) {
+    // 모든 이미지 업로드 완료 대기
+    const s3Urls = await Promise.all(uploadPromises);
+
+    // 2. 변환된 content로 게시글 저장
+    const response = await postFetch(`/teamspace/board`, {
+      teamBoardTitle: teamBoardTitle.value,
+      teamBoardContent: editorContent.value,
+      teamspaceId: teamspaceId.value
+    });
+
+    // 3. 파일 정보 DB 저장 (원본 파일명 포함)
+    if (s3Urls.length > 0) {
       await postFetch('/file/save', {
-        entityId: response.data.data,
-        imageUrls: imageUrls,
-        entityType: "teamBoard"
+        imageS3Urls: s3Urls,           // s3 url 배열
+        fileUrls: originalFileNames,   // 원본 파일명 배열
+        entityType: "TEAMBOARD"        // 엔티티 타입
       });
     }
+
+    // 4. 임시 URL 정리
+    selectedFiles.value.forEach(file => {
+      if (file.tempUrl) {
+        URL.revokeObjectURL(file.tempUrl);
+      }
+    });
 
     // 5. 목록으로 이동
     await router.push({
       path: `/teamspace/${teamspaceId.value}/board`
     });
+
   } catch (error) {
     console.error('저장에 실패했습니다.', error);
+
+    // 에러시 s3에 이미지들 삭제
+    if (uploadedS3Urls.length > 0) {
+      try {
+        await postFetch('/file/s3/uploadList', uploadedS3Urls);
+      } catch (deleteError) {
+        console.error('S3 이미지 삭제 실패:', deleteError);
+      }
+    }
+
     alert('저장에 실패했습니다. 다시 시도해주세요.');
+  } finally {
+    isSubmitting.value = false;
+    uploadStatus.value = '';
   }
 };
+
+// 컴포넌트 언마운트 시 임시 URL 정리
+onBeforeUnmount(() => {
+  selectedFiles.value.forEach(file => {
+    if (file.tempUrl) {
+      URL.revokeObjectURL(file.tempUrl);
+    }
+  });
+});
 </script>
 
 <template>
@@ -114,6 +187,7 @@ const fetchSaveTeamBoard = async () => {
             class="title-input"
             v-model="teamBoardTitle"
             placeholder="제목을 입력하세요"
+            :disabled="isSubmitting"
         >
       </div>
     </div>
@@ -126,25 +200,39 @@ const fetchSaveTeamBoard = async () => {
         @upload="handleUpload"
         @remove="handleRemove"
         @insert-to-editor="insertImageAtCursor"
+        :disabled="isSubmitting"
     />
 
     <div class="editor-container">
       <board-editor
           ref="boardEditorRef"
           v-model="editorContent"
+          :disabled="isSubmitting"
       />
+    </div>
+
+    <div v-if="uploadStatus" class="upload-status">
+      {{ uploadStatus }}
     </div>
 
     <div class="footer-section">
       <div class="left-buttons">
-        <button class="btn btn-secondary" @click="goBack">
+        <button
+            class="btn btn-secondary"
+            @click="goBack"
+            :disabled="isSubmitting"
+        >
           <span class="btn-text">목록으로</span>
         </button>
       </div>
 
       <div class="right-buttons">
-        <button class="btn btn-primary" @click="fetchSaveTeamBoard">
-          <span class="btn-text">등록</span>
+        <button
+            class="btn btn-primary"
+            @click="fetchSaveTeamBoard"
+            :disabled="isSubmitting"
+        >
+          <span class="btn-text">{{ isSubmitting ? '저장 중...' : '등록' }}</span>
         </button>
       </div>
     </div>
@@ -198,6 +286,11 @@ const fetchSaveTeamBoard = async () => {
   box-shadow: 0 0 0 3px rgba(41, 196, 88, 0.1);
 }
 
+.title-input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
 .title-input::placeholder {
   color: #aaa;
 }
@@ -213,6 +306,15 @@ const fetchSaveTeamBoard = async () => {
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   overflow: hidden;
+}
+
+.upload-status {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  text-align: center;
+  color: #666;
 }
 
 .footer-section {
@@ -243,12 +345,18 @@ const fetchSaveTeamBoard = async () => {
   gap: 0.4rem;
 }
 
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
 .btn-primary {
   background-color: #29C458;
   color: white;
 }
 
-.btn-primary:hover {
+.btn-primary:not(:disabled):hover {
   background-color: #23a94c;
   transform: translateY(-1px);
 }
@@ -258,7 +366,7 @@ const fetchSaveTeamBoard = async () => {
   color: white;
 }
 
-.btn-secondary:hover {
+.btn-secondary:not(:disabled):hover {
   background-color: #5a6268;
   transform: translateY(-1px);
 }

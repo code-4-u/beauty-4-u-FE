@@ -1,20 +1,25 @@
 <script setup>
-import {onMounted, ref} from 'vue';
+import {onMounted, onBeforeUnmount, ref, computed} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
 import {getFetch, postFetch, putFetch} from "@/stores/apiClient.js";
 import BoardEditor from "@/components/board/editor/BoardEditor.vue";
 import ImageManagement from "@/components/board/editor/ImageManagement.vue";
+import { useAuthStore } from '@/stores/auth.js';
 
 const router = useRouter();
 const route = useRoute();
-const teamBoardId = route.params['teamBoardId'];
+const useAuth = useAuthStore();
+const teamspaceId = computed(() => useAuth.teamspaceId);
 
+const teamBoardId = route.params['teamBoardId'];
 const teamBoardTitle = ref('');
 const editorContent = ref('');
 const selectedFiles = ref([]);
 const imageUrls = ref([]);
 const boardEditorRef = ref(null);
 const uploadStatus = ref('');
+const isSubmitting = ref(false);
+const originalS3Urls = ref([]);
 
 const fetchTeamBoardDetail = async () => {
   try {
@@ -28,126 +33,232 @@ const fetchTeamBoardDetail = async () => {
     const imageMatches = [...data.teamBoardContent.matchAll(imageRegex)];
     const existingImageUrls = imageMatches.map(match => match[1]);
 
+    // 기존 URL들 저장
+    originalS3Urls.value = existingImageUrls;
+    imageUrls.value = existingImageUrls;
+
     // 추출된 이미지를 selectedFiles에 추가
     selectedFiles.value = existingImageUrls.map((url, index) => ({
       id: `existing-${index}`,
       name: url.split('/').pop() || `image-${index}`,
       url: url,
+      isExisting: true,
       size: 0,
+      file: null
     }));
 
-    // 기존 이미지 URL 저장
-    imageUrls.value = existingImageUrls;
   } catch (error) {
     console.error("게시글 세부 정보를 가져오는 데 오류가 발생했습니다:", error);
   }
-}
+};
 
-const insertImageAtCursor = (imageUrl, removeUrl) => {
-  if (boardEditorRef.value) {
-    if (removeUrl) {
-      // 이미지 제거
-      boardEditorRef.value.removeImage(removeUrl);
-    } else if (imageUrl) {
-      // 이미지 삽입
-      boardEditorRef.value.insertImage(imageUrl);
+const insertImageAtCursor = (imageUrl, options = {}) => {
+  if (!boardEditorRef.value) return;
+
+  try {
+    if (options.removeUrl) {  // 이미지 제거 케이스
+      boardEditorRef.value.removeImage(options.removeUrl);
+    } else if (options.file) {    // 이미지 추가 케이스
+      const tempUrl = URL.createObjectURL(options.file);
+      boardEditorRef.value.insertImage(tempUrl, {
+        style: `max-width: ${options.width || 400}px; height: ${options.height || 'auto'};`,
+        'data-temp-url': 'true'
+      });
+
+      // selectedFiles 업데이트
+      selectedFiles.value = selectedFiles.value.map(file => {
+        if (file.id === options.id) {
+          return {...file, tempUrl};
+        }
+        return file;
+      });
     }
+  } catch (error) {
+    console.error('이미지 삽입 중 오류:', error);
   }
 };
 
 const handleUpload = (files) => {
-  uploadStatus.value = '업로드 중';
-  selectedFiles.value = [
-    ...selectedFiles.value,
-    ...files
-  ];
-  uploadStatus.value = '업로드 완료';
+  uploadStatus.value = '업로드 중...';
+
+  const newFiles = files.map(file => ({
+    id: `new-${Date.now()}-${Math.random()}`,
+    name: file.name,
+    file: file.file,
+    size: file.file.size,
+    tempUrl: null
+  }));
+
+  selectedFiles.value = [...selectedFiles.value, ...newFiles];
+  uploadStatus.value = '';
 };
 
 const handleRemove = (fileId) => {
   const fileToRemove = selectedFiles.value.find(f => f.id === fileId);
   if (fileToRemove) {
-    // 파일 목록에서 제거
-    selectedFiles.value = selectedFiles.value.filter(f => f.id !== fileId);
-    // 에디터에서도 이미지 제거
-    if (fileToRemove.url) {
-      insertImageAtCursor(null, fileToRemove.url);
+    // 임시 URL 제거
+    if (fileToRemove.tempUrl) {
+      URL.revokeObjectURL(fileToRemove.tempUrl);
+
+      // 본문에서 이미지 제거 (임시 URL)
+      const tempRegex = new RegExp(`<img[^>]*src="${fileToRemove.tempUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*>`, 'g');
+      editorContent.value = editorContent.value.replace(tempRegex, '');
     }
+
+    // 기존 이미지 제거 (실제 URL)
+    if (fileToRemove.url) {
+      const urlRegex = new RegExp(`<img[^>]*src="${fileToRemove.url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*>`, 'g');
+      editorContent.value = editorContent.value.replace(urlRegex, '');
+    }
+
+    // 목록에서 제거
+    selectedFiles.value = selectedFiles.value.filter(f => f.id !== fileId);
   }
 };
 
 const goBack = () => {
-  router.push(`/workspace/board`);
+  // 임시 URL 정리
+  selectedFiles.value.forEach(file => {
+    if (file.tempUrl) {
+      URL.revokeObjectURL(file.tempUrl);
+    }
+  });
+  router.push(`/teamspace/${teamspaceId.value}/board`);
 };
 
 const updateTeamBoard = async () => {
-  try {
-    // 업로드 완료 대기
-    if (uploadStatus.value === '업로드 중') {
-      await new Promise(resolve => {
-        const checkUpload = setInterval(() => {
-          if (uploadStatus.value !== '업로드 중') {
-            clearInterval(checkUpload);
-            resolve();
-          }
-        }, 500);
-      });
-    }
+  if (isSubmitting.value) return;
 
-    // 입력값 검증
+  const uploadedS3Urls = [];
+  const originalFileNames = [];
+  let modifiedContent = editorContent.value;
+
+  try {
+    isSubmitting.value = true;
+    uploadStatus.value = '수정 중...';
+
     if (!teamBoardTitle.value.trim()) {
       alert('제목을 입력해주세요.');
       return;
     }
 
-    // 현재 본문의 이미지 URL 추출
-    const imageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
-    const content = editorContent.value;
-    const currentImageUrls = [...content.matchAll(imageRegex)].map(match => match[1]);
+    // 1. 삭제된 이미지 처리
+    const currentImageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
+    const currentImageMatches = [...modifiedContent.matchAll(currentImageRegex)];
+    const currentImageUrls = currentImageMatches.map(match => match[1]);
 
-    // 이전에 저장된 이미지 URL
-    const previousImageUrls = imageUrls.value;
+    const deletedImageUrls = originalS3Urls.value.filter(url => !currentImageUrls.includes(url));
 
-    // 새로 추가된 이미지와 삭제된 이미지 구분
-    const newImages = currentImageUrls.filter(url => !previousImageUrls.includes(url));
-    const removedImages = previousImageUrls.filter(url => !currentImageUrls.includes(url));
-
-    // 게시글 내용 업데이트
-    await putFetch(`/teamspace/board/${teamBoardId}`, {
-      teamBoardTitle: teamBoardTitle.value,
-      teamBoardContent: editorContent.value
-    });
-
-    // 새로운 이미지 저장
-    if (newImages.length > 0) {
-      await postFetch('/file/save', {
-        entityId: teamBoardId,
-        imageUrls: newImages,
-        entityType: "teamboard"
+    if (deletedImageUrls.length > 0) {
+      await postFetch("/file/s3/uploadList", deletedImageUrls);
+      await postFetch('/file/delete', {
+        fileS3UrlList: deletedImageUrls,
+        fileIdList: []
       });
     }
 
-    // 삭제된 이미지 처리
-    if (removedImages.length > 0) {
-      // 이미지 삭제 API 엔드포인트 추가
-      // await postFetch('/file/remove', {
-      //   entityId: teamBoardId,
-      //   imageUrls: removedImages,
-      //   entityType: "teamBoard"
-      // });
+    // 2. 새로운 이미지 S3 업로드 및 URL 매핑 수집
+    const newFiles = selectedFiles.value.filter(file => {
+      return file.file &&
+          !file.isExisting &&
+          (file.tempUrl?.startsWith('blob:') || modifiedContent.includes(`blob:${location.origin}`));
+    });
+
+    // 모든 파일 업로드를 병렬로 처리
+    const uploadResults = await Promise.all(
+        newFiles.map(async (fileInfo) => {
+          const formData = new FormData();
+          formData.append('image', fileInfo.file);
+
+          try {
+            const response = await postFetch('/file/s3/upload', formData);
+            const s3Url = response.data.data;
+
+            uploadedS3Urls.push(s3Url);
+            originalFileNames.push(fileInfo.name);
+
+            return {
+              tempUrl: fileInfo.tempUrl,
+              s3Url: s3Url
+            };
+          } catch (error) {
+            console.error('이미지 업로드 실패:', error);
+            throw error;
+          }
+        })
+    );
+
+    // 3. blob URL을 S3 URL로 교체
+    let updatedContent = modifiedContent;
+    const blobImageRegex = /<img[^>]*src="(blob:[^"]*)"[^>]*>/g;
+    const blobMatches = [...updatedContent.matchAll(blobImageRegex)];
+
+    blobMatches.forEach((match, index) => {
+      if (index < uploadResults.length) {
+        const s3Url = uploadResults[index].s3Url;
+        const originalTag = match[0];
+        const updatedTag = originalTag.replace(/src="blob:[^"]*"/, `src="${s3Url}"`);
+        updatedContent = updatedContent.replace(originalTag, updatedTag);
+      }
+    });
+
+    // 4. 게시글 수정
+    await putFetch(`/teamspace/board/${teamBoardId}`, {
+      teamBoardTitle: teamBoardTitle.value,
+      teamBoardContent: updatedContent
+    });
+
+    // 5. 새로운 이미지 정보 DB 저장
+    if (uploadedS3Urls.length > 0) {
+      await postFetch('/file/save', {
+        imageS3Urls: uploadedS3Urls,
+        fileUrls: originalFileNames,
+        entityType: "TEAMBOARD"
+      });
     }
 
-    await router.push({
-      path: `/workspace/board`
+    // 6. 임시 URL 정리
+    selectedFiles.value.forEach(file => {
+      if (file.tempUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(file.tempUrl);
+      }
     });
+
+    // 7. 목록으로 이동
+    await router.push(`/workspace/board`);
+
   } catch (error) {
     console.error('수정에 실패했습니다.', error);
+
+    // 에러 발생 시 업로드된 S3 이미지들 삭제
+    if (uploadedS3Urls.length > 0) {
+      try {
+        await postFetch('/file/delete', {
+          fileS3UrlList: uploadedS3Urls,
+          fileIdList: []
+        });
+      } catch (deleteError) {
+        console.error('S3 이미지 삭제 실패:', deleteError);
+      }
+    }
+
     alert('수정에 실패했습니다. 다시 시도해주세요.');
+  } finally {
+    isSubmitting.value = false;
+    uploadStatus.value = '';
   }
 };
 
 onMounted(() => {
   fetchTeamBoardDetail();
+});
+
+onBeforeUnmount(() => {
+  selectedFiles.value.forEach(file => {
+    if (file.tempUrl) {
+      URL.revokeObjectURL(file.tempUrl);
+    }
+  });
 });
 </script>
 
@@ -161,6 +272,7 @@ onMounted(() => {
             class="title-input"
             v-model="teamBoardTitle"
             placeholder="제목을 입력하세요"
+            :disabled="isSubmitting"
         >
       </div>
     </div>
@@ -173,25 +285,39 @@ onMounted(() => {
         @upload="handleUpload"
         @remove="handleRemove"
         @insert-to-editor="insertImageAtCursor"
+        :disabled="isSubmitting"
     />
 
     <div class="editor-container">
       <board-editor
           ref="boardEditorRef"
           v-model="editorContent"
+          :disabled="isSubmitting"
       />
+    </div>
+
+    <div v-if="uploadStatus" class="upload-status">
+      {{ uploadStatus }}
     </div>
 
     <div class="footer-section">
       <div class="left-buttons">
-        <button class="btn btn-secondary" @click="goBack">
+        <button
+            class="btn btn-secondary"
+            @click="goBack"
+            :disabled="isSubmitting"
+        >
           <span class="btn-text">목록으로</span>
         </button>
       </div>
 
       <div class="right-buttons">
-        <button class="btn btn-primary" @click="updateTeamBoard">
-          <span class="btn-text">수정완료</span>
+        <button
+            class="btn btn-primary"
+            @click="updateTeamBoard"
+            :disabled="isSubmitting"
+        >
+          <span class="btn-text">{{ isSubmitting ? '수정 중...' : '수정완료' }}</span>
         </button>
       </div>
     </div>
@@ -245,6 +371,11 @@ onMounted(() => {
   box-shadow: 0 0 0 3px rgba(41, 196, 88, 0.1);
 }
 
+.title-input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
 .title-input::placeholder {
   color: #aaa;
 }
@@ -260,6 +391,15 @@ onMounted(() => {
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   overflow: hidden;
+}
+
+.upload-status {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  text-align: center;
+  color: #666;
 }
 
 .footer-section {
@@ -290,12 +430,18 @@ onMounted(() => {
   gap: 0.4rem;
 }
 
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
 .btn-primary {
   background-color: #29C458;
   color: white;
 }
 
-.btn-primary:hover {
+.btn-primary:not(:disabled):hover {
   background-color: #23a94c;
   transform: translateY(-1px);
 }
@@ -305,7 +451,7 @@ onMounted(() => {
   color: white;
 }
 
-.btn-secondary:hover {
+.btn-secondary:not(:disabled):hover {
   background-color: #5a6268;
   transform: translateY(-1px);
 }
@@ -314,6 +460,100 @@ onMounted(() => {
   font-size: 0.95rem;
 }
 
+/* Editor Styles */
+:deep(.editor-content) {
+  min-height: 300px;
+  padding: 1rem;
+}
+
+:deep(.editor-toolbar) {
+  border-bottom: 1px solid #e0e0e0;
+  padding: 0.5rem;
+  background-color: #f8f9fa;
+}
+
+:deep(.editor-toolbar button) {
+  padding: 0.25rem 0.5rem;
+  margin-right: 0.25rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #666;
+}
+
+:deep(.editor-toolbar button:hover) {
+  color: #29C458;
+}
+
+:deep(.editor-toolbar button.active) {
+  color: #29C458;
+  background-color: rgba(41, 196, 88, 0.1);
+  border-radius: 4px;
+}
+
+/* Image Management Styles */
+:deep(.image-list) {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+:deep(.image-item) {
+  position: relative;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+  aspect-ratio: 1;
+}
+
+:deep(.image-item img) {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+:deep(.image-item .remove-button) {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  background-color: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #dc3545;
+}
+
+:deep(.image-item .remove-button:hover) {
+  background-color: #dc3545;
+  color: white;
+}
+
+:deep(.upload-area) {
+  border: 2px dashed #e0e0e0;
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+:deep(.upload-area:hover) {
+  border-color: #29C458;
+  background-color: rgba(41, 196, 88, 0.05);
+}
+
+:deep(.upload-area.dragging) {
+  border-color: #29C458;
+  background-color: rgba(41, 196, 88, 0.1);
+}
+
+/* Mobile Responsive */
 @media (max-width: 768px) {
   .board-detail-container {
     margin: 0.75rem;
@@ -339,6 +579,26 @@ onMounted(() => {
 
   .btn {
     width: 100%;
+  }
+
+  :deep(.image-list) {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 0.5rem;
+  }
+
+  :deep(.upload-area) {
+    padding: 1rem;
+  }
+
+  :deep(.editor-toolbar) {
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 0.5rem;
+  }
+
+  :deep(.editor-toolbar button) {
+    padding: 0.25rem 0.4rem;
+    margin-right: 0.2rem;
   }
 }
 </style>

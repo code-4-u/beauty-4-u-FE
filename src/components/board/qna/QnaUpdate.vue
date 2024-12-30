@@ -1,5 +1,5 @@
 <script setup>
-import {onMounted, ref} from 'vue';
+import {onMounted, onBeforeUnmount, ref} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
 import {getFetch, postFetch, putFetch} from "@/stores/apiClient.js";
 import BoardEditor from "@/components/board/editor/BoardEditor.vue";
@@ -15,7 +15,9 @@ const selectedFiles = ref([]);
 const imageUrls = ref([]);
 const boardEditorRef = ref(null);
 const uploadStatus = ref('');
+const isSubmitting = ref(false);
 const inquirySecretYn = ref('N');
+const originalS3Urls = ref([]);
 
 const fetchInquiryDetail = async () => {
   try {
@@ -30,102 +32,239 @@ const fetchInquiryDetail = async () => {
     const imageMatches = [...data.inquiryContent.matchAll(imageRegex)];
     const existingImageUrls = imageMatches.map(match => match[1]);
 
+    // 기존 URL들 저장
+    originalS3Urls.value = existingImageUrls;
+    imageUrls.value = existingImageUrls;
+
     // 추출된 이미지를 selectedFiles에 추가
     selectedFiles.value = existingImageUrls.map((url, index) => ({
       id: `existing-${index}`,
       name: url.split('/').pop() || `image-${index}`,
       url: url,
+      isExisting: true,
       size: 0,
+      file: null
     }));
 
-    imageUrls.value = existingImageUrls;
   } catch (error) {
     console.error("Q&A 세부 정보를 가져오는 데 오류가 발생했습니다:", error);
+    alert("게시글 정보를 가져오는 데 실패했습니다.");
   }
-}
+};
 
-const insertImageAtCursor = (imageUrl, removeUrl) => {
-  if (boardEditorRef.value) {
-    if (removeUrl) {
-      boardEditorRef.value.removeImage(removeUrl);
-    } else if (imageUrl) {
-      boardEditorRef.value.insertImage(imageUrl);
+const insertImageAtCursor = (imageUrl, options = {}) => {
+  if (!boardEditorRef.value) return;
+
+  try {
+    if (options.removeUrl) {  // 이미지 제거 케이스
+      boardEditorRef.value.removeImage(options.removeUrl);
+    } else if (options.file) {    // 이미지 추가 케이스
+      const tempUrl = URL.createObjectURL(options.file);
+      boardEditorRef.value.insertImage(tempUrl, {
+        style: `max-width: ${options.width || 400}px; height: ${options.height || 'auto'};`,
+        'data-temp-url': 'true'
+      });
+
+      // selectedFiles 업데이트
+      selectedFiles.value = selectedFiles.value.map(file => {
+        if (file.id === options.id) {
+          return {...file, tempUrl};
+        }
+        return file;
+      });
     }
+  } catch (error) {
+    console.error('이미지 삽입 중 오류:', error);
   }
 };
 
 const handleUpload = (files) => {
-  uploadStatus.value = '업로드 중';
-  selectedFiles.value = [
-    ...selectedFiles.value,
-    ...files
-  ];
-  uploadStatus.value = '업로드 완료';
+  uploadStatus.value = '업로드 중...';
+
+  const newFiles = files.map(file => ({
+    id: `new-${Date.now()}-${Math.random()}`,
+    name: file.name,
+    file: file.file,
+    size: file.file.size,
+    tempUrl: null  // tempUrl은 insertImageAtCursor에서 생성
+  }));
+
+  selectedFiles.value = [...selectedFiles.value, ...newFiles];
+  uploadStatus.value = '';
 };
 
 const handleRemove = (fileId) => {
   const fileToRemove = selectedFiles.value.find(f => f.id === fileId);
   if (fileToRemove) {
+    // 임시 URL 제거
+    if (fileToRemove.tempUrl) {
+      URL.revokeObjectURL(fileToRemove.tempUrl);
+
+      // 본문에서 이미지 제거 (임시 URL)
+      const tempRegex = new RegExp(`<img[^>]*src="${fileToRemove.tempUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*>`, 'g');
+      editorContent.value = editorContent.value.replace(tempRegex, '');
+    }
+
+    // 기존 이미지 제거 (실제 URL)
+    if (fileToRemove.url) {
+      const urlRegex = new RegExp(`<img[^>]*src="${fileToRemove.url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*>`, 'g');
+      editorContent.value = editorContent.value.replace(urlRegex, '');
+    }
+
+    // 목록에서 제거
     selectedFiles.value = selectedFiles.value.filter(f => f.id !== fileId);
   }
 };
 
 const goBack = () => {
+  // 임시 URL 정리
+  selectedFiles.value.forEach(file => {
+    if (file.tempUrl) {
+      URL.revokeObjectURL(file.tempUrl);
+    }
+  });
   router.push('/qna');
 };
 
 const updateInquiry = async () => {
-  try {
-    if (uploadStatus.value === '업로드 중') {
-      await new Promise(resolve => {
-        const checkUpload = setInterval(() => {
-          if (uploadStatus.value !== '업로드 중') {
-            clearInterval(checkUpload);
-            resolve();
-          }
-        }, 500);
-      });
-    }
+  if (isSubmitting.value) return;
 
-    // 입력값 검증
+  const uploadedS3Urls = [];
+  const originalFileNames = [];
+  let modifiedContent = editorContent.value;
+
+  try {
+    isSubmitting.value = true;
+    uploadStatus.value = '수정 중...';
+
     if (!inquiryTitle.value.trim()) {
       alert('제목을 입력해주세요.');
       return;
     }
 
-    // 본문에서 이미지 URL 추출
-    const imageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
-    const content = editorContent.value;
-    const imageMatches = [...content.matchAll(imageRegex)];
-    const imageUrls = imageMatches.map(match => match[1]);
+    // 1. 삭제된 이미지 처리
+    const currentImageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
+    const currentImageMatches = [...modifiedContent.matchAll(currentImageRegex)];
+    const currentImageUrls = currentImageMatches.map(match => match[1]);
 
-    // 게시글 수정
-    await putFetch(`/inquiry/${inquiryId}`, {
-      inquiryTitle: inquiryTitle.value,
-      inquiryContent: editorContent.value,
-      inquirySecretYn: inquirySecretYn.value
-    });
+    const deletedImageUrls = originalS3Urls.value.filter(url => !currentImageUrls.includes(url));
 
-    // 이미지 저장
-    if (imageUrls.length > 0) {
-      await postFetch('/file/save', {
-        entityId: inquiryId,
-        imageUrls: imageUrls,
-        isInform: false
+    if (deletedImageUrls.length > 0) {
+      await postFetch("/file/s3/uploadList", deletedImageUrls);
+      await postFetch('/file/delete', {
+        fileS3UrlList: deletedImageUrls,
+        fileIdList: []
       });
     }
 
+    // 2. 새로운 이미지 S3 업로드 및 URL 매핑 수집
+    const newFiles = selectedFiles.value.filter(file => {
+      // blob URL을 포함한 파일만 필터링
+      return file.file &&
+          !file.isExisting &&
+          (file.tempUrl?.startsWith('blob:') || modifiedContent.includes(`blob:${location.origin}`));
+    });
+
+    // 모든 파일 업로드를 병렬로 처리
+    const uploadResults = await Promise.all(
+        newFiles.map(async (fileInfo) => {
+          const formData = new FormData();
+          formData.append('image', fileInfo.file);
+
+          try {
+            const response = await postFetch('/file/s3/upload', formData);
+            const s3Url = response.data.data;
+
+            uploadedS3Urls.push(s3Url);
+            originalFileNames.push(fileInfo.name);
+
+            return {
+              tempUrl: fileInfo.tempUrl,
+              s3Url: s3Url
+            };
+          } catch (error) {
+            console.error('이미지 업로드 실패:', error);
+            throw error;
+          }
+        })
+    );
+
+    // 3. blob URL을 포함한 이미지 태그를 찾아서 S3 URL로 교체
+    let updatedContent = modifiedContent;
+    const blobImageRegex = /<img[^>]*src="(blob:[^"]*)"[^>]*>/g;
+    const blobMatches = [...updatedContent.matchAll(blobImageRegex)];
+
+    blobMatches.forEach((match, index) => {
+      if (index < uploadResults.length) {
+        const s3Url = uploadResults[index].s3Url;
+        const originalTag = match[0];
+        const updatedTag = originalTag.replace(/src="blob:[^"]*"/, `src="${s3Url}"`);
+        updatedContent = updatedContent.replace(originalTag, updatedTag);
+      }
+    });
+
+    // 4. 업데이트된 content로 게시글 수정
+    await putFetch(`/inquiry/${inquiryId}`, {
+      inquiryTitle: inquiryTitle.value,
+      inquiryContent: updatedContent,
+      inquirySecretYn: inquirySecretYn.value
+    });
+
+    // 5. 새로운 이미지 정보 DB 저장
+    if (uploadedS3Urls.length > 0) {
+      await postFetch('/file/save', {
+        imageS3Urls: uploadedS3Urls,
+        fileUrls: originalFileNames,
+        entityType: "INQUIRY"
+      });
+    }
+
+    // 6. 임시 URL 정리
+    selectedFiles.value.forEach(file => {
+      if (file.tempUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(file.tempUrl);
+      }
+    });
+
+    // 7. 목록으로 이동
     await router.push({
       path: `/qna`
     });
+
   } catch (error) {
     console.error('수정에 실패했습니다.', error);
+
+    // 에러 발생 시 업로드된 S3 이미지들 삭제
+    if (uploadedS3Urls.length > 0) {
+      try {
+        await postFetch('/file/delete', {
+          fileS3UrlList: uploadedS3Urls,
+          fileIdList: []
+        });
+      } catch (deleteError) {
+        console.error('S3 이미지 삭제 실패:', deleteError);
+      }
+    }
+
     alert('수정에 실패했습니다. 다시 시도해주세요.');
+  } finally {
+    isSubmitting.value = false;
+    uploadStatus.value = '';
   }
 };
 
+// 컴포넌트 마운트 시 상세 정보 조회
 onMounted(() => {
   fetchInquiryDetail();
+});
+
+// 컴포넌트 언마운트 시 임시 URL 정리
+onBeforeUnmount(() => {
+  selectedFiles.value.forEach(file => {
+    if (file.tempUrl) {
+      URL.revokeObjectURL(file.tempUrl);
+    }
+  });
 });
 </script>
 
@@ -139,6 +278,7 @@ onMounted(() => {
             class="title-input"
             v-model="inquiryTitle"
             placeholder="질문 제목을 입력하세요"
+            :disabled="isSubmitting"
         >
       </div>
 
@@ -150,6 +290,7 @@ onMounted(() => {
               :true-value="'Y'"
               :false-value="'N'"
               class="private-checkbox"
+              :disabled="isSubmitting"
           >
           비밀글로 작성
         </label>
@@ -164,25 +305,39 @@ onMounted(() => {
         @upload="handleUpload"
         @remove="handleRemove"
         @insert-to-editor="insertImageAtCursor"
+        :disabled="isSubmitting"
     />
 
     <div class="editor-container">
       <board-editor
           ref="boardEditorRef"
           v-model="editorContent"
+          :disabled="isSubmitting"
       />
+    </div>
+
+    <div v-if="uploadStatus" class="upload-status">
+      {{ uploadStatus }}
     </div>
 
     <div class="footer-section">
       <div class="left-buttons">
-        <button class="btn btn-secondary" @click="goBack">
+        <button
+            class="btn btn-secondary"
+            @click="goBack"
+            :disabled="isSubmitting"
+        >
           <span class="btn-text">목록으로</span>
         </button>
       </div>
 
       <div class="right-buttons">
-        <button class="btn btn-primary" @click="updateInquiry">
-          <span class="btn-text">수정완료</span>
+        <button
+            class="btn btn-primary"
+            @click="updateInquiry"
+            :disabled="isSubmitting"
+        >
+          <span class="btn-text">{{ isSubmitting ? '수정 중...' : '수정완료' }}</span>
         </button>
       </div>
     </div>
@@ -229,6 +384,11 @@ onMounted(() => {
   cursor: pointer;
 }
 
+.private-label:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .private-checkbox {
   width: 1rem;
   height: 1rem;
@@ -256,6 +416,11 @@ onMounted(() => {
   box-shadow: 0 0 0 3px rgba(41, 196, 88, 0.1);
 }
 
+.title-input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
 .title-input::placeholder {
   color: #aaa;
 }
@@ -271,6 +436,15 @@ onMounted(() => {
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   overflow: hidden;
+}
+
+.upload-status {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  text-align: center;
+  color: #666;
 }
 
 .footer-section {
@@ -301,12 +475,18 @@ onMounted(() => {
   gap: 0.4rem;
 }
 
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
 .btn-primary {
   background-color: #29C458;
   color: white;
 }
 
-.btn-primary:hover {
+.btn-primary:not(:disabled):hover {
   background-color: #23a94c;
   transform: translateY(-1px);
 }
@@ -316,7 +496,7 @@ onMounted(() => {
   color: white;
 }
 
-.btn-secondary:hover {
+.btn-secondary:not(:disabled):hover {
   background-color: #5a6268;
   transform: translateY(-1px);
 }

@@ -1,9 +1,9 @@
 <script setup>
-import { onMounted, ref, computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
-import { delFetch, getFetch, postFetch, putFetch } from "@/stores/apiClient.js";
-import { formatDate } from "@/stores/util.js";
-import { useAuthStore } from "@/stores/auth.js";
+import {onMounted, onBeforeUnmount, ref, computed} from 'vue';
+import {useRoute, useRouter} from 'vue-router';
+import {delFetch, getFetch, postFetch, putFetch} from "@/stores/apiClient.js";
+import {formatDate} from "@/stores/util.js";
+import {useAuthStore} from "@/stores/auth.js";
 
 const router = useRouter();
 const route = useRoute();
@@ -15,32 +15,34 @@ const comment = ref(null);
 const newComment = ref('');
 const editingCommentId = ref(null);
 const editingContent = ref('');
+const isSubmitting = ref(false);
+const uploadStatus = ref('');
+const originalImages = ref([]);
 
-// 관리자 권한 체크
-const isAdmin = computed(() => {
-  return authStore.userRole === 'ADMIN';
-});
+// 권한 관련 computed 속성들
+const isAdmin = computed(() => authStore.userRole === 'ADMIN');
+const isAuthor = computed(() => authStore.userCode === inquiryDetail.value.userCode);
+const canEditDelete = computed(() => isAdmin.value || isAuthor.value);
 
-// 현재 사용자가 게시글 작성자인지 확인
-const isAuthor = computed(() => {
-  return authStore.userCode === inquiryDetail.value.userCode;
-});
-
-// 수정 및 삭제 권한 확인
-const canEditDelete = computed(() => {
-  return isAdmin.value || isAuthor.value;
-});
-
-// Q&A 상세 정보 조회
+// Q&A 상세 정보 조회 및 이미지 처리
 const fetchInquiryDetail = async () => {
   try {
-    const response = await getFetch(`/inquiry/${inquiryId}`)
+    const response = await getFetch(`/inquiry/${inquiryId}`);
     inquiryDetail.value = response.data.data;
+
+    // 본문에서 이미지 URL 추출 및 저장
+    const imageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
+    const content = inquiryDetail.value.inquiryContent || '';
+    const imageMatches = [...content.matchAll(imageRegex)];
+    originalImages.value = imageMatches.map(match => match[1]);
+
   } catch (error) {
     console.error("Q&A 세부 정보를 가져오는 데 오류가 발생했습니다:", error);
+    alert("게시글 정보를 가져오는 데 실패했습니다.");
   }
-}
+};
 
+// 답변 조회
 const fetchComment = async () => {
   try {
     const response = await getFetch(`/inquiryReply/${inquiryId}`);
@@ -50,8 +52,10 @@ const fetchComment = async () => {
   }
 };
 
-// 답변 작성
+// 답변 작성 처리
 const submitComment = async () => {
+  if (isSubmitting.value) return;
+
   if (!isAdmin.value) {
     alert('관리자만 답변을 작성할 수 있습니다.');
     return;
@@ -63,25 +67,34 @@ const submitComment = async () => {
   }
 
   try {
+    isSubmitting.value = true;
+    uploadStatus.value = '답변 등록 중...';
+
     await postFetch(`/inquiry/${inquiryId}/reply`, {
       inquiryReplyContent: newComment.value
     });
+
     newComment.value = '';
     await fetchComment();
-    await fetchInquiryDetail(); // 게시글 정보를 다시 불러옴
+    await fetchInquiryDetail();
+
   } catch (error) {
     console.error("답변 작성에 실패했습니다:", error);
+    alert('답변 작성에 실패했습니다. 다시 시도해주세요.');
+  } finally {
+    isSubmitting.value = false;
+    uploadStatus.value = '';
   }
 };
 
 // 답변 수정 모드 시작
-const startEdit = (comment) => {
+const startEdit = (commentData) => {
   if (!isAdmin.value) {
     alert('관리자만 답변을 수정할 수 있습니다.');
     return;
   }
   editingCommentId.value = true;
-  editingContent.value = comment.inquiryReplyContent;
+  editingContent.value = commentData.inquiryReplyContent;
 };
 
 // 답변 수정 취소
@@ -90,8 +103,10 @@ const cancelEdit = () => {
   editingContent.value = '';
 };
 
-// 답변 수정 저장
+// 답변 수정 처리
 const updateComment = async () => {
+  if (isSubmitting.value) return;
+
   if (!isAdmin.value) {
     alert('관리자만 답변을 수정할 수 있습니다.');
     return;
@@ -103,19 +118,30 @@ const updateComment = async () => {
   }
 
   try {
+    isSubmitting.value = true;
+    uploadStatus.value = '답변 수정 중...';
+
     await putFetch(`/inquiry/${comment.value.inquiryReplyId}/reply`, {
       inquiryReplyContent: editingContent.value
     });
+
     editingCommentId.value = null;
     editingContent.value = '';
     await fetchComment();
+
   } catch (error) {
     console.error("답변 수정에 실패했습니다:", error);
+    alert('답변 수정에 실패했습니다. 다시 시도해주세요.');
+  } finally {
+    isSubmitting.value = false;
+    uploadStatus.value = '';
   }
 };
 
-// 답변 삭제
+// 답변 삭제 처리
 const deleteComment = async () => {
+  if (isSubmitting.value) return;
+
   if (!isAdmin.value) {
     alert('관리자만 답변을 삭제할 수 있습니다.');
     return;
@@ -124,12 +150,69 @@ const deleteComment = async () => {
   if (!confirm('답변을 삭제하시겠습니까?')) return;
 
   try {
+    isSubmitting.value = true;
+    uploadStatus.value = '답변 삭제 중...';
+
     await delFetch(`/inquiry/${comment.value.inquiryReplyId}/reply`);
-    comment.value = null; // 답변 상태를 즉시 null로 설정
-    await fetchInquiryDetail(); // 게시글 정보를 다시 불러옴
+
+    comment.value = null;
+    await fetchInquiryDetail();
+
   } catch (error) {
     console.error("답변 삭제에 실패했습니다:", error);
+    alert('답변 삭제에 실패했습니다. 다시 시도해주세요.');
+  } finally {
+    isSubmitting.value = false;
+    uploadStatus.value = '';
   }
+};
+
+// 게시글 삭제 처리
+const deleteInquiry = async () => {
+  if (isSubmitting.value) return;
+
+  if (!canEditDelete.value) {
+    alert('삭제 권한이 없습니다.');
+    return;
+  }
+
+  if (!confirm('게시글을 삭제하시겠습니까?')) return;
+
+  try {
+    isSubmitting.value = true;
+    uploadStatus.value = '삭제 중...';
+
+    // 1. 이미지가 있다면 S3에서 삭제
+    if (originalImages.value.length > 0) {
+      await postFetch('/file/s3/uploadList', originalImages.value);
+      await postFetch('/file/delete', {
+        fileS3UrlList: originalImages.value,
+        fileIdList: []
+      });
+    }
+
+    // 2. 게시글 삭제
+    await delFetch(`/inquiry/${inquiryId}`);
+
+    alert('삭제되었습니다.');
+    router.push('/qna');
+
+  } catch (error) {
+    console.error('삭제에 실패했습니다.', error);
+    alert('삭제에 실패했습니다. 다시 시도해주세요.');
+  } finally {
+    isSubmitting.value = false;
+    uploadStatus.value = '';
+  }
+};
+
+// 수정 페이지로 이동
+const editInquiry = () => {
+  if (!canEditDelete.value) {
+    alert('수정 권한이 없습니다.');
+    return;
+  }
+  router.push(`/qna/${inquiryId}/update`);
 };
 
 // 목록으로 이동
@@ -137,42 +220,15 @@ const goBack = () => {
   router.push('/qna');
 };
 
-// Q&A 수정 페이지로 이동
-const editInquiry = () => {
-  if (!canEditDelete.value) {
-    alert('수정 권한이 없습니다.');
-    return;
-  }
-  router.push({
-    path: `/qna/${inquiryId}/update`
-  });
-};
-
-// Q&A 삭제
-const deleteFetchInquiry = async () => {
-  try {
-    await delFetch(`/inquiry/${inquiryId}`);
-  } catch (error) {
-    console.error('삭제에 실패했습니다.', error);
-  }
-}
-
-// Q&A 삭제 확인 및 처리
-const deleteInquiry = () => {
-  if (!canEditDelete.value) {
-    alert('삭제 권한이 없습니다.');
-    return;
-  }
-  if (confirm('정말로 삭제하시겠습니까?')) {
-    deleteFetchInquiry();
-    alert('삭제되었습니다.');
-    router.push('/qna');
-  }
-};
-
+// 라이프사이클 훅
 onMounted(() => {
   fetchInquiryDetail();
   fetchComment();
+});
+
+// 리소스 정리
+onBeforeUnmount(() => {
+  // 필요한 정리 작업이 있다면 여기서 수행
 });
 </script>
 
@@ -217,15 +273,25 @@ onMounted(() => {
     <div class="comments-section">
       <h4 class="comments-title">답변</h4>
 
+      <!-- 업로드 상태 표시 -->
+      <div v-if="uploadStatus" class="upload-status">
+        {{ uploadStatus }}
+      </div>
+
       <!-- 답변 작성 폼 - 관리자이면서 답변이 없을 때만 표시 -->
       <div v-if="isAdmin && !comment" class="comment-form">
         <textarea
             v-model="newComment"
             placeholder="답변을 입력하세요..."
             class="comment-input"
+            :disabled="isSubmitting"
         ></textarea>
-        <button class="btn btn-primary comment-submit" @click="submitComment">
-          답변 작성
+        <button
+            class="btn btn-primary comment-submit"
+            @click="submitComment"
+            :disabled="isSubmitting"
+        >
+          {{ isSubmitting ? '등록 중...' : '답변 작성' }}
         </button>
       </div>
 
@@ -244,8 +310,18 @@ onMounted(() => {
           </div>
           <div class="comment-content">{{ comment.inquiryReplyContent }}</div>
           <div v-if="isAdmin" class="comment-actions">
-            <button class="btn-edit" @click="startEdit(comment)">수정</button>
-            <button class="btn-delete" @click="deleteComment()">삭제</button>
+            <button
+                class="btn-edit"
+                @click="startEdit(comment)"
+                :disabled="isSubmitting"
+            >수정
+            </button>
+            <button
+                class="btn-delete"
+                @click="deleteComment"
+                :disabled="isSubmitting"
+            >삭제
+            </button>
           </div>
         </template>
 
@@ -256,10 +332,22 @@ onMounted(() => {
                 v-model="editingContent"
                 class="edit-input"
                 rows="4"
+                :disabled="isSubmitting"
             ></textarea>
             <div class="edit-actions">
-              <button class="btn btn-primary" @click="updateComment()">저장</button>
-              <button class="btn btn-secondary" @click="cancelEdit">취소</button>
+              <button
+                  class="btn btn-primary"
+                  @click="updateComment"
+                  :disabled="isSubmitting"
+              >
+                {{ isSubmitting ? '저장 중...' : '저장' }}
+              </button>
+              <button
+                  class="btn btn-secondary"
+                  @click="cancelEdit"
+                  :disabled="isSubmitting"
+              >취소
+              </button>
             </div>
           </div>
         </template>
@@ -269,16 +357,30 @@ onMounted(() => {
     <!-- 버튼 그룹 -->
     <div class="footer-section">
       <div class="left-buttons">
-        <button class="btn btn-secondary" @click="goBack">
+        <button
+            class="btn btn-secondary"
+            @click="goBack"
+            :disabled="isSubmitting"
+        >
           <span class="btn-text">목록으로</span>
         </button>
       </div>
       <div class="right-buttons">
-        <button v-if="canEditDelete" class="btn btn-primary" @click="editInquiry">
+        <button
+            v-if="canEditDelete"
+            class="btn btn-primary"
+            @click="editInquiry"
+            :disabled="isSubmitting"
+        >
           <span class="btn-text">수정</span>
         </button>
-        <button v-if="canEditDelete" class="btn btn-danger" @click="deleteInquiry">
-          <span class="btn-text">삭제</span>
+        <button
+            v-if="canEditDelete"
+            class="btn btn-danger"
+            @click="deleteInquiry"
+            :disabled="isSubmitting"
+        >
+          <span class="btn-text">{{ isSubmitting ? '삭제 중...' : '삭제' }}</span>
         </button>
       </div>
     </div>
@@ -393,6 +495,11 @@ onMounted(() => {
   background-color: #fff;
 }
 
+.comment-input:disabled, .edit-input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
 .comment-input:focus, .edit-input:focus {
   outline: none;
   border-color: #29C458;
@@ -454,6 +561,11 @@ onMounted(() => {
   transition: all 0.2s ease;
 }
 
+.btn-edit:disabled, .btn-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .btn-edit {
   color: #2196F3;
 }
@@ -462,7 +574,8 @@ onMounted(() => {
   color: #dc3545;
 }
 
-.btn-edit:hover, .btn-delete:hover {
+.btn-edit:not(:disabled):hover,
+.btn-delete:not(:disabled):hover {
   text-decoration: underline;
 }
 
@@ -487,6 +600,15 @@ onMounted(() => {
   border-radius: 4px;
 }
 
+.upload-status {
+  margin: 1rem 0;
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  text-align: center;
+  color: #666;
+}
+
 /* 버튼 공통 스타일 */
 .btn {
   padding: 0.5rem 1rem;
@@ -500,12 +622,18 @@ onMounted(() => {
   gap: 0.4rem;
 }
 
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
 .btn-primary {
   background-color: #29C458;
   color: white;
 }
 
-.btn-primary:hover {
+.btn-primary:not(:disabled):hover {
   background-color: #23a94c;
   transform: translateY(-1px);
 }
@@ -515,7 +643,7 @@ onMounted(() => {
   color: white;
 }
 
-.btn-secondary:hover {
+.btn-secondary:not(:disabled):hover {
   background-color: #5a6268;
   transform: translateY(-1px);
 }
@@ -525,7 +653,7 @@ onMounted(() => {
   color: white;
 }
 
-.btn-danger:hover {
+.btn-danger:not(:disabled):hover {
   background-color: #c82333;
   transform: translateY(-1px);
 }

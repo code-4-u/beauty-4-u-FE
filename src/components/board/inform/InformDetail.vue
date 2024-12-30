@@ -1,13 +1,13 @@
 <script setup>
 import {onMounted, ref} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
-import {delFetch, getFetch} from "@/stores/apiClient.js";
+import {delFetch, getFetch, postFetch} from "@/stores/apiClient.js";
 import {formatDate} from "@/stores/util.js";
-import {useAuthStore} from "@/stores/auth.js"; // userStore import 추가
+import {useAuthStore} from "@/stores/auth.js";
 
 const router = useRouter();
 const route = useRoute();
-const userStore = useAuthStore(); // userStore 인스턴스 생성
+const userStore = useAuthStore();
 
 const informId = route.params['informId'];
 const informDetail = ref({});
@@ -15,17 +15,15 @@ const informDetail = ref({});
 const fetchInformDetail = async () => {
   try {
     const response = await getFetch(`/inform/${informId}`)
-
     informDetail.value = response.data.data;
   } catch (error) {
     console.error("공지사항 세부 정보를 가져오는 데 오류가 발생했습니다:", error);
   }
-
-}
+};
 
 // 목록으로 돌아가기
 const goBack = () => {
-  router.push('/inform'); // 공지사항 목록으로 이동
+  router.push('/inform');
 };
 
 // 수정 페이지로 이동
@@ -38,20 +36,42 @@ const editNotice = () => {
 };
 
 // 삭제 api 호출
-const deleteFetchInform = async () => {
+const deleteInform = async () => {
   try {
-    const response = await delFetch(`/inform/${informId}`);
-  } catch (error) {
-    console.error('삭제에 실패했습니다.', error);
-  }
-}
+    // 1. 현재 게시글의 모든 S3 이미지 URL 수집
+    const imageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
+    const imageMatches = [...informDetail.value.informContent.matchAll(imageRegex)];
+    const s3ImageUrls = imageMatches
+        .map(match => match[1])
+        .filter(url => url.includes('s3.ap-northeast-2.amazonaws.com')); // S3 URL만 필터링
 
-// 삭제 기능 (확인 대화상자 포함)
-const deleteInform = () => {
-  if (confirm('정말로 삭제하시겠습니까?')) {
-    deleteFetchInform();
+    // 2. S3에서 이미지 삭제
+    if (s3ImageUrls.length > 0) {
+      await postFetch("/file/s3/uploadList", s3ImageUrls);
+
+      // 3. DB에서 파일 정보 삭제
+      await postFetch('/file/delete', {
+        fileS3UrlList: s3ImageUrls,
+        fileIdList: []
+      });
+    }
+
+    // 4. 게시글 삭제
+    await delFetch(`/inform/${informId}`);
+
     alert('삭제되었습니다.');
     router.push('/inform');
+
+  } catch (error) {
+    console.error('삭제에 실패했습니다.', error);
+    alert('삭제에 실패했습니다. 다시 시도해주세요.');
+  }
+};
+
+// 삭제 기능 (확인 대화상자 포함)
+const confirmDelete = () => {
+  if (confirm('게시글과 관련된 모든 이미지가 함께 삭제됩니다.\n정말로 삭제하시겠습니까?')) {
+    deleteInform();
   }
 };
 
@@ -94,12 +114,11 @@ onMounted(() => {
           <span class="btn-text">목록으로</span>
         </button>
       </div>
-      <!-- 수정, 삭제 버튼에 v-if 조건 추가 -->
       <div v-if="userStore.userRole === 'ADMIN'" class="right-buttons">
         <button class="btn btn-primary" @click="editNotice">
           <span class="btn-text">수정</span>
         </button>
-        <button class="btn btn-danger" @click="deleteInform">
+        <button class="btn btn-danger" @click="confirmDelete">
           <span class="btn-text">삭제</span>
         </button>
       </div>

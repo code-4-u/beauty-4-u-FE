@@ -141,19 +141,12 @@ const updateInform = async () => {
       return;
     }
 
-    // Debug: 현재 선택된 파일들의 상태 확인
-    console.log('Selected Files:', selectedFiles.value);
-
     // 1. 삭제된 이미지 처리
     const currentImageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
     const currentImageMatches = [...modifiedContent.matchAll(currentImageRegex)];
     const currentImageUrls = currentImageMatches.map(match => match[1]);
 
-    // Debug: 현재 본문의 이미지 URL들
-    console.log('Current Image URLs:', currentImageUrls);
-
     const deletedImageUrls = originalS3Urls.value.filter(url => !currentImageUrls.includes(url));
-    console.log('Deleted Image URLs:', deletedImageUrls);
 
     if (deletedImageUrls.length > 0) {
       await postFetch("/file/s3/uploadList", deletedImageUrls);
@@ -164,8 +157,12 @@ const updateInform = async () => {
     }
 
     // 2. 새로운 이미지 S3 업로드 및 URL 매핑 수집
-    const newFiles = selectedFiles.value.filter(file => file.file && !file.isExisting && file.tempUrl);
-    console.log('New Files to Upload:', newFiles);
+    const newFiles = selectedFiles.value.filter(file => {
+      // blob URL을 포함한 파일만 필터링
+      return file.file &&
+          !file.isExisting &&
+          (file.tempUrl?.startsWith('blob:') || modifiedContent.includes(`blob:${location.origin}`));
+    });
 
     // 모든 파일 업로드를 병렬로 처리
     const uploadResults = await Promise.all(
@@ -180,11 +177,6 @@ const updateInform = async () => {
             uploadedS3Urls.push(s3Url);
             originalFileNames.push(fileInfo.name);
 
-            console.log('File Upload Result:', {
-              original: fileInfo.tempUrl,
-              s3Url: s3Url
-            });
-
             return {
               tempUrl: fileInfo.tempUrl,
               s3Url: s3Url
@@ -196,25 +188,23 @@ const updateInform = async () => {
         })
     );
 
-    // Debug: 업로드 결과 확인
-    console.log('Upload Results:', uploadResults);
-
-    // 3. 모든 임시 URL을 S3 URL로 일괄 교체
+    // 3. blob URL을 포함한 이미지 태그를 찾아서 S3 URL로 교체
     let updatedContent = modifiedContent;
-    console.log('Content before replacement:', updatedContent);
 
-    uploadResults.forEach(({tempUrl, s3Url}) => {
-      const escapedTempUrl = tempUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const regex = new RegExp(escapedTempUrl, 'g');
-      updatedContent = updatedContent.replace(regex, s3Url);
-      console.log('URL Replacement:', {
-        from: tempUrl,
-        to: s3Url,
-        success: updatedContent.includes(s3Url)
-      });
+    // 먼저 본문에서 blob URL을 사용하는 이미지 태그들을 찾음
+    const blobImageRegex = /<img[^>]*src="(blob:[^"]*)"[^>]*>/g;
+    const blobMatches = [...updatedContent.matchAll(blobImageRegex)];
+
+    // 각 blob URL에 대해 S3 URL로 교체
+    blobMatches.forEach((match, index) => {
+      if (index < uploadResults.length) {
+        const s3Url = uploadResults[index].s3Url;
+        // 전체 이미지 태그에서 src 속성만 변경
+        const originalTag = match[0];
+        const updatedTag = originalTag.replace(/src="blob:[^"]*"/, `src="${s3Url}"`);
+        updatedContent = updatedContent.replace(originalTag, updatedTag);
+      }
     });
-
-    console.log('Content after replacement:', updatedContent);
 
     // 4. 업데이트된 content로 게시글 수정
     await putFetch(`/inform/${informId}`, {
@@ -233,7 +223,7 @@ const updateInform = async () => {
 
     // 6. 임시 URL 정리
     selectedFiles.value.forEach(file => {
-      if (file.tempUrl) {
+      if (file.tempUrl?.startsWith('blob:')) {
         URL.revokeObjectURL(file.tempUrl);
       }
     });
