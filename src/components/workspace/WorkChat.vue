@@ -3,7 +3,6 @@ import { Stomp } from '@stomp/stompjs';
 import { ref, computed, onMounted, onBeforeUnmount, nextTick  } from 'vue';
 import { getFetch, postFetch } from "@/stores/apiClient.js"
 import { useAuthStore } from '@/stores/auth.js';
-import axios from 'axios';
 import ImageManagement from "@/components/board/editor/ImageManagement.vue";
 
 // 유저 정보 관리
@@ -42,7 +41,7 @@ const shouldDisplayDateHeader = (index) => {
 const isCreateRoomModalOpen = ref(false);
 const chatRooms = ref([]); // 채팅방 목록
 const chatRoomId = ref(null);
-const selectedRoom = ref(null); // 선택된 채팅방
+const selectedRoom = ref(); // 선택된 채팅방
 
 const messages = ref([]); // 메시지 목록
 const messageContent = ref(''); // 메세지 내용
@@ -333,14 +332,9 @@ const scrollToBottom = async (smooth = false) => {
 // 채팅방 목록 가져오기
 const fetchChatRooms = async () => {
   try {
-    const response = await axios.get("http://localhost:8080/api/v1/chat/rooms", {
-      headers: {
-        Authorization: `Bearer ${authObjectInfo.accessToken}`,
-      },
-    });
-    console.log("채팅방 목록 가져오기 확인 전");
+    const response = await getFetch("/chat/room");
+    console.log("채팅방 목록 테스트");
     chatRooms.value = response.data.data;
-    // chatRoomId.value = response.data.data[0].chatRoomId;
     console.log(chatRooms);
     console.log(response.data.data);
     console.log("채팅방 목록 가져오기 확인 후");
@@ -355,11 +349,7 @@ const fetchChatRooms = async () => {
 // 채팅방 정보 불러오기
 const fetchChatInfo = async (roomId) => {
   try {
-    const response = await axios.get(`http://localhost:8080/api/v1/chat/${roomId}/details`, {
-      headers: {
-        Authorization: `Bearer ${authObjectInfo.accessToken}`,
-      },
-    });
+    const response = await getFetch(`/chat/${roomId}/details`);
     const data = response.data.data;
     console.log(data);
     participants.value = data.participants;
@@ -738,6 +728,18 @@ onMounted(() => {
             placeholder="채팅방 이름 입력"
             type="text"
         />
+
+        <!-- 검색 섹션 -->
+        <div class="search-box">
+          <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="사용자 검색"
+              @input="handleSearch"
+          />
+        </div>
+
+
 
         <!-- 사용자 목록 -->
         <ul class="user-list">
