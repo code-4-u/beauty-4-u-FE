@@ -160,6 +160,7 @@ onUnmounted(() => {
       </router-link>
       <div class="notification" @click="toggleNotis">
         <font-awesome-icon :icon="['fas', 'bell']"/>
+        <span v-if="notis.length" class="notification-count">{{ notis.length }}</span>
         <div v-if="showNotis" class="notifications-dropdown">
           <div v-if="notis.length" class="notifications-list">
             <div v-for="noti in notis"
@@ -259,6 +260,23 @@ onUnmounted(() => {
 
 .notification:hover {
   color: var(--menu-green);
+}
+
+.notification-count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #e53935;
+  color: white;
+  border-radius: 50%;
+  padding: 2px 6px;
+  font-size: 0.75rem;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
 }
 
 .menu {

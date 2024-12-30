@@ -160,7 +160,7 @@ const eventForm = reactive({
   endDate: '',
   endTime: '00:00',
   color: '#2196F3',
-  type: 'TEAMSPACE'
+  type: 'TEAMSCHEDULE'
 });
 
 // Provide/inject
@@ -175,7 +175,7 @@ provide('selectedTypes', selectedTypes);
 // Computed
 const filteredEvents = computed(() => {
   return events.value.filter(event => {
-    if (event.type === 'TEAMSPACE' && !selectedTypes.teamspace) return false;
+    if (event.type === 'TEAMSCHEDULE' && !selectedTypes.teamspace) return false;
     if (event.type === 'PROMOTION' && !selectedTypes.promotion) return false;
     return true;
   });
@@ -198,7 +198,7 @@ const filteredPromotionEvents = computed(() => {
 });
 
 const teamEvents = computed(() => {
-  return events.value.filter(event => event.type === 'TEAMSPACE');
+  return events.value.filter(event => event.type === 'TEAMSCHEDULE');
 });
 
 const promotionEvents = computed(() => {
@@ -244,7 +244,7 @@ const resetEventForm = () => {
     endDate: '',
     endTime: '00:00',
     color: '#2196F3',
-    type: 'TEAMSPACE'
+    type: 'TEAMSCHEDULE'
   });
 };
 
@@ -342,7 +342,7 @@ const saveEvent = async () => {
 
   try {
     const createScheduleReqData = {
-      scheduleType: 'TEAMSPACE',
+      scheduleType: 'TEAMSCHEDULE',
       scheduleUrl: `/teamspace/${authStore.deptCode}`,
       scheduleReqDTO: {
         scheduleTitle: eventForm.title,
@@ -361,7 +361,7 @@ const saveEvent = async () => {
       start: formatDateTime(eventForm.startDate, eventForm.startTime),
       end: formatDateTime(eventForm.endDate, eventForm.endTime),
       color: eventForm.color,
-      type: 'TEAMSPACE'
+      type: 'TEAMSCHEDULE'
     });
 
     closeModal();
@@ -420,7 +420,7 @@ const fetchSchedules = async () => {
       content: schedule.scheduleContent,
       start: schedule.scheduleStart,
       end: schedule.scheduleEnd,
-      color: schedule.scheduleType === 'TEAMSPACE' ?
+      color: schedule.scheduleType === 'TEAMSCHEDULE' ?
           ['#2196F3', '#1976D2', '#1565C0', '#0D47A1', '#82B1FF'][Math.floor(Math.random() * 5)] :
           ['#F44336', '#E53935', '#D32F2F', '#C62828', '#FF8A80'][Math.floor(Math.random() * 5)],
       type: schedule.scheduleType,
@@ -483,7 +483,7 @@ const calendarOptions = reactive({
   eventClassNames: (arg) => {
     return [
       'calendar-event',
-      arg.event.extendedProps.type === 'TEAMSPACE' ? 'team-event' : 'promotion-event'
+      arg.event.extendedProps.type === 'TEAMSCHEDULE' ? 'team-event' : 'promotion-event'
     ];
   },
 });
