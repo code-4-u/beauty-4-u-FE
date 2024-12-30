@@ -71,7 +71,8 @@ const submitComment = async () => {
     uploadStatus.value = '답변 등록 중...';
 
     await postFetch(`/inquiry/${inquiryId}/reply`, {
-      inquiryReplyContent: newComment.value
+      inquiryReplyContent: newComment.value,
+      url: `/qna/${inquiryId}`,
     });
 
     newComment.value = '';

@@ -56,7 +56,7 @@ const fetchPromotionTypes = async () => {
       sort: '',
       order: '',
       page: 1,
-      count: 10
+      count: 20
     })
     const response = await getFetch(`/promotionType?${queryParams}`)
     promotionTypes.value = response.data.data
@@ -218,7 +218,7 @@ const handleSubmit = async () => {
   try {
     // 1. 프로모션 기본 정보 등록
     const promotionReqData = {
-      promotionTypeId: Number(promotionData.value.promotionTypeId),
+      promotionType: Number(promotionData.value.promotionTypeId),
       promotionTitle: promotionData.value.promotionTitle,
       promotionContent: promotionData.value.promotionContent,
       promotionStartDate: promotionData.value.promotionStartDate,
@@ -230,6 +230,8 @@ const handleSubmit = async () => {
 
     if (promotionResponse.status === 200 || promotionResponse.status === 201) {
       promotionId = promotionResponse.data.data
+
+      console.log('promotionId: ', promotionId);
 
       const promotionGoodsData = {
         promotionId: promotionId,
@@ -256,7 +258,7 @@ const handleSubmit = async () => {
 
       if (goodsResponse.status === 200 || goodsResponse.status === 201) {
         alert('프로모션이 등록되었습니다.')
-        router.push('/promotion/manage')
+        await router.push('/promotion/manage')
       } else {
         if (promotionId) {
           await delFetch(`/promotion/${promotionId}`)
