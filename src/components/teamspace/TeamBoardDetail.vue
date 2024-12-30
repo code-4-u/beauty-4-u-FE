@@ -3,18 +3,18 @@ import {computed, onMounted, ref} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
 import {getFetch, postFetch, putFetch, delFetch} from "@/stores/apiClient.js";
 import {formatDate} from "@/stores/util.js";
-import { useAuthStore } from '@/stores/auth.js'; // 사용자 인증 정보 스토어
+import { useAuthStore } from '@/stores/auth.js';
 
 const router = useRouter();
 const route = useRoute();
 const useAuth = useAuthStore();
 const currentUserCode = computed(() => useAuth.userCode);
-// 팀스페이스 ID를 전역 상태에서 가져옴
 const teamspaceId = computed(() => useAuth.teamspaceId);
 
 const teamBoardId = route.params['teamBoardId'];
 const teamBoardDetail = ref({});
 const teamBoardReplyList = ref([]);
+const originalImages = ref([]);
 
 const newReplyContent = ref('');
 const editingReplyId = ref(null);
@@ -22,12 +22,12 @@ const editReplyContent = ref('');
 
 // 게시글 작성자 여부를 확인하는 computed 속성
 const isAuthor = computed(() => {
-  return teamBoardDetail.value.userId === currentUserId.value;
+  return teamBoardDetail.value.userId === currentUserCode.value;
 });
 
 // 댓글 작성자 여부를 확인하는 메서드
 const isReplyAuthor = (reply) => {
-  return reply.userId === currentUserId.value;
+  return reply.userId === currentUserCode.value;
 };
 
 const publishedReplies = computed(() => {
@@ -39,6 +39,13 @@ const fetchTeamBoardDetail = async () => {
     const response = await getFetch(`/teamspace/board/${teamBoardId}`)
     teamBoardDetail.value = response.data.data.teamBoardDetailDTO;
     teamBoardReplyList.value = response.data.data.teamBoardReplyList;
+
+    // 본문에서 이미지 URL 추출 및 저장
+    const imageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
+    const content = teamBoardDetail.value.teamBoardContent || '';
+    const imageMatches = [...content.matchAll(imageRegex)];
+    originalImages.value = imageMatches.map(match => match[1]);
+
   } catch (error) {
     console.error("게시글 세부 정보를 가져오는 데 오류가 발생했습니다:", error);
   }
@@ -56,17 +63,29 @@ const editTeamBoard = () => {
 
 const deleteFetchTeamBoard = async () => {
   try {
+    // 1. 이미지가 있다면 S3에서 삭제
+    if (originalImages.value.length > 0) {
+      await postFetch('/file/s3/uploadList', originalImages.value);
+      await postFetch('/file/delete', {
+        fileS3UrlList: originalImages.value,
+        fileIdList: []
+      });
+    }
+
+    // 2. 게시글 삭제
     await delFetch(`/teamspace/board/${teamBoardId}`);
+
+    alert('삭제되었습니다.');
+    router.push(`/teamspace/${teamspaceId.value}/board`);
   } catch (error) {
     console.error('삭제에 실패했습니다.', error);
+    alert('삭제에 실패했습니다. 다시 시도해주세요.');
   }
-}
+};
 
 const deleteTeamBoard = () => {
-  if (confirm('정말로 삭제하시겠습니까?')) {
+  if (confirm('게시글을 삭제하시겠습니까?')) {
     deleteFetchTeamBoard();
-    alert('삭제되었습니다.');
-    router.push('/teamspace/board');
   }
 };
 
@@ -164,6 +183,7 @@ onMounted(() => {
     <div class="content-section">
       <div v-html="teamBoardDetail.teamBoardContent" class="post-content"></div>
     </div>
+
     <div class="comments-section">
       <div class="comments-header">
         <h4 class="comments-title">
@@ -173,11 +193,11 @@ onMounted(() => {
 
       <div class="comment-form">
         <div class="comment-input-wrapper">
-      <textarea
-          class="comment-input"
-          v-model="newReplyContent"
-          placeholder="댓글을 입력하세요..."
-      ></textarea>
+          <textarea
+              class="comment-input"
+              v-model="newReplyContent"
+              placeholder="댓글을 입력하세요..."
+          ></textarea>
           <div class="comment-submit">
             <button class="btn btn-primary" @click="addReply">
               <span class="btn-text">등록</span>
@@ -197,10 +217,10 @@ onMounted(() => {
 
           <!-- 수정 모드일 때 -->
           <div v-if="editingReplyId === reply.teamBoardReplyId" class="comment-edit-form">
-        <textarea
-            v-model="editReplyContent"
-            class="comment-input"
-        ></textarea>
+            <textarea
+                v-model="editReplyContent"
+                class="comment-input"
+            ></textarea>
             <div class="comment-actions">
               <button class="comment-action-btn" @click="updateReply(reply.teamBoardReplyId)">저장</button>
               <button class="comment-action-btn" @click="cancelEditReply">취소</button>
@@ -307,67 +327,6 @@ onMounted(() => {
   height: auto;
   margin: 1rem 0;
   border-radius: 4px;
-}
-
-.footer-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid #f0f0f0;
-}
-
-.right-buttons {
-  display: flex;
-  gap: 0.75rem;
-}
-
-.btn {
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 4px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-}
-
-.btn-primary {
-  background-color: #29C458;
-  color: white;
-}
-
-.btn-primary:hover {
-  background-color: #23a94c;
-  transform: translateY(-1px);
-}
-
-.btn-secondary {
-  background-color: #6c757d;
-  color: white;
-}
-
-.btn-secondary:hover {
-  background-color: #5a6268;
-  transform: translateY(-1px);
-}
-
-.btn-danger {
-  background-color: #dc3545;
-  color: white;
-}
-
-.btn-danger:hover {
-  background-color: #c82333;
-  transform: translateY(-1px);
-}
-
-.btn-text {
-  font-size: 0.95rem;
 }
 
 .comments-section {
@@ -488,6 +447,67 @@ onMounted(() => {
 
 .comment-action-btn:hover {
   color: #29C458;
+}
+
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+}
+
+.btn-primary {
+  background-color: #29C458;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #23a94c;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background-color: #5a6268;
+  transform: translateY(-1px);
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+  transform: translateY(-1px);
+}
+
+.btn-text {
+  font-size: 0.95rem;
+}
+
+.footer-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f0f0f0;
+}
+
+.right-buttons {
+  display: flex;
+  gap: 0.75rem;
 }
 
 @media (max-width: 768px) {

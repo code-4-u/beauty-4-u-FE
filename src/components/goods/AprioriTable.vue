@@ -61,7 +61,6 @@ const fetchRecommendations = async () => {
     loading.value = false;
   }
 };
-
 // goodsCode prop이 변경될 때마다 데이터를 다시 가져오는 watch 추가
 watch(() => props.goodsCode, (newGoodsCode) => {
   if (newGoodsCode) {
@@ -74,6 +73,9 @@ watch(() => props.goodsCode, (newGoodsCode) => {
 }, {immediate: true});
 
 const formatPercentage = (value) => {
+  if (value <= 0.01) {
+    return (value * 10000).toFixed(2);
+  }
   return (value * 100).toFixed(1) + '%';
 };
 
@@ -177,7 +179,12 @@ const changePage = (page) => {
 }
 
 .search-container {
+  position: sticky;
+  top: 0;
+  background: white;
+  padding: 16px 0;
   margin-bottom: 16px;
+  z-index: 10;
 }
 
 .search-input {

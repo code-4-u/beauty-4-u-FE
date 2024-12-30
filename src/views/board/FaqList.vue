@@ -27,6 +27,10 @@ const performSearch = async () => {
       count: itemsPerPage
     });
 
+    if (userStore.userRole !== 'ADMIN') {
+      searchParams.append('publishStatus', 'PUBLISHED');
+    }
+
     const response = await getFetch(`/inquiry/faq/list?${searchParams}`);
     faqs.value = response.data.data.faqList;
     totalCount.value = response.data.data.totalCount;

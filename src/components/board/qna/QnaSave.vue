@@ -1,5 +1,5 @@
 <script setup>
-import {ref} from 'vue';
+import {onBeforeUnmount, ref} from 'vue';
 import {useRouter} from 'vue-router';
 import {postFetch} from "@/stores/apiClient.js";
 import BoardEditor from "@/components/board/editor/BoardEditor.vue";
@@ -13,49 +13,74 @@ const imageUrls = ref([]);
 const boardEditorRef = ref(null);
 const uploadStatus = ref('');
 const isPrivate = ref('N');
+const isSubmitting = ref(false);
 
-const insertImageAtCursor = (imageUrl, removeUrl) => {
-  if (boardEditorRef.value) {
-    if (removeUrl) {
-      boardEditorRef.value.removeImage(removeUrl);
-    } else if (imageUrl) {
-      boardEditorRef.value.insertImage(imageUrl);
+const insertImageAtCursor = (imageUrl, options = {}) => {
+  if (!boardEditorRef.value) return;
+
+  try {
+    if (options.removeUrl) {  // 이미지 제거 케이스
+      boardEditorRef.value.removeImage(options.removeUrl);
+    } else if (options.file) {    // 이미지 추가 케이스
+      boardEditorRef.value.insertImage(imageUrl, {
+        style: `max-width: ${options.width || 400}px; height: ${options.height || 'auto'};`,
+        'data-temp-url': 'true'
+      });
     }
+  } catch (error) {
+    console.error('이미지 삽입 중 오류:', error);
   }
 };
 
 const handleUpload = (files) => {
-  uploadStatus.value = '업로드 중';
+  uploadStatus.value = '업로드 중...';
+
+  // selectedFiles에 파일 추가
   selectedFiles.value = [
     ...selectedFiles.value,
     ...files
   ];
-  uploadStatus.value = '업로드 완료';
+
+  uploadStatus.value = '';
 };
 
 const handleRemove = (fileId) => {
   const fileToRemove = selectedFiles.value.find(f => f.id === fileId);
   if (fileToRemove) {
+    // 임시 URL 제거
+    if (fileToRemove.tempUrl) {
+      URL.revokeObjectURL(fileToRemove.tempUrl);
+    }
+    // 목록에서 제거
     selectedFiles.value = selectedFiles.value.filter(f => f.id !== fileId);
+
+    // 본문에서 이미지 제거
+    if (fileToRemove.tempUrl) {
+      const regex = new RegExp(`<img[^>]*src="${fileToRemove.tempUrl}"[^>]*>`, 'g');
+      editorContent.value = editorContent.value.replace(regex, '');
+    }
   }
 };
 
 const goBack = () => {
+  // 임시 URL 정리
+  selectedFiles.value.forEach(file => {
+    if (file.tempUrl) {
+      URL.revokeObjectURL(file.tempUrl);
+    }
+  });
   router.push('/qna');
 };
 
 const fetchSaveQna = async () => {
+  if (isSubmitting.value) return;
+
+  const uploadedS3Urls = []; // S3에 업로드된 URL들을 추적
+  const originalFileNames = []; // 원본 파일명 추적
+
   try {
-    if (uploadStatus.value === '업로드 중') {
-      await new Promise(resolve => {
-        const checkUpload = setInterval(() => {
-          if (uploadStatus.value !== '업로드 중') {
-            clearInterval(checkUpload);
-            resolve();
-          }
-        }, 500);
-      });
-    }
+    isSubmitting.value = true;
+    uploadStatus.value = '저장 중...';
 
     // 입력값 검증
     if (!qnaTitle.value.trim()) {
@@ -63,38 +88,88 @@ const fetchSaveQna = async () => {
       return;
     }
 
-    // 본문에서 이미지 URL 추출
-    const imageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
-    const content = editorContent.value;
-    const imageMatches = [...content.matchAll(imageRegex)];
-    const imageUrls = imageMatches.map(match => match[1]);
+    // 1. 선택된 파일들을 S3에 업로드
+    const uploadPromises = selectedFiles.value.map(async (fileInfo) => {
+      const formData = new FormData();
+      formData.append('image', fileInfo.file);
 
-    // QNA 저장
+      try {
+        const response = await postFetch('/file/s3/upload', formData);
+        const s3Url = response.data.data;
+
+        uploadedS3Urls.push(s3Url);
+        originalFileNames.push(fileInfo.name);
+
+        // tempUrl을 실제 S3 URL로 교체
+        editorContent.value = editorContent.value.replace(
+            fileInfo.tempUrl,
+            s3Url
+        );
+        return s3Url;
+      } catch (error) {
+        console.error('이미지 업로드 실패:', error);
+        throw error;
+      }
+    });
+
+    // 모든 이미지 업로드 완료 대기
+    const s3Urls = await Promise.all(uploadPromises);
+
+    // 2. QNA 저장
     const response = await postFetch(`/inquiry`, {
       inquiryTitle: qnaTitle.value,
       inquiryContent: editorContent.value,
       inquirySecretYn: isPrivate.value === true ? 'Y' : 'N',
     });
 
-    console.log(response.data.data)
-
-    // 이미지 저장
-    if (imageUrls.length > 0) {
+    // 3. 파일 정보 DB 저장
+    if (s3Urls.length > 0) {
       await postFetch('/file/save', {
-        entityId: response.data.data,
-        imageUrls: imageUrls,
-        entityType: "inquiry"
+        imageS3Urls: s3Urls,           // s3 url 배열
+        fileUrls: originalFileNames,   // 원본 파일명 배열
+        entityType: "INQUIRY"          // 엔티티 타입
       });
     }
 
+    // 4. 임시 URL 정리
+    selectedFiles.value.forEach(file => {
+      if (file.tempUrl) {
+        URL.revokeObjectURL(file.tempUrl);
+      }
+    });
+
+    // 5. 목록으로 이동
     await router.push({
       path: `/qna`
     });
+
   } catch (error) {
     console.error('저장에 실패했습니다.', error);
+
+    // 에러시 s3에 이미지들 삭제
+    if (uploadedS3Urls.length > 0) {
+      try {
+        await postFetch('/file/s3/uploadList', uploadedS3Urls);
+      } catch (deleteError) {
+        console.error('S3 이미지 삭제 실패:', deleteError);
+      }
+    }
+
     alert('저장에 실패했습니다. 다시 시도해주세요.');
+  } finally {
+    isSubmitting.value = false;
+    uploadStatus.value = '';
   }
 };
+
+// 컴포넌트 언마운트 시 임시 URL 정리
+onBeforeUnmount(() => {
+  selectedFiles.value.forEach(file => {
+    if (file.tempUrl) {
+      URL.revokeObjectURL(file.tempUrl);
+    }
+  });
+});
 </script>
 
 <template>
@@ -107,6 +182,7 @@ const fetchSaveQna = async () => {
             class="title-input"
             v-model="qnaTitle"
             placeholder="질문 제목을 입력하세요"
+            :disabled="isSubmitting"
         >
       </div>
 
@@ -116,6 +192,7 @@ const fetchSaveQna = async () => {
               type="checkbox"
               v-model="isPrivate"
               class="private-checkbox"
+              :disabled="isSubmitting"
           >
           비밀글로 작성
         </label>
@@ -130,25 +207,39 @@ const fetchSaveQna = async () => {
         @upload="handleUpload"
         @remove="handleRemove"
         @insert-to-editor="insertImageAtCursor"
+        :disabled="isSubmitting"
     />
 
     <div class="editor-container">
       <board-editor
           ref="boardEditorRef"
           v-model="editorContent"
+          :disabled="isSubmitting"
       />
+    </div>
+
+    <div v-if="uploadStatus" class="upload-status">
+      {{ uploadStatus }}
     </div>
 
     <div class="footer-section">
       <div class="left-buttons">
-        <button class="btn btn-secondary" @click="goBack">
+        <button
+            class="btn btn-secondary"
+            @click="goBack"
+            :disabled="isSubmitting"
+        >
           <span class="btn-text">목록으로</span>
         </button>
       </div>
 
       <div class="right-buttons">
-        <button class="btn btn-primary" @click="fetchSaveQna">
-          <span class="btn-text">질문 등록</span>
+        <button
+            class="btn btn-primary"
+            @click="fetchSaveQna"
+            :disabled="isSubmitting"
+        >
+          <span class="btn-text">{{ isSubmitting ? '저장 중...' : '질문 등록' }}</span>
         </button>
       </div>
     </div>
@@ -195,6 +286,11 @@ const fetchSaveQna = async () => {
   cursor: pointer;
 }
 
+.private-label:has(input:disabled) {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .private-checkbox {
   width: 1rem;
   height: 1rem;
@@ -222,6 +318,11 @@ const fetchSaveQna = async () => {
   box-shadow: 0 0 0 3px rgba(41, 196, 88, 0.1);
 }
 
+.title-input:disabled {
+  background-color: #f5f5f5;
+  cursor: not-allowed;
+}
+
 .title-input::placeholder {
   color: #aaa;
 }
@@ -237,6 +338,15 @@ const fetchSaveQna = async () => {
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   overflow: hidden;
+}
+
+.upload-status {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  text-align: center;
+  color: #666;
 }
 
 .footer-section {
@@ -267,12 +377,18 @@ const fetchSaveQna = async () => {
   gap: 0.4rem;
 }
 
+.btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
 .btn-primary {
   background-color: #29C458;
   color: white;
 }
 
-.btn-primary:hover {
+.btn-primary:not(:disabled):hover {
   background-color: #23a94c;
   transform: translateY(-1px);
 }
@@ -282,7 +398,7 @@ const fetchSaveQna = async () => {
   color: white;
 }
 
-.btn-secondary:hover {
+.btn-secondary:not(:disabled):hover {
   background-color: #5a6268;
   transform: translateY(-1px);
 }

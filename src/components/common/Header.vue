@@ -103,10 +103,10 @@ const formatDate = (dateString) => {
   });
 };
 
-const handleLogoutClick = () => {
+const handleLogoutClick = async () => {
   authStore.logout();
   alert('로그아웃 성공');
-  router.push({
+  await router.push({
     path: '/'
   })
   window.location.reload();
@@ -263,7 +263,7 @@ onUnmounted(() => {
 
 .menu {
   display: flex;
-  gap: 2rem;
+  gap: 3.5rem;
   align-items: center;
   justify-content: center;
   height: 100%;
@@ -276,7 +276,7 @@ onUnmounted(() => {
   text-decoration: none;
   color: #666;
   font-size: 1rem;
-  padding: 0.5rem 1.5rem;
+  padding: 0.5rem 2rem;
   border-radius: 4px;
   transition: all 0.3s ease;
   user-select: none;
@@ -431,7 +431,7 @@ onUnmounted(() => {
   }
 
   .menu {
-    gap: 1rem;
+    gap: 2rem;
   }
 
   .menu-item {
