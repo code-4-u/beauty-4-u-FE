@@ -88,7 +88,9 @@ const resetSearchKeyword = () => {
 /* 특정 typeId의 모든 promotionId를 배열로 반환하는 함수 */
 const getPromotionIdsByType = (promotionTypeId) => {
   const promotionGroup = promotionList.value.find(item => item.promotionTypeId === promotionTypeId);
-  return promotionGroup.items.map(item => item.promotionId);
+  return promotionGroup.items
+      .map(item => item.promotionId)
+      .sort((a, b) => a - b);
 };
 
 /* 검색창 토글 설정 */
@@ -153,6 +155,23 @@ const loadPromotionType = async () => {
 
 /* 프로모션 검색 */
 const loadSearchPromotion = async () => {
+  // 날짜 유효성 검사
+  if ((startDate.value && !endDate.value) || (!startDate.value && endDate.value)) {
+    alert('시작일과 종료일을 모두 선택해주세요.');
+    return;
+  }
+
+  // 날짜 범위 검사
+  if (startDate.value && endDate.value) {
+    const start = new Date(startDate.value);
+    const end = new Date(endDate.value);
+
+    if (start > end) {
+      alert('종료일은 시작일보다 이후여야 합니다.');
+      return;
+    }
+  }
+
   try {
     const searchParams = new URLSearchParams();
 
@@ -175,6 +194,7 @@ const loadSearchPromotion = async () => {
 const loadPromotionByYearSales = async (promotionTypeId) => {
   try {
     promotionIds.value = getPromotionIdsByType(promotionTypeId);
+    console.log("promotionIds 어디서... 값이...?", promotionIds.value);
     const params = new URLSearchParams();
 
     promotionIds.value.forEach(id => {
@@ -285,8 +305,8 @@ const chartOption = computed(() => {
         base: 0
       }
     },
-    barThickness: 40, // 막대 두께 조절 (더 얇게)
-    maxBarThickness: 40, // 최대 막대 두께 제한
+    barThickness: 30, // 막대 두께 조절 (더 얇게)
+    maxBarThickness: 30, // 최대 막대 두께 제한
     onClick: (event, elements) => {
       if (elements.length > 0) {
         const element = elements[0];
@@ -375,12 +395,14 @@ onMounted(()=> {
                     <tr v-for="item in promotionByGoodsList[0].promotionGoodsList"
                         :key="item.goodsId">
                       <td>{{item.goodsName}}</td>
-                      <td>{{item.totalGoodsSales}}</td>
+                      <td class="text-right">{{Number(item.totalGoodsSales).toLocaleString()}}원</td>
                     </tr>
                    </template>
-                   <div v-else class="empty-message">
-                     데이터 선택
-                   </div>
+                   <tr v-else>
+                     <td colspan="2" class="empty-message">
+                       데이터 선택
+                     </td>
+                   </tr>
                   </tbody>
                 </table>
               </div>
@@ -400,12 +422,14 @@ onMounted(()=> {
                     <tr v-for="item in promotionByGoodsList[1].promotionGoodsList"
                         :key="item.goodsId">
                       <td>{{item.goodsName}}</td>
-                      <td>{{item.totalGoodsSales}}</td>
+                      <td class="text-right">{{Number(item.totalGoodsSales).toLocaleString()}}원</td>
                     </tr>
                   </template>
-                  <div v-else class="empty-message">
-                    데이터 선택
-                  </div>
+                  <tr v-else>
+                    <td colspan="2" class="empty-message">
+                      데이터 선택
+                    </td>
+                  </tr>
                   </tbody>
                 </table>
               </div>
@@ -416,7 +440,7 @@ onMounted(()=> {
         <!-- 오른쪽 영역 -->
         <div class="right-section">
           <div class="ranking-block">
-            <h3>순위 비교</h3>
+            <h3>프로모션 비교</h3>
             <div class="ranking-content">
               <div class="table-container">
                 <table class="data-table">
@@ -456,7 +480,7 @@ onMounted(()=> {
         <div class="search-form">
           <div class="form-group">
             <label>프로모션명</label>
-            <input v-model="searchKeyword" type="text" placeholder="프로모션명을 입력하세요">
+            <input v-model="searchKeyword" type="text" placeholder="프로모션명을 입력하세요" @keyup.enter="loadSearchPromotion">
           </div>
 
           <div class="form-group">
@@ -588,7 +612,7 @@ onMounted(()=> {
 }
 
 .content-container {
-  padding: 24px;
+  padding: 15px;
 }
 
 /* 검색 트리거 버튼 스타일 */
@@ -731,11 +755,13 @@ onMounted(()=> {
   background: #45a049;
 }
 
+/* 추가되는 스타일 */
 .layout-grid {
   display: grid;
-  grid-template-columns: 1.5fr 1fr;
-  gap: 24px;
+  grid-template-columns: 1.4fr 1.3fr;
+  gap: 32px;
   margin-top: 24px;
+  padding-right: 24px;
 }
 
 .left-section {
@@ -755,7 +781,7 @@ onMounted(()=> {
   height: 300px;
   background: #f8f9fa;
   border-radius: 4px;
-  margin-top: 16px;
+  margin-top: 10px;
 }
 
 .list-blocks {
@@ -790,7 +816,7 @@ onMounted(()=> {
 h3 {
   margin: 0;
   color: #333;
-  font-size: 18px;
+  font-size: 14px;
 }
 
 .chart-section {
@@ -855,7 +881,7 @@ h3 {
 
 /* 리스트 콘텐츠 영역 수정 */
 .list-content {
-  margin-top: 16px;
+  margin-top: 10px;
   min-height: 200px;
   background: #f8f9fa;
   border-radius: 4px;
@@ -941,5 +967,79 @@ h3 {
   text-align: center !important;
   color: #666;
   padding: 20px !important;
+}
+
+.data-table th,
+.data-table td {
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  font-size: 12px;
+  white-space: normal;
+  word-wrap: break-word;
+  vertical-align: middle;
+}
+
+.right-section .data-table th:nth-child(1),
+.right-section .data-table td:nth-child(1),
+.right-section .data-table th:nth-child(2),
+.right-section .data-table td:nth-child(2) {
+  width: 30%;
+}
+
+.right-section .data-table th:nth-child(3),
+.right-section .data-table td:nth-child(3),
+.right-section .data-table th:nth-child(4),
+.right-section .data-table td:nth-child(4) {
+  width: 20%;
+}
+
+.list-blocks .data-table th:first-child,
+.list-blocks .data-table td:first-child {
+  width: 65%;
+}
+
+.list-blocks .data-table th:last-child,
+.list-blocks .data-table td:last-child {
+  width: 35%;
+  text-align: right;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 auto;
+  background: white;
+  table-layout: fixed;
+}
+
+.list-block {
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+}
+
+.list-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.list-blocks .data-table th:first-child,
+.list-blocks .data-table td:first-child {
+  width: 60%;  /* 65%에서 55%로 줄임 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.list-blocks .data-table th:last-child,
+.list-blocks .data-table td:last-child {
+  width: 40%;  /* 35%에서 45%로 늘림 */
+  text-align: center;  /* right에서 center로 변경 */
+  white-space: nowrap;
+}
+
+/* 테이블 헤더도 가운데 정렬 */
+.list-blocks .data-table th {
+  text-align: center;
 }
 </style>
