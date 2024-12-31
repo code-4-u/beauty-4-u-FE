@@ -7,6 +7,7 @@ import interactionPlugin from '@fullcalendar/interaction';
 import {getFetch, postFetch, putFetch, delFetch} from "@/stores/apiClient.js";
 import {useAuthStore} from "@/stores/auth.js";
 import {useRouter} from "vue-router";
+import {FontAwesomeIcon} from "@fortawesome/vue-fontawesome";
 
 const router = useRouter();
 const authStore = useAuthStore();
@@ -42,7 +43,7 @@ const periods = [
 
 const selectedPeriod = ref('DAILY');
 
-// 팀 일정과 프로모션의 연도/월 선택 분리
+// 팀 일정과 프로모션의 연도/월 선택
 const teamSelectedYear = ref(new Date().getFullYear());
 const teamSelectedMonth = ref(new Date().getMonth() + 1);
 const promotionSelectedYear = ref(new Date().getFullYear());
@@ -55,9 +56,9 @@ const handleGoodsClick = (item) => {
   })
 };
 
-// openIncreaseModal 함수 수정
+// 매출 상승률 모달
 const openIncreaseModal = async () => {
-  isIncreaseModalOpen.value = true;  // 모달 먼저 열기
+  isIncreaseModalOpen.value = true;
   try {
     isLoading.value = true;
     const params = new URLSearchParams({
@@ -73,7 +74,6 @@ const openIncreaseModal = async () => {
   }
 };
 
-// openDecreaseModal 함수도 동일하게 수정
 const openDecreaseModal = async () => {
   isDecreaseModalOpen.value = true;
   try {
@@ -113,7 +113,7 @@ const closeDecreaseModal = () => {
   isDecreaseModalOpen.value = false;
 };
 
-// 메인화면 매출 증감률 개수 제한
+// 메인화면 매출 증감률 데이터
 const visibleIncreaseData = computed(() => {
   return increaseTop5.value.slice(0, 5);
 });
@@ -143,12 +143,12 @@ const changePeriod = async (periodType) => {
   }
 };
 
-// fetchGoodsRate 함수
+// 매출 데이터 조회
 const fetchGoodsRate = async () => {
   await changePeriod(selectedPeriod.value);
 };
 
-// State
+// Calendar State
 const events = ref([]);
 const isModalOpen = ref(false);
 const eventForm = reactive({
@@ -172,7 +172,7 @@ const selectedTypes = reactive({
 });
 provide('selectedTypes', selectedTypes);
 
-// Computed
+// Calendar Computed Properties
 const filteredEvents = computed(() => {
   return events.value.filter(event => {
     if (event.type === 'TEAMSCHEDULE' && !selectedTypes.teamspace) return false;
@@ -181,51 +181,25 @@ const filteredEvents = computed(() => {
   });
 });
 
-const filteredTeamEvents = computed(() => {
-  return teamEvents.value.filter(event => {
+const teamEvents = computed(() => {
+  const filtered = events.value.filter(event => event.type === 'TEAMSCHEDULE');
+  return filtered.filter(event => {
     const eventDate = new Date(event.start);
     return eventDate.getFullYear() === teamSelectedYear.value &&
         eventDate.getMonth() + 1 === teamSelectedMonth.value;
   });
 });
 
-const filteredPromotionEvents = computed(() => {
-  return promotionEvents.value.filter(event => {
+const promotionEvents = computed(() => {
+  const filtered = events.value.filter(event => event.type === 'PROMOTION');
+  return filtered.filter(event => {
     const eventDate = new Date(event.start);
     return eventDate.getFullYear() === promotionSelectedYear.value &&
         eventDate.getMonth() + 1 === promotionSelectedMonth.value;
   });
 });
 
-const teamEvents = computed(() => {
-  return events.value.filter(event => event.type === 'TEAMSCHEDULE');
-});
-
-const promotionEvents = computed(() => {
-  return events.value.filter(event => event.type === 'PROMOTION');
-});
-
-// Utility functions
-const formatDate = (date) => {
-  if (!date) return '-';
-  if (typeof date === 'string') date = new Date(date);
-  return date.toLocaleDateString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    timeZone: 'Asia/Seoul'
-  }).split('. ').join('-').replace('.', '');
-};
-
-const formatTime = (date) => {
-  return date.toLocaleTimeString('ko-KR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-    timeZone: 'Asia/Seoul'
-  });
-};
-
+// Calendar Utility Functions
 const formatDateTime = (dateStr, timeStr = '00:00') => {
   if (!dateStr) return '';
   const [year, month, day] = dateStr.split('-');
@@ -233,8 +207,9 @@ const formatDateTime = (dateStr, timeStr = '00:00') => {
   return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}:00`;
 };
 
-// Form handlers
-const resetEventForm = () => {
+// Calendar Modal Functions
+const closeModal = () => {
+  isModalOpen.value = false;
   Object.assign(eventForm, {
     id: '',
     title: '',
@@ -248,12 +223,7 @@ const resetEventForm = () => {
   });
 };
 
-const closeModal = () => {
-  isModalOpen.value = false;
-  resetEventForm();
-};
-
-// Event handlers
+// Calendar Event Handlers
 const handleDateClick = (info) => {
   if (!isTeamLeader.value) {
     alert('팀 일정은 팀장만 등록할 수 있습니다.');
@@ -282,10 +252,20 @@ const handleEventClick = (info) => {
     id: event.id,
     title: event.title,
     content: event.content,
-    startDate: formatDate(startDateTime),
-    startTime: formatTime(startDateTime),
-    endDate: formatDate(endDateTime),
-    endTime: formatTime(endDateTime),
+    startDate: new Date(startDateTime).toISOString().split('T')[0],
+    startTime: startDateTime.toLocaleTimeString('ko-KR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'Asia/Seoul'
+    }),
+    endDate: new Date(endDateTime).toISOString().split('T')[0],
+    endTime: endDateTime.toLocaleTimeString('ko-KR', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+      timeZone: 'Asia/Seoul'
+    }),
     color: event.color,
     type: event.type
   });
@@ -320,7 +300,7 @@ const handleEventDrop = async (info) => {
   }
 };
 
-// CRUD operations
+// Calendar CRUD Operations
 const handleDelete = async () => {
   if (!confirm('이 일정을 삭제하시겠습니까?')) return;
 
@@ -405,12 +385,6 @@ const handleSubmit = () => {
   eventForm.id ? updateEvent() : saveEvent();
 };
 
-const handlePromotionClick = (event) => {
-  if (event.scheduleUrl) {
-    router.push(`${event.scheduleUrl}`);
-  }
-};
-
 const fetchSchedules = async () => {
   try {
     const response = await getFetch('/schedule');
@@ -431,7 +405,7 @@ const fetchSchedules = async () => {
   }
 };
 
-// calendarOptions 설정
+// Calendar Options
 const calendarOptions = reactive({
   plugins: [dayGridPlugin, interactionPlugin, timeGridPlugin],
   initialView: 'dayGridMonth',
@@ -499,23 +473,23 @@ onMounted(() => {
     <div class="main-content">
       <!-- 기간 선택 탭 -->
       <div class="period-tabs">
-        <button
-            v-for="period in periods"
-            :key="period.type"
-            :class="['tab-button',{ active: selectedPeriod === period.type }]"
-            @click="changePeriod(period.type)"
-        >
+        <button v-for="period in periods"
+                :key="period.type"
+                :class="['tab-button', { active: selectedPeriod === period.type }]"
+                @click="changePeriod(period.type)">
           {{ period.label }}
         </button>
       </div>
 
       <!-- 매출 통계 -->
       <div class="stats-row">
-        <!-- 매출 상승 -->
+        <!-- 매출 상승 카드 -->
         <div class="stats-card">
           <div class="card-header">
             <h3 class="card-title">매출 상승 TOP 5</h3>
-            <button class="more-button" @click="openIncreaseModal">더보기</button>
+            <button class="more-button" @click="openIncreaseModal">
+              더보기 <font-awesome-icon :icon="['fas', 'right-long']" />
+            </button>
           </div>
           <div class="stats-content">
             <div v-if="isLoading" class="loading-state">
@@ -524,11 +498,11 @@ onMounted(() => {
             </div>
             <template v-else>
               <div v-for="(item, index) in visibleIncreaseData" :key="index" class="stats-item">
-               <span class="stats-label">{{ index + 1 }}.
-                 <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
-                   {{ item.goodsName }} ({{ item.brandName }})
-                 </a>
-               </span>
+                <span class="stats-label">{{ index + 1 }}.
+                  <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
+                    {{ item.goodsName }} ({{ item.brandName }})
+                  </a>
+                </span>
                 <span class="stats-value increase">{{ item.rateChange }}</span>
               </div>
               <div v-if="!visibleIncreaseData.length && !isLoading" class="no-data">
@@ -538,11 +512,13 @@ onMounted(() => {
           </div>
         </div>
 
-        <!-- 매출 하락 -->
+        <!-- 매출 하락 카드 -->
         <div class="stats-card">
           <div class="card-header">
             <h3 class="card-title">매출 하락 TOP 5</h3>
-            <button class="more-button" @click="openDecreaseModal">더보기</button>
+            <button class="more-button" @click="openDecreaseModal">
+              더보기<font-awesome-icon :icon="['fas', 'right-long']" />
+            </button>
           </div>
           <div class="stats-content">
             <div v-if="isLoading" class="loading-state">
@@ -551,11 +527,11 @@ onMounted(() => {
             </div>
             <template v-else>
               <div v-for="(item, index) in visibleDecreaseData" :key="index" class="stats-item">
-               <span class="stats-label">{{ index + 1 }}.
-                 <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
-                   {{ item.goodsName }} ({{ item.brandName }})
-                 </a>
-               </span>
+                <span class="stats-label">{{ index + 1 }}.
+                  <a href="#" class="goods-link" @click.prevent="handleGoodsClick(item)">
+                    {{ item.goodsName }} ({{ item.brandName }})
+                  </a>
+                </span>
                 <span class="stats-value decrease">{{ item.rateChange }}</span>
               </div>
               <div v-if="!visibleDecreaseData.length && !isLoading" class="no-data">
@@ -573,8 +549,8 @@ onMounted(() => {
             <div class="title-section">
               <h3 class="card-title">일정 캘린더</h3>
               <span v-if="!isTeamLeader" class="leader-notice">
-               (팀 일정은 팀장만 등록/수정 가능)
-             </span>
+                (팀 일정은 팀장만 등록/수정 가능)
+              </span>
             </div>
             <div class="filter-group">
               <label class="filter-label">
@@ -613,17 +589,17 @@ onMounted(() => {
               </div>
             </div>
             <div class="event-list">
-              <div v-for="event in filteredPromotionEvents"
+              <div v-for="event in promotionEvents"
                    :key="event.id"
                    class="event-item promotion-item"
-                   @click="handlePromotionClick(event)">
+                   @click="event.scheduleUrl && router.push(event.scheduleUrl)">
                 <div class="event-content">
                   <h4 class="event-item-title">{{ event.title }}</h4>
-                  <p class="event-date">{{ formatDate(new Date(event.start)) }}</p>
+                  <p class="event-date">{{ new Date(event.start).toLocaleDateString('ko-KR') }}</p>
                   <p v-if="event.content" class="event-desc">{{ event.content }}</p>
                 </div>
               </div>
-              <div v-if="!filteredPromotionEvents.length" class="no-events">
+              <div v-if="!promotionEvents.length" class="no-events">
                 선택한 월의 프로모션 일정이 없습니다
               </div>
             </div>
@@ -635,8 +611,8 @@ onMounted(() => {
               <div class="title-section">
                 <h3 class="card-title">팀 일정</h3>
                 <span v-if="!isTeamLeader" class="leader-notice">
-                 (팀장만 등록/수정 가능)
-               </span>
+                  (팀장만 등록/수정 가능)
+                </span>
               </div>
               <div class="date-select">
                 <select v-model="teamSelectedYear" class="year-select">
@@ -653,17 +629,17 @@ onMounted(() => {
               </div>
             </div>
             <div class="event-list">
-              <div v-for="event in filteredTeamEvents"
+              <div v-for="event in teamEvents"
                    :key="event.id"
                    class="event-item"
                    :class="{ 'editable': isTeamLeader }">
                 <div class="event-content">
                   <h4 class="event-item-title">{{ event.title }}</h4>
-                  <p class="event-date">{{ formatDate(new Date(event.start)) }}</p>
+                  <p class="event-date">{{ new Date(event.start).toLocaleDateString('ko-KR') }}</p>
                   <p v-if="event.content" class="event-desc">{{ event.content }}</p>
                 </div>
               </div>
-              <div v-if="!filteredTeamEvents.length" class="no-events">
+              <div v-if="!teamEvents.length" class="no-events">
                 선택한 월의 팀 일정이 없습니다
               </div>
             </div>
@@ -722,12 +698,10 @@ onMounted(() => {
         <button class="close-button" @click="closeIncreaseModal">✕</button>
       </div>
       <div class="search-box">
-        <input
-            type="text"
-            v-model="searchQuery"
-            placeholder="제품명으로 검색..."
-            class="search-input"
-        >
+        <input type="text"
+               v-model="searchQuery"
+               placeholder="제품명으로 검색..."
+               class="search-input">
       </div>
       <div class="table-container">
         <div v-if="isLoading" class="loading-state">
@@ -774,12 +748,10 @@ onMounted(() => {
         <button class="close-button" @click="closeDecreaseModal">✕</button>
       </div>
       <div class="search-box">
-        <input
-            type="text"
-            v-model="searchQuery"
-            placeholder="제품명으로 검색..."
-            class="search-input"
-        >
+        <input type="text"
+               v-model="searchQuery"
+               placeholder="제품명으로 검색..."
+               class="search-input">
       </div>
       <div class="table-container">
         <div v-if="isLoading" class="loading-state">
@@ -820,7 +792,7 @@ onMounted(() => {
 </template>
 
 <style scoped>
-/* 링크 스타일 수정 */
+/* 링크 스타일 */
 .goods-link {
   color: #374151;
   text-decoration: none;
@@ -828,22 +800,19 @@ onMounted(() => {
 }
 
 .goods-link:hover {
-  color: #2563eb; /* hover 시 파란색으로 변경 */
-  text-decoration: none; /* 밑줄 제거 유지 */
+  color: #2563eb;
 }
 
 .table-container .goods-link {
-  color: #374151; /* 기본 색상을 어두운 회색으로 */
-  text-decoration: none;
+  color: #374151;
   transition: color 0.2s;
 }
 
 .table-container .goods-link:hover {
-  color: #2563eb; /* hover 시 파란색으로 변경 */
-  text-decoration: none; /* 밑줄 제거 유지 */
+  color: #2563eb;
 }
 
-/* 모달 헤더 스타일 */
+/* 모달 스타일 */
 .modal-header {
   display: flex;
   justify-content: space-between;
@@ -867,6 +836,7 @@ onMounted(() => {
   color: #111827;
 }
 
+/* 기본 레이아웃 */
 .page-container {
   min-height: 100vh;
   background-color: var(--background-color);
@@ -1010,7 +980,7 @@ onMounted(() => {
   color: #4b5563;
 }
 
-/* 일정 카드 스타일 */
+/* 이벤트 리스트 스타일 */
 .events-column {
   display: flex;
   flex-direction: column;
@@ -1110,102 +1080,6 @@ onMounted(() => {
   color: white;
 }
 
-.sales-modal {
-  max-width: 800px !important;
-  width: 800px !important;
-  height: 600px !important;
-  display: flex !important;
-  flex-direction: column !important;
-  overflow: hidden !important;
-}
-
-.table-container {
-  height: 350px !important;
-  overflow-y: auto !important;
-  margin-bottom: 1rem !important;
-  flex: 1 !important;
-  border: 1px solid #e5e7eb;
-  border-radius: 0.5rem;
-}
-
-/* 테이블 헤더 width 비율 조정 */
-.table-container th:nth-child(1),
-.table-container td:nth-child(1) {
-  width: 10%;
-}
-
-.table-container th:nth-child(2),
-.table-container td:nth-child(2) {
-  width: 45%;
-}
-
-.table-container th:nth-child(3),
-.table-container td:nth-child(3) {
-  width: 25%;
-}
-
-.table-container th:nth-child(4),
-.table-container td:nth-child(4) {
-  width: 20%;
-}
-
-.table-container table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-}
-
-.table-container th {
-  background-color: #f8fafc;
-  padding: 0.5rem 0.75rem; /* 패딩 더 축소 */
-  text-align: left;
-  font-weight: 600;
-  font-size: 0.875rem; /* 글자 크기 더 축소 */
-  color: #374151;
-  border-bottom: 1px solid #e5e7eb;
-  position: sticky;
-  top: 0;
-  white-space: nowrap;
-}
-
-.table-container td {
-  padding: 0.5rem 0.75rem; /* 패딩 감소 */
-  border-bottom: 1px solid #e5e7eb;
-  font-size: 0.8rem;
-  line-height: 1.25; /* 줄 간격 감소 */
-}
-
-/* 열 너비 조정 */
-.table-container th:nth-child(1),
-.table-container td:nth-child(1) {
-  width: 5%;
-  text-align: center;
-  padding-left: 0.25rem;
-  padding-right: 0.25rem;
-}
-
-.table-container th:nth-child(2),
-.table-container td:nth-child(2) {
-  width: 40%;
-  padding-right: 0.25rem; /* 패딩 감소 */
-}
-
-.table-container th:nth-child(3),
-.table-container td:nth-child(3) {
-  width: 25%;
-  padding-left: 0.25rem;
-  padding-right: 0.25rem;
-}
-
-.table-container th:nth-child(4),
-.table-container td:nth-child(4) {
-  width: 30%;
-  text-align: right;
-  padding-right: 0.5rem;
-  white-space: nowrap;
-}
-
-
 /* 모달 스타일 */
 .modal-overlay {
   position: fixed;
@@ -1226,7 +1100,6 @@ onMounted(() => {
   width: 90%;
   max-width: 400px;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-  transform: translateY(0);
   animation: modal-slide-up 0.3s ease-out;
 }
 
@@ -1329,7 +1202,6 @@ onMounted(() => {
   background: #f9fafb;
   border-color: #d1d5db;
   transform: translateY(-1px);
-  color: #4b5563;
 }
 
 /* FullCalendar 커스터마이징 */
@@ -1376,7 +1248,6 @@ onMounted(() => {
   box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06) !important;
 }
 
-/* 캘린더 이벤트 스타일 수정 - 여기가 핵심 변경 부분 */
 .calendar-wrapper :deep(.fc-event) {
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1395,12 +1266,144 @@ onMounted(() => {
   transition: all 0.2s ease;
 }
 
-.calendar-wrapper :deep(.team-event) {
-  color: white !important;
+/* 매출 모달 스타일 */
+.sales-modal {
+  max-width: 800px !important;
+  width: 800px !important;
+  height: 600px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
 }
 
-.calendar-wrapper :deep(.promotion-event) {
-  color: white !important;
+.table-container {
+  height: 350px !important;
+  overflow-y: auto !important;
+  margin-bottom: 1rem !important;
+  flex: 1 !important;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+}
+
+.table-container table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.table-container th {
+  background-color: #f8fafc;
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #374151;
+  border-bottom: 1px solid #e5e7eb;
+  position: sticky;
+  top: 0;
+  white-space: nowrap;
+}
+
+.table-container td {
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.8rem;
+  line-height: 1.25;
+}
+
+.table-container th:nth-child(1),
+.table-container td:nth-child(1) {
+  width: 5%;
+  text-align: center;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+
+.table-container th:nth-child(2),
+.table-container td:nth-child(2) {
+  width: 40%;
+  padding-right: 0.25rem;
+}
+
+.table-container th:nth-child(3),
+.table-container td:nth-child(3) {
+  width: 25%;
+  padding-left: 0.25rem;
+  padding-right: 0.25rem;
+}
+.table-container th:nth-child(4),
+.table-container td:nth-child(4) {
+  width: 30%;
+  text-align: right;
+  padding-right: 0.5rem;
+  white-space: nowrap;
+}
+
+.search-box {
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+/* 로딩 상태 스타일 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  color: #6b7280;
+}
+
+.loading-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spinner 0.8s linear infinite;
+  margin-bottom: 1rem;
+}
+
+.no-data {
+  text-align: center;
+  padding: 1rem;
+  color: #6b7280;
+  font-style: italic;
+  background: #f8fafc;
+  border-radius: 0.5rem;
+}
+
+/* 애니메이션 */
+@keyframes modal-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spinner {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* 반응형 스타일 */
@@ -1441,17 +1444,7 @@ onMounted(() => {
   }
 }
 
-@keyframes modal-slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
+/* 기타 유틸리티 스타일 */
 .title-section {
   display: flex;
   align-items: center;
@@ -1475,68 +1468,31 @@ onMounted(() => {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-/* 로딩 상태 스타일 */
-.loading-state {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-  text-align: center;
-  color: #6b7280;
-}
-
-.loading-spinner {
-  width: 2rem;
-  height: 2rem;
-  border: 3px solid #e5e7eb;
-  border-top-color: #3b82f6;
-  border-radius: 50%;
-  animation: spinner 0.8s linear infinite;
-  margin-bottom: 1rem;
-}
-
-.no-data {
-  text-align: center;
-  padding: 1rem;
-  color: #6b7280;
-  font-style: italic;
+/* 더보기 버튼 스타일 */
+.more-button {
+  padding: 0.5rem 1rem;
   background: #f8fafc;
-  border-radius: 0.5rem;
-}
-
-@keyframes spinner {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-/* 모달 내 로딩 상태 스타일 조정 */
-.table-container .loading-state {
-  min-height: 200px;
-}
-
-/* 통계 카드 내 로딩 상태 스타일 조정 */
-.stats-content .loading-state {
-  min-height: 150px;
-}
-
-.search-box {
-  padding: 1rem;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.search-input {
-  width: 100%;
-  padding: 0.5rem;
   border: 1px solid #e5e7eb;
   border-radius: 0.375rem;
   font-size: 0.875rem;
+  color: #4b5563;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
 }
 
-.search-input:focus {
-  outline: none;
+.more-button:hover {
+  background: #f1f5f9;
   border-color: #3b82f6;
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+  color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.more-button:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 </style>
