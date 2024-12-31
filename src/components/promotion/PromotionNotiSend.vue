@@ -65,7 +65,7 @@ const sendNotiCustomer = async () => {
   try {
     const result = confirm("정말 알림을 발송하시겠습니까?");
     if(result) {
-      const response = await postFetch(`/promotionNoti/noti/${selectedPromotion.value.promotionId}`);
+      const response = await postFetch(`/promotionNoti/noti/${selectedPromotion.value.promotionId}/${currAnalysisNumber.value}`);
       if(response.data.success === 'true' || response.data.success === true){
         alert("프로모션 알림 발송에 성공하였습니다.");
       }

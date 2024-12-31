@@ -197,7 +197,6 @@ const loadSearchPromotion = async () => {
 const loadPromotionByYearSales = async (promotionTypeId, promotionTypeName) => {
   try {
     promotionIds.value = getPromotionIdsByType(promotionTypeId);
-    console.log("promotionIds 어디서... 값이...?", promotionIds.value);
     const params = new URLSearchParams();
     promotionTypeTitle.value = promotionTypeName;
     promotionIds.value.forEach(id => {
@@ -232,7 +231,7 @@ const loadPromotionByComparison = async() => {
   try {
     const params = new URLSearchParams();
 
-    // promotionByGoodsList 에서 각 프로모션의 ID를 추출하여 params 에 추가
+    // promotionByGoodsList에서 각 프로모션의 ID를 추출하여 params에 추가
     if (promotionByGoodsList.value[0] && promotionByGoodsList.value[1]) {
       params.append("promotionId1", promotionByGoodsList.value[0].promotionId);
       params.append("promotionId2", promotionByGoodsList.value[1].promotionId);
@@ -326,9 +325,7 @@ const chartOption = computed(() => {
             promotionGoodsList:promotionByGoods.value
           }
 
-          console.log("newData", newData);
           addGoodsList(newData);
-          console.log("promotionByGoodsList : ",promotionByGoodsList.value);
         });
       }
     }
@@ -360,6 +357,133 @@ onMounted(()=> {
     >
       <span>캡처</span>
     </button>
+
+<!--    캡처 모달창 -->
+    <CaptureModal ref="captureModal" prefix="promotion-analysis"/>
+
+    <div class="content-container">
+      <div class="layout-grid">
+        <!-- 왼쪽 영역 -->
+        <div class="left-section">
+          <!-- 그래프 영역 -->
+          <div class="chart-section">
+            <h5>{{promotionTypeTitle}} 프로모션 년도별 비교</h5>
+            <div class="chart-container">
+              <!-- 차트가 들어갈 자리 -->
+              <div class="chart-placeholder">
+                <template v-if="loadFin">
+                  <Bar :data="chartData" :options="chartOption" />
+                </template>
+              </div>
+            </div>
+          </div>
+
+          <!-- 리스트 블록들 -->
+          <div class="list-blocks">
+            <div class="list-block">
+              <h5>{{ promotionByGoodsList[0] ? `${promotionByGoodsList[0].promotionYear}년도` : '' }} 상품 리스트</h5>
+              <div class="list-content">
+                <table class="data-table">
+                  <thead>
+                  <tr>
+                    <th>제품명</th>
+                    <th>매출액</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                   <template v-if="promotionByGoodsList[0]">
+                    <tr v-for="item in promotionByGoodsList[0].promotionGoodsList"
+                        :key="item.goodsId">
+                      <td>{{item.goodsName}}</td>
+                      <td class="text-right">{{Number(item.totalGoodsSales).toLocaleString()}}원</td>
+                    </tr>
+                   </template>
+                   <tr v-else>
+                     <td colspan="2" class="empty-message">
+                       데이터 선택
+                     </td>
+                   </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="list-block">
+              <h5>{{ promotionByGoodsList[1] ? `${promotionByGoodsList[1].promotionYear}년도` : '' }} 상품 리스트</h5>
+              <div class="list-content">
+                <table class="data-table">
+                  <thead>
+                  <tr>
+                    <th>제품명</th>
+                    <th>매출액</th>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <template v-if="promotionByGoodsList[1]">
+                    <tr v-for="item in promotionByGoodsList[1].promotionGoodsList"
+                        :key="item.goodsId">
+                      <td>{{item.goodsName}}</td>
+                      <td class="text-right">{{Number(item.totalGoodsSales).toLocaleString()}}원</td>
+                    </tr>
+                  </template>
+                  <tr v-else>
+                    <td colspan="2" class="empty-message">
+                      데이터 선택
+                    </td>
+                  </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 오른쪽 영역 -->
+        <div class="right-section">
+          <div class="ranking-block">
+            <h5>{{promotionTypeTitle}} 프로모션 증감 비교</h5>
+            <div class="ranking-content">
+              <div class="table-container">
+                <table class="data-table">
+                  <thead>
+                  <tr>
+                    <template v-if="promotionByGoodsList[0] === null || promotionByGoodsList[1] === null">
+                      <th>상품명</th>
+                      <th>OO년도 순위</th>
+                      <th>OO년도 순위</th>
+                      <th>변동사항</th>
+                    </template>
+                    <template v-else>
+                      <th>상품명</th>
+                      <th>{{ promotionByGoodsList[0] ? `${promotionByGoodsList[0].promotionYear}년도 순위` : '' }}</th>
+                      <th>{{ promotionByGoodsList[1] ? `${promotionByGoodsList[1].promotionYear}년도 순위` : '' }}</th>
+                      <th>변동사항</th>
+                    </template>
+                  </tr>
+                  </thead>
+                  <tbody>
+                  <template v-if="promotionByComparison && promotionByComparison.length > 0">
+                    <tr v-for="item in promotionByComparison" :key="item.goodsName1">
+                      <td>{{item.goodsName1}}</td>
+                      <td>{{item.prevPromotionRank || '-'}}</td>
+                      <td>{{item.afterPromotionRank || '-'}}</td>
+                      <td :class="{'rank-up':item.rankChange === '신규 진입',
+                                   'rank-down': item.rankChange.includes('↓') || item.rankChange === '제외'}">
+                        {{item.rankChange || '-'}}</td>
+                    </tr>
+                  </template>
+                  <template v-if="promotionByGoodsList[0] === null || promotionByGoodsList[1] === null">
+                    <tr>
+                      <td colspan="4" class="empty-message">두 개의 연도를 선택하면 비교 결과가 표시됩니다</td>
+                    </tr>
+                  </template>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- 검색 슬라이드 패널 -->
     <div class="search-panel" :class="{ 'open': isSearchOpen }">
@@ -417,145 +541,6 @@ onMounted(()=> {
                   </label>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!--    캡처 모달창 -->
-    <CaptureModal ref="captureModal" prefix="promotion-analysis"/>
-
-    <div class="layout-grid">
-      <!-- 왼쪽영역 -->
-      <div class="left-section">
-        <div class="chart-section">
-          <h5>{{promotionTypeTitle}} 프로모션 년도별 비교</h5>
-          <div class="chart-container">
-            <!-- 차트가 들어갈 자리 -->
-            <div class="chart-placeholder">
-              <template v-if="loadFin">
-                <Bar :data="chartData" :options="chartOption" />
-              </template>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 오른쪽 영역 -->
-      <div class="right-section">
-        <div class="list-block">
-          <h5>{{ promotionByGoodsList[0] ? `${promotionByGoodsList[0].promotionYear}년도 ${promotionTypeTitle} ` : '' }}상품 리스트</h5>
-          <div class="list-content">
-            <table class="data-table">
-              <thead>
-              <tr>
-                <th>제품명</th>
-                <th>매출액</th>
-              </tr>
-              </thead>
-              <tbody>
-              <template v-if="promotionByGoodsList[0]">
-                <tr v-for="item in promotionByGoodsList[0].promotionGoodsList"
-                    :key="item.goodsId">
-                  <td>{{item.goodsName}}</td>
-                  <td class="text-right">{{Number(item.totalGoodsSales).toLocaleString()}}원</td>
-                </tr>
-              </template>
-              <tr v-else>
-                <td colspan="2" class="empty-message">
-                  데이터 선택
-                </td>
-              </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div class="list-block">
-          <h5>{{ promotionByGoodsList[1] ? `${promotionByGoodsList[1].promotionYear}년도 ${promotionTypeTitle} ` : '' }}상품 리스트</h5>
-          <div class="list-content">
-            <div class="list-content">
-              <table class="data-table">
-                <thead>
-                <tr>
-                  <th>제품명</th>
-                  <th>매출액</th>
-                </tr>
-                </thead>
-                <tbody>
-                <template v-if="promotionByGoodsList[1]">
-                  <tr v-for="item in promotionByGoodsList[1].promotionGoodsList"
-                      :key="item.goodsId">
-                    <td>{{item.goodsName}}</td>
-                    <td class="text-right">{{Number(item.totalGoodsSales).toLocaleString()}}원</td>
-                  </tr>
-                </template>
-                <tr v-else>
-                  <td colspan="2" class="empty-message">
-                    데이터 선택
-                  </td>
-                </tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 아래 영역 -->
-      <div class="bottom-section">
-        <div class="ranking-block">
-          <h5>{{promotionTypeTitle}} 프로모션 증감 비교</h5>
-          <div class="ranking-content">
-            <div class="table-container">
-              <table class="data-table">
-                <thead>
-                <tr>
-                  <template v-if="promotionByGoodsList[0] === null || promotionByGoodsList[1] === null">
-                    <th>OO년</th>
-                    <th>OO년 매출</th>
-                    <th>OO년 순위</th>
-                    <th>OO년 </th>
-                    <th>00년 매출</th>
-                    <th>00년 순위</th>
-                    <th>매출변화</th>
-                    <th>매출증감</th>
-                    <th>순위변화</th>
-                  </template>
-                  <template v-else>
-                    <th>{{ promotionByGoodsList[0] ? `${promotionByGoodsList[0].promotionYear}년도` : '' }}</th>
-                    <th>{{ promotionByGoodsList[0] ? `${promotionByGoodsList[0].promotionYear}` : '' }}년 매출</th>
-                    <th>{{ promotionByGoodsList[0] ? `${promotionByGoodsList[0].promotionYear}` : '' }}년 순위</th>
-                    <th>{{ promotionByGoodsList[1] ? `${promotionByGoodsList[1].promotionYear}년도` : '' }}</th>
-                    <th>{{ promotionByGoodsList[1] ? `${promotionByGoodsList[1].promotionYear}` : '' }}년 매출</th>
-                    <th>{{ promotionByGoodsList[1] ? `${promotionByGoodsList[1].promotionYear}` : '' }}년 순위</th>
-                    <th>매출변화</th>
-                    <th>매출증감</th>
-                    <th>순위변화</th>
-                  </template>
-                </tr>
-                </thead>
-                <tbody>
-                <template v-if="promotionByComparison && promotionByComparison.length > 0">
-                  <tr v-for="item in promotionByComparison" :key="item.goodsName1">
-                    <td>{{item.goodsName1}}</td>
-                    <td class="text-right">{{Number(item.sales1).toLocaleString()}}원</td>
-                    <td>{{item.prevPromotionRank || '-'}} 위</td>
-                    <td>{{item.goodsName2}}</td>
-                    <td class="text-right">{{Number(item.sales2).toLocaleString()}}원</td>
-                    <td>{{item.afterPromotionRank || '-'}} 위</td>
-                    <td class="text-right" :class="{'increase' : item.salesDiff > 0, 'decrease':item.salesDiff < 0}">{{Number(item.salesDiff).toLocaleString()}}원</td>
-                    <td :class="{'increase': item.salesGrowthRate > 0, 'decrease':item.salesGrowthRate < 0}">{{item.salesGrowthRate || '-'}} %</td>
-                    <td>{{item.rankChange || '-'}} 위</td>
-                  </tr>
-                </template>
-                <template v-if="promotionByGoodsList[0] === null || promotionByGoodsList[1] === null">
-                  <tr>
-                    <td colspan="9" class="empty-message">두 개의 연도를 선택하면 비교 결과가 표시됩니다</td>
-                  </tr>
-                </template>
-                </tbody>
-              </table>
             </div>
           </div>
         </div>
@@ -638,6 +623,10 @@ onMounted(()=> {
   background-color: var(--background-color);
 }
 
+.content-container {
+  padding: 15px;
+}
+
 /* 검색 트리거 버튼 스타일 */
 .search-trigger-btn {
   position: fixed;
@@ -686,6 +675,7 @@ onMounted(()=> {
 .capture-btn:hover {
   background: #45a049;
 }
+
 
 /* 검색 패널 스타일 */
 .search-panel {
@@ -777,90 +767,92 @@ onMounted(()=> {
   background: #45a049;
 }
 
+/* 추가되는 스타일 */
+.layout-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1.3fr;
+  gap: 32px;
+  margin-top: 24px;
+  padding-right: 24px;
+}
+
+.left-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
 .chart-section {
-  height: 100%;
   background: white;
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  display: flex;
-  flex-direction: column;
 }
 
 .chart-container {
-  flex: 1;
+  height: 300px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+.list-blocks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.list-block {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.ranking-block {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  height: 100%;
+}
+
+.list-content, .ranking-content {
+  margin-top: 16px;
+  min-height: 200px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  padding: 16px;
+}
+
+h3 {
+  margin: 0;
+  color: #333;
+  font-size: 14px;
+}
+
+.chart-section {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  height: 100%; /* 전체 높이를 부모 컨테이너에 맞춤 */
+}
+
+.chart-container {
+  height: 300px; /* 더 큰 높이 값으로 조정 */
   background: #f8f9fa;
   border-radius: 4px;
   margin-top: 16px;
-  height: calc(100% - 40px); /* 제목 높이와 여백 제외 */
 }
 
+/* 차트가 들어가는 placeholder의 높이도 조정 */
 .chart-placeholder {
   height: 100%;
   width: 100%;
 }
 
-.container-wrapper {
-  padding: 20px;
-  width: 100%;
-  max-width: 1600px;
-  margin: 0 auto;
-  position: relative;
-  min-height: 100vh;
-  background-color: var(--background-color);
-}
-
-.container-wrapper {
-  padding: 20px;
-  width: 100%;
-  max-width: 1600px;
-  margin: 0 auto;
-}
-
-/* SVG 레이아웃 구조 */
-.layout-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-/* 상단 섹션 */
-.left-section {
-  width: 100%;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 20px;
-  height: 400px; /* 높이 증가 */
-}
-
-/* 중간 섹션 */
-.right-section {
-  display: flex;
-  gap: 20px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  width: 100%;
-}
-
-.list-block {
-  flex: 1;
-  background: white;
-  border-radius: 8px;
-  padding: 20px;
-  min-height: 300px;
-}
-
-/* 하단 섹션 */
-.bottom-section {
-  width: 100%;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 20px;
-  min-height: 300px;
-}
-
-/* 이전 코드의 테이블 스타일 적용 */
+/* 테이블 관련 스타일 추가 */
 .table-container {
   width: 100%;
   overflow-x: auto;
@@ -868,54 +860,34 @@ onMounted(()=> {
 
 .data-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   margin: 0 auto;
   background: white;
   table-layout: fixed;
 }
 
+/* 기본 셀 스타일링 */
 .data-table th,
 .data-table td {
-  padding: 10px 12px;
+  padding: 12px;
   border: 1px solid #e0e0e0;
-  font-size: 12px;
-  text-align: center;
-  white-space: normal;
-  word-wrap: break-word;
+  font-size: 13px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   vertical-align: middle;
 }
 
-.right-section .data-table th:nth-child(1),
-.right-section .data-table td:nth-child(1),
-.right-section .data-table th:nth-child(2),
-.right-section .data-table td:nth-child(2) {
-  width: 30%;
-}
-
-.right-section .data-table th:nth-child(3),
-.right-section .data-table td:nth-child(3),
-.right-section .data-table th:nth-child(4),
-.right-section .data-table td:nth-child(4) {
-  width: 20%;
-}
-
-.list-blocks .data-table th:first-child,
-.list-blocks .data-table td:first-child {
-  width: 60%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.list-blocks .data-table th:last-child,
-.list-blocks .data-table td:last-child {
-  width: 40%;
+.data-table th {
+  background-color: #f5f5f5;
+  font-weight: 600;
   text-align: center;
 }
 
-/* 테이블 헤더 스타일 */
-.list-blocks .data-table th {
-  text-align: center;
+.data-table td {
+  text-align: left;
 }
 
 .text-right {
@@ -928,7 +900,76 @@ onMounted(()=> {
   padding: 20px !important;
 }
 
-/* 테이블 행 스타일 */
+/* 리스트 콘텐츠 영역 수정 */
+.list-content {
+  margin-top: 10px;
+  min-height: 200px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  padding: 16px;
+  overflow-x: auto;  /* 가로 스크롤 필요시 추가 */
+}
+
+/* 홀수/짝수 행 배경색 구분 */
+.data-table tbody tr:nth-child(odd) {
+  background-color: #ffffff;
+}
+
+.data-table tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+/* 호버 효과 */
+.data-table tbody tr:hover {
+  background-color: #f5f5f5;
+}
+
+/* 랭킹 블록 스타일 */
+.ranking-block {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.ranking-content {
+  margin-top: 16px;
+  background: #f8f9fa;
+  border-radius: 4px;
+  padding: 16px;
+  overflow-x: auto;
+}
+
+/* 테이블 컨테이너 스타일 */
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+  margin-top: 8px;
+}
+
+/* 데이터 테이블 스타일 */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 auto;
+  background: white;
+}
+
+.data-table th,
+.data-table td {
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  text-align: center;
+}
+
+.data-table th {
+  background-color: #f5f5f5;
+  font-weight: 600;
+}
+
 .data-table tbody tr:nth-child(odd) {
   background-color: #ffffff;
 }
@@ -941,28 +982,97 @@ onMounted(()=> {
   background-color: #f5f5f5;
 }
 
-.data-table th {
-  background-color: #f5f5f5;
+.text-right {
+  text-align: right !important;
+}
+
+.empty-message {
+  text-align: center !important;
+  color: #666;
+  padding: 20px !important;
+}
+
+.data-table th,
+.data-table td {
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  font-size: 12px;
+  white-space: normal;
+  word-wrap: break-word;
+  vertical-align: middle;
+}
+
+.right-section .data-table th:nth-child(1),
+.right-section .data-table td:nth-child(1),
+.right-section .data-table th:nth-child(2),
+.right-section .data-table td:nth-child(2) {
+  width: 35%;
+}
+
+.right-section .data-table th:nth-child(3),
+.right-section .data-table td:nth-child(3),
+.right-section .data-table th:nth-child(4),
+.right-section .data-table td:nth-child(4) {
+  width: 30%;
+}
+
+.list-blocks .data-table th:first-child,
+.list-blocks .data-table td:first-child {
+  width: 65%;
+}
+
+.list-blocks .data-table th:last-child,
+.list-blocks .data-table td:last-child {
+  width: 35%;
+  text-align: right;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 auto;
+  background: white;
+  table-layout: fixed;
+}
+
+.list-block {
+  min-height: 300px;
+  display: flex;
+  flex-direction: column;
+}
+
+.list-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.list-blocks .data-table th:first-child,
+.list-blocks .data-table td:first-child {
+  width: 60%;  /* 65%에서 55%로 줄임 */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.list-blocks .data-table th:last-child,
+.list-blocks .data-table td:last-child {
+  width: 40%;  /* 35%에서 45%로 늘림 */
+  text-align: center;  /* right에서 center로 변경 */
+  white-space: nowrap;
+}
+
+/* 테이블 헤더도 가운데 정렬 */
+.list-blocks .data-table th {
+  text-align: center;
+}
+
+.right-section .data-table td.rank-up {
+  color: #dc3545 !important;
   font-weight: 600;
 }
 
-/* 반응형 디자인 */
-@media (max-width: 768px) {
-  .right-section {
-    flex-direction: column;
-  }
-
-  .list-block {
-    width: 100%;
-  }
-}
-
-/* 증가/감소에 따른 색상 스타일 */
-.increase {
-  color: #ff0000 !important; /* 증가: 빨간색 */
-}
-
-.decrease {
-  color: #0000ff !important; /* 감소: 파란색 */
+.right-section .data-table td.rank-down {
+  color: #0d6efd !important;
+  font-weight: 600;
 }
 </style>
