@@ -40,3 +40,9 @@ jobs:
       - name: Sync with S3
         run: |
           aws s3 sync dist/ s3://beauty4u-vue --delete
+
+      - name: Invalidate CloudFront Cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ secrets.DISTRIBUTION_ID }} \
+            --paths "/*"
