@@ -16,17 +16,33 @@ const authObjectInfo = {
   accessToken: useAuth.accessToken,
 };
 
-// 날짜 포맷 함수
 const formatDate = (date) => {
-  return new Date(date).toLocaleString("ko-KR", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false, // 24시간 형식
-    timeZone: "Asia/Seoul", // 한국 시간대
-  });
+  const d = new Date(date);
+  const now = new Date();
+
+  // 현재 날짜와 비교
+  const isToday =
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate();
+
+  // 시간과 분 포맷
+  const hours = d.getHours();
+  const minutes = String(d.getMinutes()).padStart(2, "0");
+  const period = hours < 12 ? "오전" : "오후";
+  const formattedHours = hours % 12 || 12; // 12시간제 표시
+
+  if (isToday) {
+    // 오늘 날짜일 경우: 오후 5:54
+    return `${period} ${formattedHours}:${minutes}`;
+  } else {
+    // 과거 날짜일 경우: 2024-12-19 오후 5:54
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day} ${period} ${formattedHours}:${minutes}`;
+  }
 };
 
 
@@ -89,6 +105,16 @@ const imageUrls = ref([]);
 const chatEditorRef = ref(null);
 const isSubmitting = ref(false);
 
+const openFile = (url) => {
+  window.open(url, "_blank");
+};
+
+// URL이 이미지인지 확인
+const isImage = (url) => {
+  const cleanUrl = url.split('?')[0]; // 쿼리 매개변수 제거
+  return /\.(jpg|jpeg|png|gif|bmp|svg|webp)$/i.test(cleanUrl);
+};
+
 
 const insertImageAtCursor = (imageUrl, options = {}) => {
   if (!chatEditorRef.value) return;
@@ -121,6 +147,22 @@ const handleUpload = (files) => {
   uploadStatus.value = '';
 };
 
+
+
+// 디버그용
+// 이미지 로드 핸들러
+const handleImageLoad = (index, url) => {
+  console.log(`이미지 로드 성공: 메시지 ${index}, URL: ${url}`);
+};
+
+// 이미지 에러 핸들러
+const handleImageError = (index, url) => {
+  console.error(`이미지 로드 실패: 메시지 ${index}, URL: ${url}`);
+  messages[index].imageLoadError = true; // 반응성 유지
+};
+
+
+
 const handleRemove = (fileId) => {
   const fileToRemove = selectedFiles.value.find(f => f.id === fileId);
   if (fileToRemove) {
@@ -144,6 +186,42 @@ const handleRemove = (fileId) => {
 const totalPages = computed(() => {
   return Math.ceil(totalItems.value / itemsPerPage)
 })
+
+// 파일 모달 열기/닫기
+const modalImageUrl = ref(null); // 현재 표시할 이미지의 URL
+
+// 모달 열기
+const openModal = (url) => {
+  console.log('이미지 클릭됨:', url); // 디버깅용
+  modalImageUrl.value = url;
+};
+
+// 모달 닫기
+const closeModal = () => {
+  modalImageUrl.value = null;
+};
+
+// 이미지 다운로드
+const downloadImage = async (url) => {
+  try {
+    const response = await fetch(url, {
+      method: 'GET',
+    });
+
+    if (!response.ok) throw new Error('다운로드 실패');
+    const blob = await response.blob(); // 파일 데이터를 Blob으로 변환
+    const downloadUrl = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.download = url.split('/').pop(); // 파일 이름 추출
+    link.click();
+    URL.revokeObjectURL(downloadUrl); // URL 해제
+  } catch (error) {
+    console.error('이미지 다운로드 실패:', error);
+    alert('이미지 다운로드에 실패했습니다.');
+  }
+};
+
 
 // 채팅 참가자 모달 열기/닫기
 const openParticipantModal = () => {
@@ -361,10 +439,11 @@ const fetchChatRooms = async () => {
 const fetchChatInfo = async (roomId) => {
   try {
     const response = await getFetch(`/chat/${roomId}/details`);
-    const data = response.data.data;
-    console.log(data);
+    const data = await response.data.data;
+    console.log("채팅방 정보 불러오기 데이터 : ",data);
     participants.value = data.participants;
     messages.value = data.messages;
+    console.log("messages 정보 확인 : ", messages.value);
 
     console.log("채팅방 정보 불러온 뒤 채팅 사용자 정보 조회");
     console.log(participants.value);
@@ -452,25 +531,114 @@ const sendMessage = async () => {
   const uploadedS3Urls = []; // S3에 업로드된 URL들을 추적
   const originalFileNames = []; // 원본 파일명 추적
 
+  try {
+    isSubmitting.value = true;
+    uploadStatus.value = '저장 중...';
+
+    // 1. 선택된 파일들을 S3에 업로드
+    const uploadPromises = selectedFiles.value.map(async (fileInfo) => {
+      const formData = new FormData();
+      formData.append('image', fileInfo.file);
+
+      try {
+        const response = await postFetch('/file/s3/upload', formData);
+        const s3Url = response.data.data;
+        console.log("파일 업로드시 response 확인")
+        console.log(response);
+        console.log(response.data);
 
 
-  const chatMessage = {
-    chatRoomId: chatRoomId.value,
-    userCode: userCode.value,
-    userName: userName.value,
-    messageContent: messageContent.value,
-    messageCreatedTime: new Date().toISOString(),
-  };
 
-  stompClient.send(`/pub/${chatRoomId.value}`, {}, JSON.stringify(chatMessage));
+        uploadedS3Urls.push(s3Url);
+        originalFileNames.push(fileInfo.name);
 
-  // 클라이언트에 self 필드를 추가해 메시지 표시
-  messages.value.push({
-    ...chatMessage,
-    self: true, // 클라이언트에서만 사용하는 필드
-  });
 
+        // tempUrl을 실제 S3 URL로 교체
+        // editorContent.value = editorContent.value.replace(
+        //     fileInfo.tempUrl,
+        //     s3Url
+        // );
+
+        return s3Url;
+      } catch (error) {
+        console.error('이미지 업로드 실패:', error);
+        throw error;
+      }
+    });
+
+    // 모든 이미지 업로드 완료 대기
+    const s3Urls = await Promise.all(uploadPromises);
+
+
+    // -------------- S3 업로드 완료
+
+    // 메세지 전송
+
+
+
+
+    // 3. 파일 정보 DB 저장 (원본 파일명 포함)
+    if (s3Urls.length > 0) {
+      await postFetch('/file/save', {
+        imageS3Urls: s3Urls,           // s3 url 배열
+        fileUrls: originalFileNames,   // 원본 파일명 배열
+        entityType: "CHAT"           // 엔티티 타입
+      });
+    }
+
+    // 4. 임시 URL 정리
+    selectedFiles.value.forEach(file => {
+      if (file.tempUrl) {
+        URL.revokeObjectURL(file.tempUrl);
+      }
+    });
+
+    const chatMessage = {
+      chatRoomId: chatRoomId.value,
+      userCode: userCode.value,
+      userName: userName.value,
+      messageContent: messageContent.value,
+      fileS3Urls: s3Urls,
+      messageCreatedTime: new Date().toISOString()
+    };
+
+    stompClient.send(`/pub/${chatRoomId.value}`, {}, JSON.stringify(chatMessage));
+
+    // 클라이언트에 self 필드를 추가해 메시지 표시
+    messages.value.push({
+      ...chatMessage,
+      s3PresignedUrls: uploadedS3Urls, // Presigned URL 포함
+      self: true, // 클라이언트에서만 사용하는 필드
+    });
+
+
+    // 5. 목록으로 이동
+    console.log("파일 저장 완료")
+
+
+
+  } catch (error) {
+    console.error('저장에 실패했습니다.', error);
+
+    // 에러시 s3에 이미지들 삭제
+    if (uploadedS3Urls.length > 0) {
+      try {
+        await postFetch('/file/s3/uploadList', uploadedS3Urls);
+      } catch (deleteError) {
+        console.error('S3 이미지 삭제 실패:', deleteError);
+      }
+    }
+
+    alert('저장에 실패했습니다. 다시 시도해주세요.');
+  } finally {
+    isSubmitting.value = false;
+    uploadStatus.value = '';
+  }
+
+  // 입력값 초기화
   messageContent.value = '';
+  selectedFiles.value = [];
+
   await scrollToBottom(true);
 };
 
@@ -592,6 +760,50 @@ onMounted(() => {
                   <!-- 메시지 전송 시간 -->
                   <div class="timestamp">{{ formatDate(message.messageCreatedTime) }}</div>
                 </div>
+
+                <div v-if="message.s3PresignedUrls" class="attached-files">
+                  <div
+                      v-for="image in message.s3PresignedUrls"
+                      :key="image"
+                      class="file-preview"
+                  >
+                    <!-- 이미지 미리보기 -->
+                    <img
+                        v-if="image"
+                        :src="image"
+                        alt="미리보기 이미지"
+                        class="preview-image"
+                        @click="openModal(image)"/>
+<!--                        @load="handleImageLoad(index, image)"-->
+<!--                        @error="handleImageError(index, image)"-->
+<!--                    />image-->
+
+                    <!-- 이미지 모달 -->
+                    <div v-if="modalImageUrl" class="modal-backdrop" @click="closeModal">
+                      <div class="modal-content">
+                        <!-- 닫기 버튼 -->
+                        <span class="close" @click="closeModal">&times;</span>
+
+                        <!-- 확대 이미지 -->
+                        <img :src="modalImageUrl" alt="확대 이미지" class="modal-image" />
+
+                        <!-- 다운로드 버튼 -->
+                        <div class="modal-footer">
+                          <button class="download-button" @click="downloadImage(modalImageUrl)">이미지 다운로드</button>
+                        </div>
+                      </div>
+                    </div>
+
+
+                    <!-- 다운로드 버튼 -->
+<!--                    <a :href="url" target="_blank" download class="download-button">-->
+<!--                      다운로드-->
+<!--                    </a>-->
+<!--                    <button @click="openFile(url)">다운로드</button>-->
+                  </div>
+                </div>
+
+
               </div>
             </template>
           </div>
@@ -617,18 +829,10 @@ onMounted(() => {
             />
 
 
+            <div v-if="uploadStatus" class="upload-status">
+              {{ uploadStatus }}
+            </div>
 
-<!--            <input-->
-<!--                type="file"-->
-<!--                multiple-->
-<!--                @change="handleFileChange"-->
-<!--            />-->
-<!--            <div v-if="attachedFiles.length > 0" class="attached-files">-->
-<!--              <div v-for="(file, index) in attachedFiles" :key="index" class="file-item">-->
-<!--                {{ file.name }}-->
-<!--                <button @click="removeFile(index)">X</button>-->
-<!--              </div>-->
-<!--            </div>-->
 
             <button @click="sendMessage">전송</button>
           </div>
@@ -1087,7 +1291,7 @@ button:active {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: whitesmoke;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1153,42 +1357,6 @@ button:active {
   background-color: #45a049;
 }
 
-.modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.4);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
-
-.modal-content {
-  background: white;
-  border-radius: 8px;
-  width: 100%;
-  max-width: 500px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px solid #ccc;
-  padding-bottom: 1rem;
-  margin-bottom: 1rem;
-}
-
-.modal-body {
-  max-height: 400px;
-  overflow-y: auto;
-}
-
 .participants-list {
   list-style: none;
   padding: 0;
@@ -1199,11 +1367,6 @@ button:active {
   border-bottom: 1px solid #f1f1f1;
 }
 
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
 
 .close-btn {
   padding: 8px 16px;
@@ -1233,18 +1396,7 @@ button:active {
   background-color: #45a049;
 }
 
-.modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.4);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-}
+/* 모달 스타일 */
 
 .modal-content {
   background: white;
@@ -1264,10 +1416,24 @@ button:active {
   margin-bottom: 1rem;
 }
 
+.modal-image {
+  max-width: 100%; /* 이미지 크기 조정 */
+  height: auto; /* 비율 유지 */
+  border-radius: 8px; /* 선택사항 */
+  margin-bottom: 1rem;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 .modal-body {
   max-height: 400px;
   overflow-y: auto;
 }
+
 
 .participants-list {
   list-style: none;
@@ -1282,13 +1448,6 @@ button:active {
 
 .participants-list li:last-child {
   border-bottom: none;
-}
-
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
 }
 
 .close-btn {
@@ -1342,5 +1501,44 @@ button:active {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* 파일 미리보기 이미지 스타일 */
+.preview-image {
+  max-width: 100%; /* 부모 요소 너비에 맞게 크기 제한 */
+  max-height: 300px; /* 최대 높이 제한 */
+  object-fit: contain; /* 이미지가 잘리지 않게 조정 */
+  cursor: pointer; /* 클릭 가능한 이미지처럼 보이도록 설정 */
+  transition: transform 0.2s ease-in-out; /* 확대 효과 */
+}
+
+.preview-image:hover {
+  transform: scale(1.05); /* 호버 시 살짝 확대 */
+}
+
+
+.close {
+  position: absolute;
+  top: 10px;
+  right: 20px;
+  color: white;
+  font-size: 30px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+/* 파일 다운로드 버튼 */
+.download-button {
+  background-color: #007bff;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: background-color 0.2s ease-in-out;
+}
+
+.download-button:hover {
+  background-color: #0056b3;
+}
 
 </style>
