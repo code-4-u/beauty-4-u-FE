@@ -11,7 +11,9 @@ import {
     faCog,
     faPlus,
     faSearch,
-    faRotate
+    faRotate,
+    faRightLong,
+    faUpDown
 } from '@fortawesome/free-solid-svg-icons';
 
 import {
@@ -31,7 +33,9 @@ const icons = [
     faCog,
     faPlus,
     faSearch,
-    faRotate
+    faRotate,
+    faRightLong,
+    faUpDown
 ];
 
 icons.forEach(icon => library.add(icon))
