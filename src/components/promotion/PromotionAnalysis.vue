@@ -54,6 +54,8 @@ const endDate = ref('');
 const promotionTypeId = ref('');
 const promotionStatus = ref('');
 
+const promotionTypeTitle = ref('');
+
 // 캡처 모달
 const captureModal = ref(null);
 
@@ -108,6 +110,7 @@ const addGoodsList = (newData) => {
   // 같은 년도의 데이터가 있으면 삭제
   if (existingIndex !== -1) {
     promotionByGoodsList.value[existingIndex] = null;
+    promotionByComparison.value = [];
     return; // 함수 종료
   }
 
@@ -191,12 +194,11 @@ const loadSearchPromotion = async () => {
 }
 
 /* 프로모션 년도별 매출액 조회 */
-const loadPromotionByYearSales = async (promotionTypeId) => {
+const loadPromotionByYearSales = async (promotionTypeId, promotionTypeName) => {
   try {
     promotionIds.value = getPromotionIdsByType(promotionTypeId);
-    console.log("promotionIds 어디서... 값이...?", promotionIds.value);
     const params = new URLSearchParams();
-
+    promotionTypeTitle.value = promotionTypeName;
     promotionIds.value.forEach(id => {
       params.append("promotionIds", id);
     });
@@ -323,9 +325,7 @@ const chartOption = computed(() => {
             promotionGoodsList:promotionByGoods.value
           }
 
-          console.log("newData", newData);
           addGoodsList(newData);
-          console.log("promotionByGoodsList : ",promotionByGoodsList.value);
         });
       }
     }
@@ -367,7 +367,7 @@ onMounted(()=> {
         <div class="left-section">
           <!-- 그래프 영역 -->
           <div class="chart-section">
-            <h3>프로모션 트렌드</h3>
+            <h5>{{promotionTypeTitle}} 프로모션 년도별 비교</h5>
             <div class="chart-container">
               <!-- 차트가 들어갈 자리 -->
               <div class="chart-placeholder">
@@ -381,7 +381,7 @@ onMounted(()=> {
           <!-- 리스트 블록들 -->
           <div class="list-blocks">
             <div class="list-block">
-              <h3>{{ promotionByGoodsList[0] ? `${promotionByGoodsList[0].promotionYear}년도` : '' }} 상품 리스트</h3>
+              <h5>{{ promotionByGoodsList[0] ? `${promotionByGoodsList[0].promotionYear}년도` : '' }} 상품 리스트</h5>
               <div class="list-content">
                 <table class="data-table">
                   <thead>
@@ -408,7 +408,7 @@ onMounted(()=> {
               </div>
             </div>
             <div class="list-block">
-              <h3>{{ promotionByGoodsList[1] ? `${promotionByGoodsList[1].promotionYear}년도` : '' }} 상품 리스트</h3>
+              <h5>{{ promotionByGoodsList[1] ? `${promotionByGoodsList[1].promotionYear}년도` : '' }} 상품 리스트</h5>
               <div class="list-content">
                 <table class="data-table">
                   <thead>
@@ -440,30 +440,42 @@ onMounted(()=> {
         <!-- 오른쪽 영역 -->
         <div class="right-section">
           <div class="ranking-block">
-            <h3>프로모션 비교</h3>
+            <h5>{{promotionTypeTitle}} 프로모션 증감 비교</h5>
             <div class="ranking-content">
               <div class="table-container">
                 <table class="data-table">
                   <thead>
                   <tr>
-                    <th>작년</th>
-                    <th>올해</th>
-                    <th>작년 매출</th>
-                    <th>올해 매출</th>
+                    <template v-if="promotionByGoodsList[0] === null || promotionByGoodsList[1] === null">
+                      <th>상품명</th>
+                      <th>OO년도 순위</th>
+                      <th>OO년도 순위</th>
+                      <th>변동사항</th>
+                    </template>
+                    <template v-else>
+                      <th>상품명</th>
+                      <th>{{ promotionByGoodsList[0] ? `${promotionByGoodsList[0].promotionYear}년도 순위` : '' }}</th>
+                      <th>{{ promotionByGoodsList[1] ? `${promotionByGoodsList[1].promotionYear}년도 순위` : '' }}</th>
+                      <th>변동사항</th>
+                    </template>
                   </tr>
                   </thead>
                   <tbody>
                   <template v-if="promotionByComparison && promotionByComparison.length > 0">
                     <tr v-for="item in promotionByComparison" :key="item.goodsName1">
                       <td>{{item.goodsName1}}</td>
-                      <td>{{item.goodsName2}}</td>
-                      <td class="text-right">{{Number(item.sales1).toLocaleString()}}원</td>
-                      <td class="text-right">{{Number(item.sales2).toLocaleString()}}원</td>
+                      <td>{{item.prevPromotionRank || '-'}}</td>
+                      <td>{{item.afterPromotionRank || '-'}}</td>
+                      <td :class="{'rank-up':item.rankChange === '신규 진입',
+                                   'rank-down': item.rankChange.includes('↓') || item.rankChange === '제외'}">
+                        {{item.rankChange || '-'}}</td>
                     </tr>
                   </template>
-                  <tr v-else>
-                    <td colspan="4" class="empty-message">두 개의 연도를 선택하면 비교 결과가 표시됩니다</td>
-                  </tr>
+                  <template v-if="promotionByGoodsList[0] === null || promotionByGoodsList[1] === null">
+                    <tr>
+                      <td colspan="4" class="empty-message">두 개의 연도를 선택하면 비교 결과가 표시됩니다</td>
+                    </tr>
+                  </template>
                   </tbody>
                 </table>
               </div>
@@ -519,7 +531,7 @@ onMounted(()=> {
               <div v-for="group in promotionList"
                    :key="group.promotionTypeId"
                    class="promotion-group">
-                <button class="search-promotion-result" @click="loadPromotionByYearSales(group.promotionTypeId)">
+                <button class="search-promotion-result" @click="loadPromotionByYearSales(group.promotionTypeId, group.promotionTypeName)">
                   {{ group.promotionTypeName }}
                 </button>
                 <div class="promotion-items">
@@ -848,15 +860,24 @@ h3 {
 
 .data-table {
   width: 100%;
-  border-collapse: collapse;
-  margin: 0 auto;  /* 테이블 중앙 정렬 */
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 0 auto;
   background: white;
+  table-layout: fixed;
 }
 
+/* 기본 셀 스타일링 */
 .data-table th,
 .data-table td {
   padding: 12px;
   border: 1px solid #e0e0e0;
+  font-size: 13px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .data-table th {
@@ -910,6 +931,8 @@ h3 {
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .ranking-content {
@@ -983,14 +1006,14 @@ h3 {
 .right-section .data-table td:nth-child(1),
 .right-section .data-table th:nth-child(2),
 .right-section .data-table td:nth-child(2) {
-  width: 30%;
+  width: 35%;
 }
 
 .right-section .data-table th:nth-child(3),
 .right-section .data-table td:nth-child(3),
 .right-section .data-table th:nth-child(4),
 .right-section .data-table td:nth-child(4) {
-  width: 20%;
+  width: 30%;
 }
 
 .list-blocks .data-table th:first-child,
@@ -1041,5 +1064,15 @@ h3 {
 /* 테이블 헤더도 가운데 정렬 */
 .list-blocks .data-table th {
   text-align: center;
+}
+
+.right-section .data-table td.rank-up {
+  color: #dc3545 !important;
+  font-weight: 600;
+}
+
+.right-section .data-table td.rank-down {
+  color: #0d6efd !important;
+  font-weight: 600;
 }
 </style>
