@@ -1,17 +1,29 @@
 <script setup>
 import {useAuthStore} from "@/stores/auth.js";
+import {useSSEStore} from "@/stores/sse.js";
 import {FontAwesomeIcon} from '@fortawesome/vue-fontawesome';
-import {computed, onMounted, onUnmounted, ref} from "vue";
+import {computed, onMounted, onUnmounted, ref, watch} from "vue";
 import {getFetch, putFetch} from "@/stores/apiClient.js";
 import userProfile from '@/assets/icons/profile.svg';
 import {useRouter} from "vue-router";
 
 const router = useRouter();
 const authStore = useAuthStore();
+const sseStore = useSSEStore();
 const isAdmin = computed(() => authStore.isAuthorized('ADMIN'));
 const headerItems = ref([]);
 const showNotis = ref(false);
-const notis = ref([]);
+const notis = computed(() => sseStore.notifications);
+const isNewNoti = ref(false);
+
+watch(() => sseStore.notifications, (newNotis, oldNotis) => {
+  if (newNotis.length > oldNotis?.length) {
+    isNewNoti.value = true;
+    setTimeout(() => {
+      isNewNoti.value = false;
+    }, 1000);
+  }
+}, { deep: true });
 
 headerItems.value = [
   {
@@ -55,23 +67,27 @@ headerItems.value = [
 ];
 
 const fetchMyNotReadNotiList = async () => {
-  try {
-    const response = await getFetch('/noti');
-    notis.value = response.data.data;
-  } catch (error) {
-    console.error('알림 목록을 불러오는 중 에러가 발생했습니다.', error);
-  }
+  await sseStore.loadInitialNotifications();
 };
 
 const handleNotiClick = async (noti) => {
   try {
-    await putFetch(`/noti/${noti.notiId}`,
-        {
-          notiId: noti.notiId
-        });
-    await fetchMyNotReadNotiList();
+    await putFetch(`/noti/${noti.notiId}`, { notiId: noti.notiId });
+    sseStore.markAsRead(noti.notiId);
   } catch (error) {
     console.error('알림 읽음 상태 변경 중 에러가 발생했습니다.', error);
+  }
+};
+
+const handleReadAllNotis = async () => {
+  try {
+    const notiIds = notis.value.map(noti => noti.notiId);
+    await putFetch('/noti/all', {
+      notiIdList: notiIds
+    });
+    sseStore.markAllAsRead();
+  } catch (error) {
+    console.error('알림 전체 읽음 처리 중 에러가 발생했습니다.', error);
   }
 };
 
@@ -104,21 +120,24 @@ const formatDate = (dateString) => {
 };
 
 const handleLogoutClick = async () => {
+  sseStore.disconnectSSE();
   authStore.logout();
   alert('로그아웃 성공');
   await router.push({
     path: '/'
-  })
+  });
   window.location.reload();
 };
 
 onMounted(() => {
   fetchMyNotReadNotiList();
   document.addEventListener('click', closeNotis);
+  sseStore.connectSSE();
 });
 
 onUnmounted(() => {
   document.removeEventListener('click', closeNotis);
+  sseStore.disconnectSSE();
 });
 </script>
 
@@ -158,9 +177,15 @@ onUnmounted(() => {
       >
         <font-awesome-icon :icon="['fas', 'cog']"/>
       </router-link>
-      <div class="notification" @click="toggleNotis">
+      <div class="notification" :class="{'new-noti': isNewNoti}" @click="toggleNotis">
         <font-awesome-icon :icon="['fas', 'bell']"/>
+        <span v-if="notis.length" class="notification-count">{{ notis.length }}</span>
         <div v-if="showNotis" class="notifications-dropdown">
+          <div v-if="notis.length" class="notifications-header">
+            <button class="read-all-btn" @click="handleReadAllNotis">
+              모두 읽음
+            </button>
+          </div>
           <div v-if="notis.length" class="notifications-list">
             <div v-for="noti in notis"
                  :key="noti.notiId"
@@ -259,6 +284,41 @@ onUnmounted(() => {
 
 .notification:hover {
   color: var(--menu-green);
+}
+
+@keyframes notificationHighlight {
+  0% {
+    background-color: transparent;
+  }
+  50% {
+    background-color: rgba(46, 125, 50, 0.2);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.notification.new-noti {
+  animation: notificationHighlight 1s ease;
+  border-radius: 50%;
+  padding: 8px;
+}
+
+.notification-count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background-color: #e53935;
+  color: white;
+  border-radius: 50%;
+  padding: 2px 6px;
+  font-size: 0.75rem;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
 }
 
 .menu {
@@ -383,6 +443,28 @@ onUnmounted(() => {
   width: 300px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   z-index: 1000;
+}
+
+.notifications-header {
+  padding: 8px 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.read-all-btn {
+  padding: 4px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  color: #666;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.read-all-btn:hover {
+  background-color: rgba(46, 125, 50, 0.1);
+  color: var(--menu-green);
+  border-color: var(--menu-green);
 }
 
 .notifications-list {

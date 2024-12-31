@@ -1,20 +1,31 @@
 import { defineStore } from 'pinia'
-import {computed, ref} from 'vue'
+import { computed, ref } from 'vue'
 import { EventSourcePolyfill } from 'event-source-polyfill'
 import HeartIcon from '@/assets/icons/heart.png';
 import axios from "axios";
-import {useAuthStore} from "@/stores/auth.js";
+import { useAuthStore } from "@/stores/auth.js";
 
 export const useSSEStore = defineStore('sse', () => {
     const notifications = ref([])
     const connectionStatus = ref('disconnected')
     let eventSource = null
 
-    // 알림 권한 요청
+    const loadInitialNotifications = async () => {
+        try {
+            const response = await axios.get('http://localhost:8080/api/v1/noti', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                }
+            })
+            notifications.value = response.data.data
+        } catch (error) {
+            console.error('초기 알림 로드 실패:', error)
+        }
+    }
+
     const requestNotificationPermission = async () => {
         try {
             const permission = await Notification.requestPermission()
-            console.log('알림 권한:', permission)
             return permission === 'granted'
         } catch (error) {
             console.error('알림 권한 요청 실패:', error)
@@ -22,7 +33,6 @@ export const useSSEStore = defineStore('sse', () => {
         }
     }
 
-    // 브라우저 알림 표시
     const showBrowserNotification = (data) => {
         if (Notification.permission === 'granted') {
             const notification = new Notification('새로운 알림', {
@@ -31,7 +41,6 @@ export const useSSEStore = defineStore('sse', () => {
                 tag: data.id,
             })
 
-            // 알림 클릭 시 해당 페이지로 이동
             notification.onclick = () => {
                 window.focus()
                 if (data.notiUrl) {
@@ -41,7 +50,6 @@ export const useSSEStore = defineStore('sse', () => {
         }
     }
 
-    // 토큰 갱신 함수
     const refreshToken = async () => {
         const authStore = useAuthStore()
         try {
@@ -56,7 +64,6 @@ export const useSSEStore = defineStore('sse', () => {
             const newRefreshToken = response.headers['refresh-token']
 
             if (newAccessToken && newRefreshToken) {
-                console.log('새로운 토큰 발급 성공')
                 localStorage.setItem('accessToken', newAccessToken)
                 authStore.setAccessToken(newAccessToken)
                 authStore.setRefreshToken(newRefreshToken)
@@ -71,27 +78,19 @@ export const useSSEStore = defineStore('sse', () => {
     }
 
     const beforeRequest = async (xhr) => {
-        // 요청 전 인터셉터
-        console.log('SSE 요청 인터셉터 실행')
-
-        // 현재 토큰 가져오기
         const token = localStorage.getItem('accessToken')
         if (token) {
             xhr.setRequestHeader('Authorization', `Bearer ${token}`)
         }
 
-        // 에러 핸들링을 위한 이벤트 리스너 추가
         xhr.addEventListener('error', async function() {
             if (xhr.status === 401) {
-                console.log('SSE 연결 중 401 에러 발생')
                 try {
                     const newToken = await refreshToken()
                     if (newToken) {
-                        // 기존 연결 종료
                         if (eventSource) {
                             eventSource.close()
                         }
-                        // 새 토큰으로 재연결
                         await connectSSE()
                     }
                 } catch (error) {
@@ -103,14 +102,11 @@ export const useSSEStore = defineStore('sse', () => {
 
     const connectSSE = async () => {
         if (connectionStatus.value === 'connecting' || connectionStatus.value === 'connected') {
-            console.log('이미 SSE가 연결중이거나 연결된 상태입니다.')
             return
         }
 
         connectionStatus.value = 'connecting'
-        console.log('SSE 연결 시도')
-
-        // 알림 권한 요청
+        await loadInitialNotifications()
         await requestNotificationPermission()
 
         const token = localStorage.getItem('accessToken')
@@ -130,7 +126,6 @@ export const useSSEStore = defineStore('sse', () => {
             eventSource = new EventSourcePolyfill('http://localhost:8080/api/v1/noti/connect', options)
 
             eventSource.onopen = () => {
-                console.log('SSE 연결 성공')
                 connectionStatus.value = 'connected'
             }
 
@@ -138,7 +133,7 @@ export const useSSEStore = defineStore('sse', () => {
                 try {
                     const data = JSON.parse(event.data)
                     if (data.notiType) {
-                        notifications.value.push(data)
+                        notifications.value = [data, ...notifications.value]
                         showBrowserNotification(data)
                     }
                 } catch (error) {
@@ -150,7 +145,6 @@ export const useSSEStore = defineStore('sse', () => {
                 console.error('SSE 에러:', error)
                 connectionStatus.value = 'error'
 
-                // 일반적인 연결 에러는 여기서 처리
                 if (eventSource) {
                     eventSource.close()
                     setTimeout(connectSSE, 5000)
@@ -169,7 +163,14 @@ export const useSSEStore = defineStore('sse', () => {
             eventSource = null
         }
         connectionStatus.value = 'disconnected'
-        notifications.value = []
+    }
+
+    const markAsRead = (notiId) => {
+        notifications.value = notifications.value.filter(noti => noti.notiId !== notiId);
+    }
+
+    const markAllAsRead = () => {
+        notifications.value = [];
     }
 
     const isConnected = computed(() => connectionStatus.value === 'connected')
@@ -179,6 +180,9 @@ export const useSSEStore = defineStore('sse', () => {
         connectionStatus,
         connectSSE,
         disconnectSSE,
-        isConnected
+        isConnected,
+        loadInitialNotifications,
+        markAsRead,
+        markAllAsRead
     }
 })
