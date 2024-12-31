@@ -9,6 +9,7 @@ import {useRoute, useRouter} from "vue-router";
 import CaptureModal from "@/components/capture/CaptureModal.vue";
 import AiReview from "@/components/goods/AiReview.vue";
 import AprioriTable from "@/components/goods/AprioriTable.vue";
+import {FontAwesomeIcon} from "@fortawesome/vue-fontawesome";
 
 // 캡처 모달
 const captureModal = ref(null);
@@ -35,6 +36,8 @@ const isSearchOpen = ref(false);
 
 // 선택된 상품 코드 관리
 const selectedGoodsCode = ref('');
+
+const showSearchFilters = ref(false);
 
 // 상품 선택 핸들러 추가
 const handleGoodsSelect = (goodsCode) => {
@@ -208,12 +211,13 @@ const handleSearch = () => {
   searchGoods();
 };
 
-const selectedYear = ref(null);
-const selectedMonth = ref(null);
+const selectedYear = ref(new Date().getFullYear());
+const selectedMonth = ref(new Date().getMonth() + 1);
 
-const handleMonthClick = ({ year, month }) => {
-  selectedYear.value = year;
-  selectedMonth.value = month;
+// 타입 변환
+const handleMonthClick = ({year, month}) => {
+  selectedYear.value = Number(year);  // String -> Number
+  selectedMonth.value = Number(month); // String -> Number
 };
 
 /* 화면 캡처 함수 */
@@ -233,7 +237,19 @@ const handleCapture = async () => {
       <div class="layout-grid">
         <!-- 왼쪽 프로모션 목록 -->
         <div class="promotion-list">
-          <h3>적용된 프로모션 목록</h3>
+          <h3 class="promotion-header">
+            <template v-if="selectedGoodsCode && searchResults.length">
+              <div class="header-content">
+     <span class="selected-goods">
+       {{ searchResults.find(item => item.goodsCode === selectedGoodsCode)?.goodsName }}
+     </span>
+                <div class="promotion-title">적용된 프로모션 목록</div>
+              </div>
+            </template>
+            <template v-else>
+              <div class="promotion-title">적용된 프로모션 목록</div>
+            </template>
+          </h3>
           <PromotionList
               v-if="selectedGoodsCode"
               :goodsCode="selectedGoodsCode"
@@ -306,77 +322,89 @@ const handleCapture = async () => {
       <span>캡처</span>
     </button>
 
-<!--    캡처 모달창 -->
+    <!--    캡처 모달창 -->
     <CaptureModal ref="captureModal" prefix="goods-analysis"/>
 
     <!-- 검색 슬라이드 패널 -->
     <div class="search-panel" :class="{ 'open': isSearchOpen }">
       <div class="search-content">
         <h3>상품 검색</h3>
-        <div class="search-form">
-          <div class="form-group">
-            <label>상품명</label>
-            <input
-                type="text"
-                v-model="searchWord"
-                placeholder="상품명을 입력하세요"
-            >
-          </div>
 
-          <div class="form-group">
-            <label>상위 카테고리</label>
-            <select @change="handleTopCategoryChange" v-model="selectedTopCategory">
-              <option value="">전체</option>
-              <option
-                  v-for="category in topCategories"
-                  :key="category.topCategoryCode"
-                  :value="category.topCategoryCode"
-              >
-                {{ category.topCategoryName }}
-              </option>
-            </select>
-          </div>
+        <!-- 필터 토글 버튼 추가 -->
+        <button @click="showSearchFilters = !showSearchFilters" class="filter-toggle-btn">
+          <font-awesome-icon :icon="['fas', 'fa-up-down']"></font-awesome-icon>
+          필터
+        </button>
 
-          <div class="form-group">
-            <label>하위 카테고리</label>
-            <select
-                v-model="selectedSubCategory"
-                @change="handleSubCategoryChange"
-                :disabled="!selectedTopCategory"
-            >
-              <option value="">전체</option>
-              <option
-                  v-for="category in subCategories"
-                  :key="category.subCategoryCode"
-                  :value="category.subCategoryCode"
-              >
-                {{ category.subCategoryName }}
-              </option>
-            </select>
-          </div>
+        <transition name="slide-fade">
+          <div v-show="showSearchFilters" class="search-form">
+            <div class="search-form">
+              <div class="form-group">
+                <label>상품명</label>
+                <input
+                    type="text"
+                    v-model="searchWord"
+                    placeholder="상품명을 입력하세요"
+                >
+              </div>
 
-          <div class="form-group">
-            <label>가격대</label>
-            <div class="price-range">
-              <input
-                  type="number"
-                  v-model="minPrice"
-                  placeholder="최소"
-                  min="0"
-              >
-              <span>~</span>
-              <input
-                  type="number"
-                  v-model="maxPrice"
-                  placeholder="최대"
-                  min="0"
-              >
+              <div class="form-group">
+                <label>상위 카테고리</label>
+                <select @change="handleTopCategoryChange" v-model="selectedTopCategory">
+                  <option value="">전체</option>
+                  <option
+                      v-for="category in topCategories"
+                      :key="category.topCategoryCode"
+                      :value="category.topCategoryCode"
+                  >
+                    {{ category.topCategoryName }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>하위 카테고리</label>
+                <select
+                    v-model="selectedSubCategory"
+                    @change="handleSubCategoryChange"
+                    :disabled="!selectedTopCategory"
+                >
+                  <option value="">전체</option>
+                  <option
+                      v-for="category in subCategories"
+                      :key="category.subCategoryCode"
+                      :value="category.subCategoryCode"
+                  >
+                    {{ category.subCategoryName }}
+                  </option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label>가격대</label>
+                <div class="price-range">
+                  <input
+                      type="number"
+                      v-model="minPrice"
+                      placeholder="최소"
+                      min="0"
+                  >
+                  <span>~</span>
+                  <input
+                      type="number"
+                      v-model="maxPrice"
+                      placeholder="최대"
+                      min="0"
+                  >
+                </div>
+              </div>
+
+              <button class="search-btn" @click="handleSearch">검색</button>
             </div>
           </div>
-
-          <button class="search-btn" @click="handleSearch">검색</button>
-        </div>
+        </transition>
       </div>
+
 
       <!-- 검색 결과 영역 -->
       <div class="search-results" v-if="searchResults.length > 0">
@@ -558,7 +586,7 @@ const handleCapture = async () => {
 .search-panel {
   position: fixed;
   left: -25%;
-  top: 0;
+  top: 60px;  /* 60px 아래로 이동 */
   width: 25%;
   height: 100%;
   padding-bottom: 60px;
@@ -566,7 +594,36 @@ const handleCapture = async () => {
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
   transition: left 0.3s ease;
   z-index: 999;
-  overflow-y: auto;
+  -ms-overflow-style: none;  /* IE, Edge */
+  scrollbar-width: none;     /* Firefox */
+}
+
+.search-panel::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari, Opera */
+}
+
+.filter-toggle-btn {
+  width: 23%; /* 버튼 너비 100%로 */
+  display: flex;
+  align-items: center;
+  justify-content: center; /* 중앙 정렬 */
+  gap: 8px;
+  padding: 8px 16px;
+  margin: 0 0 12px 0; /* 마진 조정 */
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #666;
+  cursor: pointer;
+}
+
+.search-content {
+  padding: 24px 24px 100px 24px; /* 하단 패딩 추가 */
+}
+
+.search-content h3 {
+  margin-bottom: 20px; /* 타이틀과 필터 버튼 사이 간격 */
 }
 
 .search-panel.open {
@@ -706,7 +763,45 @@ h3 {
 }
 
 @keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.promotion-header {
+  margin-bottom: 20px;
+}
+
+.header-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.selected-goods {
+  background-color: #e6f3ff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.promotion-title {
+  font-size: 16px;
+  color: #666;
+  padding-left: 12px;
+}
+
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
 }
 </style>

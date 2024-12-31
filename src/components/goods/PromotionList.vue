@@ -1,8 +1,8 @@
 <script setup>
 import {ref, onMounted, watch} from 'vue';
 import {getFetch} from "@/stores/apiClient.js";
+import {FontAwesomeIcon} from "@fortawesome/vue-fontawesome";
 
-// props 정의
 const props = defineProps({
   goodsCode: {
     type: String,
@@ -12,8 +12,8 @@ const props = defineProps({
 
 const promotions = ref([]);
 const loading = ref(false);
+const showFilters = ref(false);
 
-// 검색 조건 ref 추가
 const year = ref('');
 const month = ref('');
 const promotionTitle = ref('');
@@ -22,14 +22,12 @@ const order = ref('');
 const page = ref(1);
 const count = ref(10);
 
-// 정렬 옵션
 const sortOptions = [
   {value: 'startDate', label: '시작일'},
   {value: 'endDate', label: '종료일'},
   {value: 'title', label: '프로모션명'}
 ];
 
-// 연도 옵션
 const yearOptions = [
   { value: '2024', label: '2024년' },
   { value: '2023', label: '2023년' },
@@ -48,13 +46,11 @@ const yearOptions = [
   { value: '2010', label: '2010년' },
 ];
 
-// 월 옵션
 const monthOptions = Array.from({length: 12}, (_, i) => ({
   value: String(i + 1).padStart(2, '0'),
   label: `${i + 1}월`
 }));
 
-// 프로모션 목록 조회
 const fetchPromotions = async () => {
   loading.value = true;
   try {
@@ -63,8 +59,6 @@ const fetchPromotions = async () => {
       count: count.value.toString()
     });
 
-    // 선택된 검색 조건들만 쿼리에 추가
-    console.log(promotionTitle.value);
     if (year.value) queryParams.append('year', year.value);
     if (month.value) queryParams.append('month', month.value);
     if (promotionTitle.value) queryParams.append('promotionTitle', promotionTitle.value);
@@ -82,12 +76,10 @@ const fetchPromotions = async () => {
   }
 };
 
-// watch를 사용하여 goodsCode가 변경될 때마다 프로모션 목록 다시 조회
 watch(() => props.goodsCode, () => {
   resetFilters();
 });
 
-// 필터 초기화
 const resetFilters = () => {
   year.value = '';
   month.value = '';
@@ -98,13 +90,11 @@ const resetFilters = () => {
   fetchPromotions();
 };
 
-// 검색 버튼 클릭
 const handleSearch = () => {
-  page.value = 1; // 페이지 초기화
+  page.value = 1;
   fetchPromotions();
 };
 
-// 정렬 변경 핸들러
 const handleSortChange = (event) => {
   const [newSort, newOrder] = event.target.value.split('-');
   sort.value = newSort;
@@ -113,36 +103,34 @@ const handleSortChange = (event) => {
   fetchPromotions();
 };
 
-// percent 값에 따른 색상 클래스 반환 함수
 const getPercentColorClass = (percent) => {
   if (percent > 0) return 'text-positive';
   if (percent < 0) return 'text-negative';
   return 'text-neutral';
 };
 
-// 날짜 포맷 함수 추가
 const formatDate = (dateString) => {
   if (!dateString) return '';
   const date = new Date(dateString);
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
-
   return `${year}년 ${month}월 ${day}일`;
 };
 
-// 컴포넌트 마운트 시 프로모션 목록 조회
 onMounted(() => {
   fetchPromotions();
 });
 </script>
 
-/* script 부분은 동일하게 유지 */
-
 <template>
   <div class="promotion-dashboard">
-    <!-- 검색 필터 영역 -->
-    <div class="filters">
+    <button @click="showFilters = !showFilters" class="filter-toggle-btn">
+      <font-awesome-icon :icon="['fas', 'fa-up-down']"></font-awesome-icon>
+      필터
+    </button>
+
+    <div v-show="showFilters" class="filters">
       <div class="filter-row">
         <div class="filter-group">
           <label class="filter-label">연도</label>
@@ -200,7 +188,6 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 프로모션 목록 -->
     <div class="promotion-list">
       <div v-if="loading" class="loading">
         <div class="spinner"></div>
@@ -232,7 +219,6 @@ onMounted(() => {
                 <span class="info-label">매출액</span>
                 <span class="info-value">{{ promotion.sales.toLocaleString() }}원</span>
               </div>
-              <!-- percent 부분 수정 -->
               <div class="info-row">
                 <span class="info-label">비교</span>
                 <span class="info-value" :class="getPercentColorClass(promotion.percent)">
@@ -257,11 +243,28 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   padding: 16px;
-  overflow-y: auto;
+  overflow: hidden;
   box-sizing: border-box;
 }
 
-/* 필터 영역 스타일 */
+.filter-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  margin-bottom: 12px;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #666;
+  cursor: pointer;
+}
+
+.filter-toggle-btn:hover {
+  background: #f8f9fa;
+}
+
 .filters {
   background: white;
   border-radius: 8px;
@@ -298,12 +301,31 @@ onMounted(() => {
   background-color: #fff;
 }
 
-/* 프로모션 목록 스타일 */
 .promotion-list {
   background: white;
   border-radius: 8px;
   padding: 16px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  max-height: calc(100vh - 250px);
+  overflow-y: auto;
+}
+
+.promotion-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.promotion-list::-webkit-scrollbar-track {
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.promotion-list::-webkit-scrollbar-thumb {
+  background: #dde0e4;
+  border-radius: 4px;
+}
+
+.promotion-list::-webkit-scrollbar-thumb:hover {
+  background: #cbd2d9;
 }
 
 .promotion-grid {
@@ -352,7 +374,6 @@ onMounted(() => {
   color: #333;
 }
 
-/* 버튼 스타일 */
 .button-row {
   display: flex;
   justify-content: flex-end;
@@ -379,7 +400,6 @@ onMounted(() => {
   color: white;
 }
 
-/* 로딩 및 결과 없음 상태 */
 .loading,
 .no-results {
   padding: 24px;
@@ -404,7 +424,6 @@ onMounted(() => {
   }
 }
 
-/* 스크롤바 스타일 */
 .promotion-dashboard::-webkit-scrollbar {
   width: 8px;
 }
@@ -422,16 +441,15 @@ onMounted(() => {
   background: #cbd2d9;
 }
 
-/* percent 색상 클래스 */
 .text-positive {
-  color: #dc3545;  /* 빨간색 */
+  color: #dc3545;
 }
 
 .text-negative {
-  color: #0d6efd;  /* 파란색 */
+  color: #0d6efd;
 }
 
 .text-neutral {
-  color: #333;     /* 검정색 */
+  color: #333;
 }
 </style>

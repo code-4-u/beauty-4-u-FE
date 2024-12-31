@@ -1,6 +1,6 @@
 <script setup>
-import { ref, watch } from 'vue';
-import { getFetch } from "@/stores/apiClient.js";
+import {ref, watch} from 'vue';
+import {getFetch} from "@/stores/apiClient.js";
 
 const props = defineProps({
   selectedYear: {
@@ -55,7 +55,7 @@ watch(
         await fetchCompareData();
       }
     },
-    { immediate: true }
+    {immediate: true}
 );
 
 const formatCurrency = (value) => {
@@ -68,37 +68,45 @@ const formatCurrency = (value) => {
 
 <template>
   <div class="compare-container">
-    <div v-if="loading">데이터를 불러오는 중...</div>
-    <div v-else-if="error">{{ error }}</div>
-    <div v-else-if="compareData">
-      <div class="comparison-section">
-        <!-- 2021년 데이터 -->
-        <div class="year-box">
-          <h4>{{ selectedYear - 1 }}년 {{ selectedMonth }}월</h4>
-          <div class="amount-display">
-            {{ formatCurrency(compareData.lastYearMonthlySales) }}
-          </div>
-        </div>
 
-        <!-- 퍼센트 변화 표시 -->
-        <div class="percent-change-box">
-          <div class="percent-change"
-               :class="{ 'increase': compareData.percent > 0, 'decrease': compareData.percent < 0 }">
-            {{ compareData.percent }}%
-          </div>
-        </div>
+    <!-- 데이터가 없을 때 안내 메시지 -->
+    <div v-if="!goodsCode" class="guide-message">
+      왼쪽 검색창에서 상품을 선택해주세요
+    </div>
 
-        <!-- 2022년 데이터 -->
-        <div class="year-box">
-          <h4>{{ selectedYear }}년 {{ selectedMonth }}월</h4>
-          <div class="amount-display">
-            {{ formatCurrency(compareData.currentYearMonthlySales) }}
+    <div v-else>
+      <div v-if="loading">데이터를 불러오는 중...</div>
+      <div v-else-if="error">{{ error }}</div>
+      <div v-else-if="compareData">
+        <div class="comparison-section">
+          <!-- 2021년 데이터 -->
+          <div class="year-box">
+            <h4>{{ selectedYear - 1 }}년 {{ selectedMonth }}월</h4>
+            <div class="amount-display">
+              {{ formatCurrency(compareData.lastYearMonthlySales) }}
+            </div>
+          </div>
+
+          <!-- 퍼센트 변화 표시 -->
+          <div class="percent-change-box">
+            <div class="percent-change"
+                 :class="{ 'increase': compareData.percent > 0, 'decrease': compareData.percent < 0 }">
+              {{ compareData.percent }}%
+            </div>
+          </div>
+
+          <!-- 2022년 데이터 -->
+          <div class="year-box">
+            <h4>{{ selectedYear }}년 {{ selectedMonth }}월</h4>
+            <div class="amount-display">
+              {{ formatCurrency(compareData.currentYearMonthlySales) }}
+            </div>
           </div>
         </div>
       </div>
-    </div>
-    <div v-else class="no-data">
-      선택된 기간의 데이터가 없습니다.
+      <div v-else class="no-data">
+        선택된 기간의 데이터가 없습니다.
+      </div>
     </div>
   </div>
 </template>
