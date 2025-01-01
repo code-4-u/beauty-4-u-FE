@@ -5,7 +5,7 @@ import { getFetch, postFetch } from "@/stores/apiClient.js"
 import { useAuthStore } from '@/stores/auth.js';
 import ImageManagement from "@/components/board/editor/ImageManagement.vue";
 
-const chatUrl = import.meta.env.VITE_API_CHAT_URL;
+const chatUrl = import.meta.env.VITE_API_CHAT_URL || 'localhost:8080';
 
 // 유저 정보 관리
 const useAuth = useAuthStore();

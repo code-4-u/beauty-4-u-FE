@@ -1,7 +1,7 @@
 import axios from "axios";
 import {useAuthStore} from "@/stores/auth.js";
 
-const baseUrl = import.meta.env.VITE_API_BASE_URL;
+const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
 
 const apiClient = axios.create({
     baseURL: baseUrl,
@@ -12,7 +12,6 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
     (config) => {
         console.log('요청 인터셉터:', config);
-        console.log('Axios config:', apiClient.defaults);
 
         const authStore = useAuthStore();
         if (authStore.accessToken) {
