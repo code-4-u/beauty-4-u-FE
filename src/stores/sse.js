@@ -6,6 +6,7 @@ import axios from "axios";
 import {useAuthStore} from "@/stores/auth.js";
 
 export const useSSEStore = defineStore('sse', () => {
+    const baseUrl = import.meta.env.VITE_API_BASE_URL;
     const notifications = ref([])
     const connectionStatus = ref('disconnected')
     let eventSource = null
@@ -45,7 +46,7 @@ export const useSSEStore = defineStore('sse', () => {
     const refreshToken = async () => {
         const authStore = useAuthStore()
         try {
-            const response = await axios.post('http://localhost:8080/api/v1/auth/refresh', {}, {
+            const response = await axios.post(`${baseUrl}/auth/refresh`, {}, {
                 withCredentials: true,
                 headers: {
                     'Refresh-Token': authStore.refreshToken
@@ -127,7 +128,7 @@ export const useSSEStore = defineStore('sse', () => {
         }
 
         try {
-            eventSource = new EventSourcePolyfill('http://localhost:8080/api/v1/noti/connect', options)
+            eventSource = new EventSourcePolyfill(`${baseUrl}/noti/connect`, options)
 
             eventSource.onopen = () => {
                 console.log('SSE 연결 성공')
