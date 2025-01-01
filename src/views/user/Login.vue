@@ -6,7 +6,7 @@ import axios from "axios";
 import ResetPasswordModal from '@/components/user/ResetPasswordModal.vue';
 import FindIdModal from '@/components/user/FindIdModal.vue';
 
-const baseUrl = import.meta.env.VITE_API_BASE_URL;
+const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
 const router = useRouter();
 const authStore = useAuthStore();
 

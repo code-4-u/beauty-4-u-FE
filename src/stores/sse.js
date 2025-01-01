@@ -7,7 +7,7 @@ import { useAuthStore } from "@/stores/auth.js";
 import {getFetch} from "@/stores/apiClient.js";
 
 export const useSSEStore = defineStore('sse', () => {
-    const baseUrl = import.meta.env.VITE_API_BASE_URL;
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1';
     const notifications = ref([])
     const connectionStatus = ref('disconnected')
     let eventSource = null
