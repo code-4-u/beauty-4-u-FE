@@ -4,6 +4,7 @@ import { EventSourcePolyfill } from 'event-source-polyfill'
 import HeartIcon from '@/assets/icons/heart.png';
 import axios from "axios";
 import { useAuthStore } from "@/stores/auth.js";
+import {getFetch} from "@/stores/apiClient.js";
 
 export const useSSEStore = defineStore('sse', () => {
     const baseUrl = import.meta.env.VITE_API_BASE_URL;
@@ -12,12 +13,12 @@ export const useSSEStore = defineStore('sse', () => {
     let eventSource = null
 
     const loadInitialNotifications = async () => {
+        const accessToken = localStorage.getItem('accessToken')
+
+        if (!accessToken) return;
+
         try {
-            const response = await axios.get('http://localhost:8080/api/v1/noti', {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-                }
-            })
+            const response = await getFetch('/noti')
             notifications.value = response.data.data
         } catch (error) {
             console.error('초기 알림 로드 실패:', error)
