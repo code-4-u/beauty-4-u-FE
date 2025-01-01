@@ -5,6 +5,8 @@ import { getFetch, postFetch } from "@/stores/apiClient.js"
 import { useAuthStore } from '@/stores/auth.js';
 import ImageManagement from "@/components/board/editor/ImageManagement.vue";
 
+const chatUrl = import.meta.env.VITE_API_CHAT_URL;
+
 // 유저 정보 관리
 const useAuth = useAuthStore();
 const userCode = ref(useAuth.userCode); // 현재 사용자 코드
@@ -474,7 +476,7 @@ const connectWebSocket = (roomId) => {
     return;
   }
 
-  const socketUrl = "ws://localhost:8080/chat";
+  const socketUrl = `wss://${chatUrl}/chat`;
   stompClient = Stomp.over(() => new WebSocket(socketUrl));
 
   stompClient.connect(

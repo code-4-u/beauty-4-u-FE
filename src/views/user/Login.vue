@@ -6,6 +6,7 @@ import axios from "axios";
 import ResetPasswordModal from '@/components/user/ResetPasswordModal.vue';
 import FindIdModal from '@/components/user/FindIdModal.vue';
 
+const baseUrl = import.meta.env.VITE_API_BASE_URL;
 const router = useRouter();
 const authStore = useAuthStore();
 
@@ -40,7 +41,7 @@ const saveUser = async () => {
   if (hasError) return;
 
   try {
-    const response = await axios.post('http://localhost:8080/api/v1/user/login',
+    const response = await axios.post(`${baseUrl}/user/login`,
         {
           userCode: userCode.value,
           userPassword: userPassword.value

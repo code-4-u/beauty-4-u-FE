@@ -1,8 +1,10 @@
 import axios from "axios";
 import {useAuthStore} from "@/stores/auth.js";
 
+const baseUrl = import.meta.env.VITE_API_BASE_URL;
+
 const apiClient = axios.create({
-    baseURL: 'http://localhost:8080/api/v1',
+    baseURL: baseUrl,
     withCredentials: true
 });
 
@@ -10,6 +12,7 @@ const apiClient = axios.create({
 apiClient.interceptors.request.use(
     (config) => {
         console.log('요청 인터셉터:', config);
+        console.log('Axios config:', apiClient.defaults);
 
         const authStore = useAuthStore();
         if (authStore.accessToken) {
@@ -41,7 +44,7 @@ apiClient.interceptors.response.use(
             try {
 
                 // 액세스 토큰 갱신
-                const response = await axios.post('http://localhost:8080/api/v1/auth/refresh', {}, {
+                const response = await axios.post(`${baseUrl}/auth/refresh`, {}, {
                     withCredentials: true,
                     headers: {
                         'Refresh-Token': authStore.refreshToken
