@@ -25,53 +25,25 @@ const fetchTeamBoardDetail = async () => {
     teamBoardTitle.value = data.teamBoardTitle;
     editorContent.value = data.teamBoardContent;
 
-    // 본문에서 이미지 URL 추출
-    const imageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
-    const imageMatches = [...data.teamBoardContent.matchAll(imageRegex)];
-    const existingImageUrls = imageMatches.map(match => match[1]);
+    // 이미지 URL 가져오기
+    const fileResponse = await getFetch(`/file/list?fileType=TEAMBOARD&fileUrl=${teamBoardId}`);
+    if (fileResponse?.data?.data?.fileList && fileResponse.data.data.fileList.length > 0) {
+      originalS3Urls.value = fileResponse.data.data.fileList;
+      imageUrls.value = fileResponse.data.data.fileList;
 
-    // 기존 URL들 저장
-    originalS3Urls.value = existingImageUrls;
-    imageUrls.value = existingImageUrls;
-
-    // 추출된 이미지를 selectedFiles에 추가
-    selectedFiles.value = existingImageUrls.map((url, index) => ({
-      id: `existing-${index}`,
-      name: url.split('/').pop() || `image-${index}`,
-      url: url,
-      isExisting: true,
-      size: 0,
-      file: null
-    }));
+      // 기존 이미지를 selectedFiles에 추가
+      selectedFiles.value = fileResponse.data.data.fileList.map((url, index) => ({
+        id: `existing-${index}`,
+        name: url.split('/').pop() || `image-${index}`,
+        url: url,
+        isExisting: true,
+        size: 0,
+        file: null
+      }));
+    }
 
   } catch (error) {
     console.error("게시글 세부 정보를 가져오는 데 오류가 발생했습니다:", error);
-  }
-};
-
-const insertImageAtCursor = (imageUrl, options = {}) => {
-  if (!boardEditorRef.value) return;
-
-  try {
-    if (options.removeUrl) {  // 이미지 제거 케이스
-      boardEditorRef.value.removeImage(options.removeUrl);
-    } else if (options.file) {    // 이미지 추가 케이스
-      const tempUrl = URL.createObjectURL(options.file);
-      boardEditorRef.value.insertImage(tempUrl, {
-        style: `max-width: ${options.width || 400}px; height: ${options.height || 'auto'};`,
-        'data-temp-url': 'true'
-      });
-
-      // selectedFiles 업데이트
-      selectedFiles.value = selectedFiles.value.map(file => {
-        if (file.id === options.id) {
-          return {...file, tempUrl};
-        }
-        return file;
-      });
-    }
-  } catch (error) {
-    console.error('이미지 삽입 중 오류:', error);
   }
 };
 
@@ -92,25 +64,11 @@ const handleUpload = (files) => {
 
 const handleRemove = (fileId) => {
   const fileToRemove = selectedFiles.value.find(f => f.id === fileId);
-  if (fileToRemove) {
-    // 임시 URL 제거
-    if (fileToRemove.tempUrl) {
-      URL.revokeObjectURL(fileToRemove.tempUrl);
-
-      // 본문에서 이미지 제거 (임시 URL)
-      const tempRegex = new RegExp(`<img[^>]*src="${fileToRemove.tempUrl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*>`, 'g');
-      editorContent.value = editorContent.value.replace(tempRegex, '');
-    }
-
-    // 기존 이미지 제거 (실제 URL)
-    if (fileToRemove.url) {
-      const urlRegex = new RegExp(`<img[^>]*src="${fileToRemove.url.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}"[^>]*>`, 'g');
-      editorContent.value = editorContent.value.replace(urlRegex, '');
-    }
-
-    // 목록에서 제거
-    selectedFiles.value = selectedFiles.value.filter(f => f.id !== fileId);
+  if (fileToRemove && fileToRemove.tempUrl) {
+    URL.revokeObjectURL(fileToRemove.tempUrl);
   }
+
+  selectedFiles.value = selectedFiles.value.filter(f => f.id !== fileId);
 };
 
 const goBack = () => {
@@ -126,10 +84,6 @@ const goBack = () => {
 const updateTeamBoard = async () => {
   if (isSubmitting.value) return;
 
-  const uploadedS3Urls = [];
-  const originalFileNames = [];
-  let modifiedContent = editorContent.value;
-
   try {
     isSubmitting.value = true;
     uploadStatus.value = '수정 중...';
@@ -139,86 +93,10 @@ const updateTeamBoard = async () => {
       return;
     }
 
-    // 1. 삭제된 이미지 처리
-    const currentImageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
-    const currentImageMatches = [...modifiedContent.matchAll(currentImageRegex)];
-    const currentImageUrls = currentImageMatches.map(match => match[1]);
-
-    const deletedImageUrls = originalS3Urls.value.filter(url => !currentImageUrls.includes(url));
-
-    if (deletedImageUrls.length > 0) {
-      await postFetch("/file/s3/uploadList", deletedImageUrls);
-      await postFetch('/file/delete', {
-        fileS3UrlList: deletedImageUrls,
-        fileIdList: []
-      });
-    }
-
-    // 2. 새로운 이미지 S3 업로드 및 URL 매핑 수집
-    const newFiles = selectedFiles.value.filter(file => {
-      return file.file &&
-          !file.isExisting &&
-          (file.tempUrl?.startsWith('blob:') || modifiedContent.includes(`blob:${location.origin}`));
-    });
-
-    // 모든 파일 업로드를 병렬로 처리
-    const uploadResults = await Promise.all(
-        newFiles.map(async (fileInfo) => {
-          const formData = new FormData();
-          formData.append('image', fileInfo.file);
-
-          try {
-            const response = await postFetch('/file/s3/upload', formData);
-            const s3Url = response.data.data;
-
-            uploadedS3Urls.push(s3Url);
-            originalFileNames.push(fileInfo.name);
-
-            return {
-              tempUrl: fileInfo.tempUrl,
-              s3Url: s3Url
-            };
-          } catch (error) {
-            console.error('이미지 업로드 실패:', error);
-            throw error;
-          }
-        })
-    );
-
-    // 3. blob URL을 S3 URL로 교체
-    let updatedContent = modifiedContent;
-    const blobImageRegex = /<img[^>]*src="(blob:[^"]*)"[^>]*>/g;
-    const blobMatches = [...updatedContent.matchAll(blobImageRegex)];
-
-    blobMatches.forEach((match, index) => {
-      if (index < uploadResults.length) {
-        const s3Url = uploadResults[index].s3Url;
-        const originalTag = match[0];
-        const updatedTag = originalTag.replace(/src="blob:[^"]*"/, `src="${s3Url}"`);
-        updatedContent = updatedContent.replace(originalTag, updatedTag);
-      }
-    });
-
     // 4. 게시글 수정
     await putFetch(`/teamspace/board/${teamBoardId}`, {
       teamBoardTitle: teamBoardTitle.value,
-      teamBoardContent: updatedContent
-    });
-
-    // 5. 새로운 이미지 정보 DB 저장
-    if (uploadedS3Urls.length > 0) {
-      await postFetch('/file/save', {
-        imageS3Urls: uploadedS3Urls,
-        fileUrls: originalFileNames,
-        entityType: "TEAMBOARD"
-      });
-    }
-
-    // 6. 임시 URL 정리
-    selectedFiles.value.forEach(file => {
-      if (file.tempUrl?.startsWith('blob:')) {
-        URL.revokeObjectURL(file.tempUrl);
-      }
+      teamBoardContent: editorContent.value
     });
 
     // 7. 목록으로 이동
@@ -226,19 +104,6 @@ const updateTeamBoard = async () => {
 
   } catch (error) {
     console.error('수정에 실패했습니다.', error);
-
-    // 에러 발생 시 업로드된 S3 이미지들 삭제
-    if (uploadedS3Urls.length > 0) {
-      try {
-        await postFetch('/file/delete', {
-          fileS3UrlList: uploadedS3Urls,
-          fileIdList: []
-        });
-      } catch (deleteError) {
-        console.error('S3 이미지 삭제 실패:', deleteError);
-      }
-    }
-
     alert('수정에 실패했습니다. 다시 시도해주세요.');
   } finally {
     isSubmitting.value = false;
@@ -281,7 +146,6 @@ onBeforeUnmount(() => {
         :image-urls="imageUrls"
         @upload="handleUpload"
         @remove="handleRemove"
-        @insert-to-editor="insertImageAtCursor"
         :disabled="isSubmitting"
     />
 
