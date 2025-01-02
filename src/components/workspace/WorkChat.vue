@@ -163,17 +163,6 @@ const handleUpload = (files) => {
   uploadStatus.value = '';
 };
 
-// 디버그용
-// 이미지 로드 핸들러
-const handleImageLoad = (index, url) => {
-  console.log(`이미지 로드 성공: 메시지 ${index}, URL: ${url}`);
-};
-
-// 이미지 에러 핸들러
-const handleImageError = (index, url) => {
-  console.error(`이미지 로드 실패: 메시지 ${index}, URL: ${url}`);
-  messages[index].imageLoadError = true; // 반응성 유지
-};
 
 const handleRemove = (fileId) => {
   const fileToRemove = selectedFiles.value.find(f => f.id === fileId);
@@ -694,8 +683,10 @@ onMounted(() => {
           <div class="messages">
             <template v-for="(message, index) in messages" :key="index">
               <!-- 날짜 헤더 -->
-              <div v-if="shouldDisplayDateHeader(index)" class="date-header">
-                {{ formatDateHeader(message.messageCreatedTime) }}
+              <div v-if="shouldDisplayDateHeader(index)" class="date-header-container">
+                <div class="date-header">
+                  {{ formatDateHeader(message.messageCreatedTime) }}
+                </div>
               </div>
 
               <!-- 메시지 아이템 -->
@@ -1049,17 +1040,25 @@ textarea:focus {
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
-/* 날짜 헤더 */
+.date-header-container {
+  display: flex;
+  justify-content: center;
+  margin: 1rem 0;
+}
+
+
 .date-header {
-  text-align: center;
-  padding: 0.5rem 1rem;
-  background-color: white;
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  background-color: #e5e7eb;
   border-radius: 1rem;
   font-size: 0.875rem;
-  color: #6b7280;
-  margin: 1rem 0;
-  border: 1px solid #e5e7eb;
+  color: #374151;
+  font-family: 'Apple SD Gothic Neo', 'Nanum Gothic', sans-serif;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-align: center;
 }
+
 
 /* 이미지 관련 */
 .attached-files {
