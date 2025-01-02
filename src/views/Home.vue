@@ -323,7 +323,7 @@ const saveEvent = async () => {
   try {
     const createScheduleReqData = {
       scheduleType: 'TEAMSCHEDULE',
-      scheduleUrl: `/teamspace/${authStore.deptCode}`,
+      scheduleUrl: ` `,
       scheduleReqDTO: {
         scheduleTitle: eventForm.title,
         scheduleContent: eventForm.content,
