@@ -1,6 +1,6 @@
 <script setup>
 import {ref, onMounted, reactive, computed} from 'vue'
-import {getFetch} from "@/stores/apiClient.js"
+import {getFetch, postFetch} from "@/stores/apiClient.js"
 
 // 상태 관리
 const products = ref([])
@@ -117,6 +117,14 @@ const fetchBrands = async () => {
   }
 }
 
+const handleIndex = async () => {
+  try {
+    await postFetch('/goods/index')
+  } catch (error) {
+    console.error('인덱스 초기화 중 오류 발생:', error)
+  }
+}
+
 // 검색 처리
 const handleSearch = () => {
   filters.page = 1
@@ -194,6 +202,7 @@ onMounted(() => {
     <div class="product-management">
       <div class="header">
         <h2>상품 관리</h2>
+        <button @click="handleIndex">인덱스 초기화</button>
       </div>
       <!-- 필터링 섹션 -->
       <div class="filter-section">
