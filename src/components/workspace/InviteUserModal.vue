@@ -1,6 +1,6 @@
 <!-- InviteUserModal.vue -->
 <script setup>
-import { ref, computed } from 'vue';
+import {ref, computed, watch} from 'vue';
 import { getFetch } from "@/stores/apiClient.js";
 
 const props = defineProps({
@@ -102,10 +102,13 @@ const handleSearch = async () => {
   await fetchUsers();
 };
 
-// 컴포넌트가 마운트될 때 사용자 목록 가져오기
-if (props.isOpen) {
-  fetchUsers();
-}
+watch(() => props.isOpen, async (newValue) => {
+  if (newValue) {
+    currentPage.value = 1;
+    searchQuery.value = '';
+    await fetchUsers();
+  }
+});
 </script>
 
 <template>
@@ -176,6 +179,7 @@ if (props.isOpen) {
   width: 100%;
   height: 100%;
   background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -183,67 +187,30 @@ if (props.isOpen) {
 }
 
 .modal-content {
-  background: white;
-  border-radius: 8px;
-  width: 100%;
+  background-color: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  padding: 2rem;
   max-width: 800px;
-  padding: 1.5rem;
+  width: 100%;
   transform: translateY(0);
   animation: modal-slide-up 0.3s ease-out;
-  z-index: 1010;
-  pointer-events: auto;
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f3f4f6;
 }
 
-.modal-input {
-  width: 100%;
-  padding: 10px 15px;
-  font-size: 16px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  outline: none;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.modal-input:focus {
-  border-color: #007bff;
-  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
-}
-
-.modal-input::placeholder {
-  color: #999;
-  font-style: italic;
-}
-
-.user-list {
-  list-style: none;
-  padding: 0;
-  margin: 1rem 0;
-  height: 310px;
-  overflow-y: auto;
-}
-
-.user-list li {
-  padding: 0.5rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.user-list li.selected {
-  background-color: #4299e1;
-  color: white;
-}
-
-.user-list li.disabled {
-  color: gray;
-  cursor: not-allowed;
-  opacity: 0.6;
+.modal-header h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
 }
 
 .close-button {
@@ -256,6 +223,69 @@ if (props.isOpen) {
   transition: color 0.2s;
 }
 
+.close-button:hover {
+  color: #111827;
+}
+
+.search-box {
+  background-color: #f9fafb;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.modal-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  background-color: white;
+  font-size: 0.875rem;
+}
+
+.modal-input:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
+}
+
+.user-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  overflow-y: auto;
+  max-height: 400px;
+}
+
+.user-list li {
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  color: #374151;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.user-list li:hover:not(.disabled) {
+  background-color: #f9fafb;
+}
+
+.user-list li.selected {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.user-list li.disabled {
+  color: #9ca3af;
+  cursor: not-allowed;
+  background-color: #f9fafb;
+}
+
+.user-list li:last-child {
+  border-bottom: none;
+}
+
 .pagination {
   display: flex;
   justify-content: center;
@@ -264,7 +294,9 @@ if (props.isOpen) {
 }
 
 .pagination button {
-  padding: 0.5rem 1rem;
+  min-width: 2.5rem;
+  height: 2.5rem;
+  padding: 0.5rem;
   border: 1px solid #e5e7eb;
   background-color: white;
   border-radius: 0.5rem;
@@ -272,6 +304,9 @@ if (props.isOpen) {
   transition: all 0.2s ease;
   color: #374151;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .pagination button:hover:not(:disabled) {
@@ -287,22 +322,22 @@ if (props.isOpen) {
 }
 
 .pagination button:disabled {
-  cursor: not-allowed;
   opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .modal-footer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
-  margin-top: 1rem;
 }
 
 .cancel-btn, .create-btn {
-  padding: 0.5rem 1.25rem;
-  border: 1px solid transparent;
+  padding: 0.75rem 1.5rem;
   border-radius: 0.5rem;
-  font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -311,32 +346,39 @@ if (props.isOpen) {
 .cancel-btn {
   background-color: white;
   color: #374151;
-  border-color: #e5e7eb;
+  border: 1px solid #e5e7eb;
 }
 
 .cancel-btn:hover {
   background-color: #f9fafb;
-  border-color: #d1d5db;
-  color: #111827;
+  border-color: #4CAF50;
+  color: #4CAF50;
 }
 
 .create-btn {
   background-color: #4CAF50;
   color: white;
-  border-color: #4CAF50;
-  padding: 0.5rem 2.5rem;
+  border: none;
+  padding-left: 2rem;
+  padding-right: 2rem;
 }
 
 .create-btn:hover {
-  background-color: #43a047;
-  border-color: #388e3c;
+  background-color: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.create-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 .create-btn:disabled {
-  background-color: #a5d6a7;
-  border-color: #a5d6a7;
+  background-color: #9ca3af;
   cursor: not-allowed;
-  opacity: 0.6;
+  transform: none;
+  box-shadow: none;
 }
 
 @keyframes modal-slide-up {
@@ -347,6 +389,30 @@ if (props.isOpen) {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .modal-content {
+    margin: 1rem;
+    padding: 1rem;
+  }
+
+  .modal-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .pagination {
+    gap: 0.25rem;
+  }
+
+  .pagination button {
+    min-width: 2rem;
+    height: 2rem;
+    padding: 0.25rem;
+    font-size: 0.875rem;
   }
 }
 </style>

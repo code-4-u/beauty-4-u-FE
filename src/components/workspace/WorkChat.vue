@@ -7,6 +7,7 @@ import ChatImageManagement from "@/components/teamspace/ChatImageManagement.vue"
 import CreateChatRoomModal from './CreateChatRoomModal.vue';
 import InviteUserModal from './InviteUserModal.vue';
 import ParticipantListModal from './ParticipantListModal.vue';
+import ImagePreviewModal from "@/components/workspace/ImagePreviewModal.vue";
 
 const chatUrl = import.meta.env.VITE_API_CHAT_URL || 'localhost:8080';
 
@@ -131,7 +132,6 @@ const isImage = (url) => {
   return /\.(jpg|jpeg|png|gif|bmp|svg|webp)$/i.test(cleanUrl);
 };
 
-
 const insertImageAtCursor = (imageUrl, options = {}) => {
   if (!chatEditorRef.value) return;
 
@@ -163,8 +163,6 @@ const handleUpload = (files) => {
   uploadStatus.value = '';
 };
 
-
-
 // 디버그용
 // 이미지 로드 핸들러
 const handleImageLoad = (index, url) => {
@@ -176,8 +174,6 @@ const handleImageError = (index, url) => {
   console.error(`이미지 로드 실패: 메시지 ${index}, URL: ${url}`);
   messages[index].imageLoadError = true; // 반응성 유지
 };
-
-
 
 const handleRemove = (fileId) => {
   const fileToRemove = selectedFiles.value.find(f => f.id === fileId);
@@ -196,7 +192,6 @@ const handleRemove = (fileId) => {
     }
   }
 };
-
 
 // 총 페이지 수 계산
 const totalPages = computed(() => {
@@ -295,7 +290,6 @@ const isDisabled = (user) => {
   return invitedUserSet.value.has(user.userId); // Set으로 빠르게 탐색
 };
 
-
 // 새로운 채팅방 생성
 const handleCreateRoom = async (roomData) => {
   try {
@@ -306,9 +300,10 @@ const handleCreateRoom = async (roomData) => {
 
     const response = await postFetch(`/chat/create`, requestData);
 
-    if (response.status === 200) {
+    if (response.status === 201) {
       alert('채팅방이 성공적으로 생성되었습니다.');
-      window.location.reload();
+      await fetchChatRooms();
+      closeCreateRoomModal();
     }
   } catch (error) {
     console.error('채팅방 생성 실패:', error);
@@ -329,7 +324,6 @@ const leaveChatRoom = async () => {
     alert('채팅방 나가기 중 오류가 발생했습니다.');
   }
 };
-
 
 // 사용자 목록 가져오기
 const fetchUsers = async () => {
@@ -357,24 +351,6 @@ const fetchUsers = async () => {
 
 }
 
-
-// 사용자 선택/해제
-const toggleUserSelection = (user) => {
-
-  if (user.userId === userCode.value) {
-    // 본인은 선택할 수 없음
-    return;
-  }
-
-  console.log(selectedUsers);
-  const index = selectedUsers.value.findIndex(u => u.userId === user.userId);
-  if (index === -1) {
-    selectedUsers.value.push(user);
-  } else {
-    selectedUsers.value.splice(index, 1);
-  }
-};
-
 // 사용자 초대
 const handleInviteUsers = async (selectedUsers) => {
   try {
@@ -390,23 +366,6 @@ const handleInviteUsers = async (selectedUsers) => {
     alert('초대 중 문제가 발생했습니다.');
   }
 };
-
-// 페이지 변경
-const changePage = async (page) => {
-  currentPage.value = page;
-  await fetchUsers();
-};
-
-// 검색
-const handleSearch = async () => {
-  currentPage.value = 1;
-  await fetchUsers();
-};
-
-// 사용자 목록 검색
-
-
-
 
 // self 속성을 메세지에 추가
 const addSelfToMessages = (msgs) => msgs.map((msg) => ({
@@ -484,7 +443,7 @@ const connectWebSocket = (roomId) => {
     return;
   }
 
-  const socketUrl = `wss://${chatUrl}/chat`;
+  const socketUrl = `ws://${chatUrl}/chat`;
   stompClient = Stomp.over(() => new WebSocket(socketUrl));
 
   stompClient.connect(
@@ -706,7 +665,7 @@ onMounted(() => {
             </button>
           </div>
 
-          <!-- 왼쪽 사이드바 채팅방 정보 -->
+          <!-- 채팅방 목록 -->
           <div class="room-list">
             <div
                 v-for="room in chatRooms"
@@ -718,7 +677,6 @@ onMounted(() => {
               <div class="room-info">
                 <div class="room-name">{{ room.chatRoomName }}</div>
               </div>
-
             </div>
           </div>
         </div>
@@ -726,12 +684,13 @@ onMounted(() => {
         <!-- 채팅 내용 -->
         <div class="chat-content" v-if="selectedRoomName">
           <div class="chat-header">
-              <h3>{{ selectedRoomName }}</h3>
+            <h3>{{ selectedRoomName }}</h3>
             <button class="participants-btn" @click="openParticipantModal">사용자 목록</button>
             <button class="invite-btn" @click="openInviteModal">+ 사용자 추가</button>
             <button class="leave-btn" @click="leaveChatRoom">채팅방 나가기</button>
           </div>
 
+          <!-- 메시지 영역 -->
           <div class="messages">
             <template v-for="(message, index) in messages" :key="index">
               <!-- 날짜 헤더 -->
@@ -740,11 +699,8 @@ onMounted(() => {
               </div>
 
               <!-- 메시지 아이템 -->
-              <div
-                  :class="['message', message.self ? 'mine' : 'other']"
-              >
+              <div :class="['message', message.self ? 'mine' : 'other']">
                 <div class="message-content">
-                  <!-- 메시지 보낸 사람 이름 -->
                   <div class="sender" v-if="!message.self">
                     {{ message.userName || '알 수 없음' }}
                   </div>
@@ -752,70 +708,42 @@ onMounted(() => {
                     {{ message.userName }}
                   </div>
 
-                  <!-- 메시지 내용 -->
-                  <div
-                      class="bubble"
-                      v-if="message.messageContent"
-                      v-html="formatMessageContent(message.messageContent)"
-                  ></div>
-
-                <div v-if="message.s3PresignedUrls" class="attached-files">
-                  <div
-                      v-for="image in message.s3PresignedUrls"
-                      :key="image"
-                      class="file-preview"
-                  >
-                    <!-- 이미지 미리보기 -->
-                    <img
-                        v-if="image"
-                        :src="image"
-                        alt="미리보기 이미지"
-                        class="preview-image"
-                        @click="openModal(image)"
-                    />
+                  <div class="bubble" v-if="message.messageContent"
+                       v-html="formatMessageContent(message.messageContent)">
                   </div>
 
-                  <!-- 이미지 모달 -->
-                  <div v-if="modalImageUrl" class="modal-backdrop-image" @click="closeModal">
-                    <div class="modal-content">
-                      <!-- 닫기 버튼 -->
-                      <span class="close" @click="closeModal">&times;</span>
-
-                      <!-- 확대 이미지 -->
-                      <img :src="modalImageUrl" alt="확대 이미지" class="modal-image"/>
-
-                      <!-- 다운로드 버튼 -->
-                      <div class="modal-footer">
-                        <button class="download-button" @click="downloadImage(modalImageUrl)">이미지 다운로드</button>
-                      </div>
+                  <!-- 첨부 이미지 -->
+                  <div v-if="message.s3PresignedUrls" class="attached-files">
+                    <div v-for="image in message.s3PresignedUrls"
+                         :key="image"
+                         class="file-preview">
+                      <img v-if="image"
+                           :src="image"
+                           alt="미리보기 이미지"
+                           class="preview-image"
+                           @click="openModal(image)"
+                      />
                     </div>
                   </div>
 
-                  <!-- 메시지 전송 시간 -->
-                  <div class="timestamp">{{ formatDate(message.messageCreatedTime) }}</div>
-
+                  <div class="timestamp">
+                    {{ formatDate(message.messageCreatedTime) }}
                   </div>
                 </div>
-
-
               </div>
             </template>
           </div>
 
-
+          <!-- 메시지 입력 영역 -->
           <div class="message-input">
-            <textarea
-                v-model="messageContent"
-                :disabled="isSubmitting"
-                placeholder="메시지 입력"
-                @keypress="handleKeyPress"
+            <textarea v-model="messageContent"
+                      :disabled="isSubmitting"
+                      placeholder="메시지 입력"
+                      @keypress="handleKeyPress"
             ></textarea>
-
             <div v-if="uploadStatus" class="upload-status">
               {{ uploadStatus }}
             </div>
-
-
             <button @click="sendMessage">전송</button>
           </div>
 
@@ -828,11 +756,17 @@ onMounted(() => {
               @insert-to-editor="insertImageAtCursor"
               :disabled="isSubmitting"
           />
-
         </div>
-
       </div>
     </div>
+
+    <!-- 모달 컴포넌트들 -->
+    <ImagePreviewModal
+        :is-open="!!modalImageUrl"
+        :image-url="modalImageUrl"
+        @close="closeModal"
+        @download="downloadImage"
+    />
 
     <ParticipantListModal
         :is-open="showParticipantModal"
@@ -853,109 +787,104 @@ onMounted(() => {
         @close="isCreateRoomModalOpen = false"
         @create="handleCreateRoom"
     />
-
   </div>
 </template>
 
 <style scoped>
 .container-wrapper {
-  padding: 12px;
+  padding: 2rem;
   background-color: var(--background-color);
   min-height: 100vh;
   width: 100%;
-  overflow-x: hidden;
 }
 
 .content-container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   background-color: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  padding: 12px;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  padding: 2rem;
   width: 100%;
 }
 
 .chat-container {
   display: flex;
-  gap: 12px;
-  height: calc(100vh - 150px);
+  gap: 2rem;
+  height: calc(100vh - 200px);
   width: 100%;
-  overflow: hidden;
 }
 
 /* 채팅방 목록 영역 */
 .chat-rooms {
-  flex: 0 0 280px;
-  border-right: 1px solid #edf2f7;
+  flex: 0 0 300px;
+  border-right: 2px solid #f3f4f6;
   overflow-y: auto;
-  min-width: 200px;
 }
 
 .chat-rooms-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 12px;
-  margin-bottom: 1.5rem;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f3f4f6;
 }
 
 .chat-rooms-header h2 {
   font-size: 1.5rem;
-  color: #2d3748;
+  font-weight: 600;
+  color: #111827;
   margin: 0;
 }
 
 .create-room-btn {
-  padding: 8px 16px;
-  font-size: 0.9rem;
-  background-color: #4299e1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #4CAF50;
   color: white;
   border: none;
-  border-radius: 8px;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .create-room-btn:hover {
-  background-color: #3182ce;
+  background-color: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 /* 채팅방 목록 스타일 */
 .room-list {
-  margin-top: 16px;
-  padding: 0;
-  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .room-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 16px;
-  border-radius: 12px;
-  margin: 0 8px 8px 8px;
+  padding: 1rem;
+  border-radius: 0.5rem;
   transition: all 0.2s ease;
   cursor: pointer;
+  border: 1px solid transparent;
 }
 
 .room-item:hover {
-  background-color: #f8fafc;
-  transform: translateY(-1px);
+  background-color: #f9fafb;
 }
 
 .room-item.selected {
-  background-color: #ebf8ff;
-  border: 1px solid #bee3f8;
-}
-
-.room-info {
-  flex: 1;
+  background-color: #f0fdf4;
+  border-color: #4CAF50;
 }
 
 .room-name {
-  font-weight: 600;
-  color: #2d3748;
-  margin-bottom: 6px;
+  font-weight: 500;
+  color: #374151;
 }
 
 /* 채팅 내용 영역 */
@@ -963,158 +892,56 @@ onMounted(() => {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background-color: #ffffff;
-  border-radius: 12px;
-  min-width: 0;
+  background-color: white;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  padding-bottom: 1rem;
 }
 
 .chat-header {
   display: flex;
-  justify-content: space-between;
-  padding: 8px;
-  border-bottom: 1px solid #edf2f7;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .chat-header h3 {
   font-size: 1.25rem;
-  color: #2d3748;
   font-weight: 600;
+  color: #111827;
   margin: 0;
 }
 
-/* 메시지 목록 영역 */
-.messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.message {
-  display: flex;
-  margin-bottom: 4px;
-}
-
-.message-content {
-  max-width: 70%;
-}
-
-.sender {
-  font-size: 0.9em;
-  margin-bottom: 6px;
-  color: #718096;
+/* 버튼 스타일 통일 */
+.participants-btn,
+.invite-btn,
+.leave-btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  border-radius: 0.5rem;
   font-weight: 500;
-}
-
-.bubble {
-  background-color: #f7fafc;
-  padding: 12px 16px;
-  border-radius: 16px;
-  border-top-left-radius: 4px;
-  margin-bottom: 4px;
-  color: #2d3748;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  line-height: 1.5;
-}
-
-.message.mine .bubble {
-  background-color: #4299e1;
-  color: white;
-  border-top-right-radius: 4px;
-  border-top-left-radius: 16px;
-}
-
-/* 메시지 입력 영역 */
-.message-input {
-  padding: 20px;
-  border-top: 1px solid #edf2f7;
-  display: flex;
-  gap: 12px;
-  background-color: #ffffff;
-  border-radius: 0 0 12px 12px;
-}
-
-.message-input button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 12px 24px;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: white;
-  background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
-  border: none;
-  border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
-  min-width: 100px;
-  box-shadow: 0 2px 4px rgba(66, 153, 225, 0.2);
-}
-
-.message-input button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 6px rgba(66, 153, 225, 0.3);
-  background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%);
-}
-
-.message-input button:active {
-  transform: translateY(1px);
-  box-shadow: 0 1px 2px rgba(66, 153, 225, 0.2);
-}
-
-.message-input button:disabled {
-  background: #e2e8f0;
-  cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
-}
-
-textarea {
-  flex: 1;
-  border: 2px solid #edf2f7;
-  border-radius: 12px;
-  padding: 12px 16px;
-  resize: none;
-  height: 60px;
-  font-size: 1rem;
-  color: #2d3748;
-  transition: border-color 0.2s ease;
-}
-
-textarea:focus {
-  outline: none;
-  border-color: #4299e1;
-}
-
-textarea::placeholder {
-  color: #a0aec0;
-}
-
-/* 헤더 버튼 스타일 */
-.participants-btn, .invite-btn, .leave-btn {
-  padding: 8px 16px;
-  font-size: 0.9rem;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-top: -5px;
+  border: 1px solid transparent;
 }
 
 .participants-btn {
-  background-color: #4caf50;
+  background-color: #4CAF50;
+  color: white;
   margin-left: auto;
 }
 
 .invite-btn {
-  background-color: #4299e1;
+  background-color: white;
+  color: #4CAF50;
+  border-color: #4CAF50;
 }
 
 .leave-btn {
-  background-color: #f44336;
+  background-color: white;
+  color: #ef4444;
+  border-color: #ef4444;
 }
 
 .participants-btn:hover {
@@ -1122,114 +949,153 @@ textarea::placeholder {
 }
 
 .invite-btn:hover {
-  background-color: #3182ce;
+  background-color: #f0fdf4;
 }
 
 .leave-btn:hover {
-  background-color: #d32f2f;
+  background-color: #fef2f2;
 }
 
-/* 첨부 파일 관련 스타일 */
+/* 메시지 영역 */
+.messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+  background-color: #f9fafb;
+}
+
+.message {
+  display: flex;
+  margin-bottom: 1rem;
+}
+
+.message.mine {
+  justify-content: flex-end;
+}
+
+.message-content {
+  max-width: 70%;
+}
+
+.sender {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
+}
+
+.bubble {
+  background-color: white;
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
+  color: #374151;
+}
+
+.message.mine .bubble {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+}
+
+/* 입력 영역 */
+.message-input {
+  padding: 1rem;
+  background-color: white;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  gap: 1rem;
+  align-items: flex-end;
+}
+
+textarea {
+  flex: 1;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  resize: none;
+  min-height: 60px;
+  font-size: 0.875rem;
+}
+
+textarea:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
+}
+
+.message-input button {
+  background-color: #4CAF50;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.message-input button:hover {
+  background-color: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* 날짜 헤더 */
+.date-header {
+  text-align: center;
+  padding: 0.5rem 1rem;
+  background-color: white;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 1rem 0;
+  border: 1px solid #e5e7eb;
+}
+
+/* 이미지 관련 */
 .attached-files {
+  display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
 }
 
 .preview-image {
-  max-width: 300px;
-  max-height: 200px;
-  object-fit: contain;
-  cursor: pointer;
-  margin: 2px;
-  border: 2px solid #ddd;
-  border-radius: 5px;
-  background-color: #f9f9f9;
-}
-
-/* 날짜 표시 */
-.date-header {
-  text-align: center;
-  margin: 10px auto;
-  font-size: 0.9em;
-  color: #495057;
-  font-weight: bold;
-  background-color: #f1f3f5;
-  padding: 4px 12px;
-  border-radius: 30px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  max-width: 200px;
+  max-height: 150px;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
 }
 
 .timestamp {
-  font-size: 0.85em;
-  color: #a0aec0;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: 0.25rem;
 }
 
-/* 이미지 모달 관련 */
-.modal-backdrop-image {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.1);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  padding: 2rem;
-}
+@media (max-width: 768px) {
+  .container-wrapper {
+    padding: 1rem;
+  }
 
-.modal-content {
-  background: white;
-  border-radius: 8px;
-  width: 100%;
-  max-width: 900px;
-  height: auto;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  padding: 1rem;
-  position: relative;
-}
+  .content-container {
+    padding: 1rem;
+  }
 
-.modal-image {
-  max-width: 100%;
-  max-height: calc(90vh - 100px);
-  height: auto;
-  object-fit: contain;
-  border-radius: 4px;
-}
+  .chat-container {
+    flex-direction: column;
+    height: auto;
+  }
 
-.download-button {
-  background-color: #4299e1;
-  color: white;
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: background-color 0.2s ease-in-out;
-}
+  .chat-rooms {
+    flex: none;
+    border-right: none;
+    border-bottom: 2px solid #f3f4f6;
+    padding-bottom: 1rem;
+  }
 
-.download-button:hover {
-  background-color: #3182ce;
-}
-
-.close {
-  position: absolute;
-  top: 0.5rem;
-  right: 1rem;
-  color: #4a5568;
-  font-size: 24px;
-  font-weight: bold;
-  cursor: pointer;
-  padding: 0.5rem;
-  z-index: 1;
-}
-
-.modal-footer {
-  padding: 1rem 0 0;
-  display: flex;
-  justify-content: center;
+  .chat-header {
+    flex-wrap: wrap;
+  }
 }
 </style>

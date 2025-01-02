@@ -1,14 +1,10 @@
-<!-- ParticipantListModal.vue -->
 <script setup>
-import { ref, computed } from 'vue';
+import {ref, computed, watch} from 'vue';
+import { getFetch } from "@/stores/apiClient.js";
 
 const props = defineProps({
   isOpen: {
     type: Boolean,
-    required: true
-  },
-  participants: {
-    type: Array,
     required: true
   }
 });
@@ -16,39 +12,51 @@ const props = defineProps({
 const emit = defineEmits(['close']);
 
 // 상태 관리
+const users = ref([]);
 const searchQuery = ref('');
 const currentPage = ref(1);
+const totalItems = ref(0);
 const itemsPerPage = 10;
-
-// 검색 및 페이지네이션 적용된 참가자 목록
-const filteredParticipants = computed(() => {
-  if (!searchQuery.value) {
-    return props.participants;
-  }
-  return props.participants.filter(participant =>
-      (participant.userName || '').toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      (participant.email || '').toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      (participant.deptName || '').toLowerCase().includes(searchQuery.value.toLowerCase())
-  );
-});
-
-// 페이지네이션된 참가자 목록
-const paginatedParticipants = computed(() => {
-  const startIndex = (currentPage.value - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  return filteredParticipants.value.slice(startIndex, endIndex);
-});
 
 // 총 페이지 수 계산
 const totalPages = computed(() => {
-  return Math.ceil(filteredParticipants.value.length / itemsPerPage);
+  return Math.ceil(totalItems.value / itemsPerPage);
 });
 
-// 페이지 변경
-const changePage = (page) => {
-  if (page >= 1 && page <= totalPages.value) {
-    currentPage.value = page;
+// 사용자 목록 가져오기
+const fetchUsers = async () => {
+  try {
+    const params = new URLSearchParams({
+      page: currentPage.value,
+      count: itemsPerPage
+    });
+
+    if (searchQuery.value) {
+      params.append('search', searchQuery.value);
+    }
+
+    const response = await getFetch(`/user/list?${params.toString()}`);
+    users.value = response.data.data.content.map(user => ({
+      userId: user.userCode,
+      name: user.userName,
+      department: user.deptName
+    }));
+    totalItems.value = response.data.data.totalElements;
+  } catch (e) {
+    console.error('Error fetching users:', e);
   }
+};
+
+// 페이지 변경
+const changePage = async (page) => {
+  currentPage.value = page;
+  await fetchUsers();
+};
+
+// 검색
+const handleSearch = async () => {
+  currentPage.value = 1;
+  await fetchUsers();
 };
 
 // 모달 닫기
@@ -57,6 +65,14 @@ const closeModal = () => {
   currentPage.value = 1;
   emit('close');
 };
+
+watch(() => props.isOpen, async (newValue) => {
+  if (newValue) {  // 모달이 열릴 때
+    currentPage.value = 1;  // 페이지 초기화
+    searchQuery.value = '';  // 검색어 초기화
+    await fetchUsers();  // 사용자 목록 가져오기
+  }
+});
 </script>
 
 <template>
@@ -73,15 +89,16 @@ const closeModal = () => {
                v-model="searchQuery"
                type="text"
                placeholder="사용자 검색"
+               @input="handleSearch"
         />
       </div>
 
       <!-- 사용자 목록 -->
       <div class="modal-body">
         <ul class="participants-list">
-          <li v-for="participant in paginatedParticipants" :key="participant.userCode">
-            {{ participant.userName || "이름 없음" }}
-            ({{ participant.deptName }}, {{ participant.email }})
+          <li v-for="user in users" :key="user.userId">
+            {{ user.name || "이름 없음" }}
+            ({{ user.department }})
           </li>
         </ul>
       </div>
@@ -125,6 +142,7 @@ const closeModal = () => {
   width: 100%;
   height: 100%;
   background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -132,63 +150,30 @@ const closeModal = () => {
 }
 
 .modal-content {
-  background: white;
-  border-radius: 8px;
-  width: 100%;
+  background-color: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  padding: 2rem;
   max-width: 800px;
-  padding: 1.5rem;
+  width: 100%;
   transform: translateY(0);
   animation: modal-slide-up 0.3s ease-out;
-  z-index: 1010;
-  pointer-events: auto;
 }
 
 .modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f3f4f6;
 }
 
-.modal-input {
-  width: 100%;
-  padding: 10px 15px;
-  font-size: 16px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
-  outline: none;
-  transition: border-color 0.3s ease, box-shadow 0.3s ease;
-}
-
-.modal-input:focus {
-  border-color: #007bff;
-  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5);
-}
-
-.modal-input::placeholder {
-  color: #999;
-  font-style: italic;
-}
-
-.modal-body {
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.participants-list {
-  list-style: none;
-  padding: 0;
+.modal-header h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
   margin: 0;
-  height: 450px;
-}
-
-.participants-list li {
-  padding: 8px 12px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.participants-list li:last-child {
-  border-bottom: none;
 }
 
 .close-button {
@@ -201,6 +186,61 @@ const closeModal = () => {
   transition: color 0.2s;
 }
 
+.close-button:hover {
+  color: #111827;
+}
+
+.search-box {
+  background-color: #f9fafb;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.modal-input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  background-color: white;
+  font-size: 0.875rem;
+}
+
+.modal-input:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
+}
+
+.modal-body {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.participants-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.participants-list li {
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  color: #374151;
+  transition: background-color 0.2s;
+}
+
+.participants-list li:hover {
+  background-color: #f9fafb;
+}
+
+.participants-list li:last-child {
+  border-bottom: none;
+}
+
 .pagination {
   display: flex;
   justify-content: center;
@@ -209,7 +249,9 @@ const closeModal = () => {
 }
 
 .pagination button {
-  padding: 0.5rem 1rem;
+  min-width: 2.5rem;
+  height: 2.5rem;
+  padding: 0.5rem;
   border: 1px solid #e5e7eb;
   background-color: white;
   border-radius: 0.5rem;
@@ -217,6 +259,9 @@ const closeModal = () => {
   transition: all 0.2s ease;
   color: #374151;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .pagination button:hover:not(:disabled) {
@@ -232,28 +277,39 @@ const closeModal = () => {
 }
 
 .pagination button:disabled {
-  cursor: not-allowed;
   opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .modal-footer {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e5e7eb;
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
-  margin-top: 1rem;
 }
 
 .close-btn {
-  padding: 8px 16px;
+  padding: 0.75rem 1.5rem;
   background-color: #4CAF50;
   color: white;
   border: none;
-  border-radius: 8px;
+  border-radius: 0.5rem;
+  font-weight: 500;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .close-btn:hover {
-  background-color: #43a047;
+  background-color: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.close-btn:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 
 @keyframes modal-slide-up {
@@ -264,6 +320,30 @@ const closeModal = () => {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (max-width: 640px) {
+  .modal-content {
+    margin: 1rem;
+    padding: 1rem;
+  }
+
+  .modal-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .pagination {
+    gap: 0.25rem;
+  }
+
+  .pagination button {
+    min-width: 2rem;
+    height: 2rem;
+    padding: 0.25rem;
+    font-size: 0.875rem;
   }
 }
 </style>
