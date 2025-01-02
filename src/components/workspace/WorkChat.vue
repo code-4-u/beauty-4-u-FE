@@ -1,7 +1,7 @@
 <script setup>
 import { Stomp } from '@stomp/stompjs';
 import { ref, computed, onMounted, onBeforeUnmount, nextTick  } from 'vue';
-import { getFetch, postFetch } from "@/stores/apiClient.js"
+import {delFetch, getFetch, postFetch} from "@/stores/apiClient.js"
 import { useAuthStore } from '@/stores/auth.js';
 import ChatImageManagement from "@/components/teamspace/ChatImageManagement.vue";
 
@@ -84,18 +84,36 @@ const selectedUsers = ref([]); // 선택된 사용자 목록
 const inviteSearch = ref(''); // 사용자 검색어
 const searchedUsers = ref([]); // 검색된 사용자 목록
 
-
 const isInviteModalOpen = ref(false); // 초대 모달 열림 여부
 const users = ref([]);
 
 const showParticipantModal = ref(false); // 사용자 목록 모달 열림 여부
 const participants = ref([]); // 참여자 목록
 
+// 사용자 목록 페이징
+const paginatedParticipants = computed(() => {
+  const startIndex = (currentPage.value - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  return filteredParticipants.value.slice(startIndex, endIndex);
+});
 
-// 검색어와 페이징 상태 관리
+// 검색 및 페이지네이션 적용된 참가자 목록
+const filteredParticipants = computed(() => {
+  if (!searchQuery.value) {
+    return participants.value;
+  }
+  return participants.value.filter(participant =>
+      (participant.userName || '').toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      (participant.email || '').toLowerCase().includes(searchQuery.value.toLowerCase()) ||
+      (participant.deptName || '').toLowerCase().includes(searchQuery.value.toLowerCase())
+  );
+});
+
+
+// 사용자 초대 검색어와 페이징 상태 관리
 const searchQuery = ref('')
 const currentPage = ref(1)
-const itemsPerPage = 10
+const itemsPerPage = 10;
 const totalItems = ref(0)
 
 // 하이퍼링크 URL 감지
@@ -202,6 +220,11 @@ const totalPages = computed(() => {
   return Math.ceil(totalItems.value / itemsPerPage)
 })
 
+// 채팅방 유저 총 페이지 수 계산
+const chatUserTotalPages = computed(() => {
+  return Math.ceil(filteredParticipants.value.length / itemsPerPage)
+})
+
 // 파일 모달 열기/닫기
 const modalImageUrl = ref(null); // 현재 표시할 이미지의 URL
 
@@ -243,8 +266,6 @@ const openParticipantModal = async () => {
   showParticipantModal.value = true;
   searchQuery.value = '';
   currentPage.value = 1;
-  selectedUsers.value = [];
-  await fetchUsers();
 };
 
 const closeParticipantModal = () => {
@@ -330,6 +351,19 @@ const createNewRoom = async() => {
   window.location.reload(); // 현재 페이지 새로고침
 };
 
+// 채팅방 나가기
+const leaveChatRoom = async () => {
+  try {
+    const response = await delFetch(`/chat/${chatRoomId.value}/leave`);
+    console.log('채팅방 나가기 성공:', response.data);
+
+    // 채팅방 나간 후 다른 페이지로 이동
+    window.location.href = '/workspace/chat';
+  } catch (error) {
+    console.error('채팅방 나가기 실패:', error);
+    alert('채팅방 나가기 중 오류가 발생했습니다.');
+  }
+};
 
 
 // 사용자 목록 가져오기
@@ -410,11 +444,21 @@ const changePage = async (page) => {
   await fetchUsers();
 };
 
+// 채팅방 사용자 목록 페이지 변경
+const changeChatUserPage = (page) => {
+  if (page >= 1 && page <= chatUserTotalPages.value) {
+    currentPage.value = page;
+  }
+};
+
 // 검색
 const handleSearch = async () => {
   currentPage.value = 1;
   await fetchUsers();
 };
+
+// 사용자 목록 검색
+
 
 
 
@@ -741,6 +785,7 @@ onMounted(() => {
               <h3>{{ selectedRoomName }}</h3>
             <button class="participants-btn" @click="openParticipantModal">사용자 목록</button>
             <button class="invite-btn" @click="openInviteModal">+ 사용자 추가</button>
+            <button class="leave-btn" @click="leaveChatRoom">채팅방 나가기</button>
           </div>
 
           <div class="messages">
@@ -845,7 +890,7 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 채팅방 사용자 목록 모달 -->
+    <!-- 채팅방 abc 사용자 목록 모달 -->
     <div v-if="showParticipantModal" class="modal-backdrop">
       <div class="modal-content">
         <div class="modal-header">
@@ -859,17 +904,13 @@ onMounted(() => {
                  v-model="searchQuery"
                  type="text"
                  placeholder="사용자 검색"
-                 @input="handleSearch"
           />
         </div>
 
 
         <div class="modal-body">
           <ul class="participants-list">
-            <li
-                v-for="participant in participants"
-                :key="participant.userCode"
-            >
+            <li v-for="participant in paginatedParticipants" :key="participant.userCode">
               {{ participant.userName || "이름 없음" }}
               ({{ participant.deptName }}, {{ participant.email }})
             </li>
@@ -878,20 +919,23 @@ onMounted(() => {
 
         <!-- 페이지네이션 -->
         <div class="pagination">
-          <button @click="changePage(currentPage - 1)" :disabled="currentPage === 1">
+          <button
+              @click="changeChatUserPage(currentPage - 1)"
+              :disabled="currentPage === 1"
+          >
             이전
           </button>
           <button
-              v-for="page in totalPages"
+              v-for="page in Array.from({ length: chatUserTotalPages }, (_, i) => i + 1)"
               :key="page"
-              @click="changePage(page)"
+              @click="changeChatUserPage(page)"
               :class="{ active: currentPage === page }"
           >
             {{ page }}
           </button>
           <button
-              @click="changePage(currentPage + 1)"
-              :disabled="currentPage === totalPages"
+              @click="changeChatUserPage(currentPage + 1)"
+              :disabled="currentPage === chatUserTotalPages"
           >
             다음
           </button>
@@ -995,7 +1039,7 @@ onMounted(() => {
 
 
 
-        <!-- 사용자 목록 -->
+        <!-- 사용자 목록-->
         <ul class="user-list">
           <li
               v-for="user in users"
@@ -1175,10 +1219,6 @@ onMounted(() => {
 .message {
   display: flex;
   margin-bottom: 4px;
-}
-
-.message.mine {
-  justify-content: flex-end;
 }
 
 .message-content {
@@ -1368,7 +1408,7 @@ button:active {
   list-style: none;
   padding: 0;
   margin: 1rem 0;
-  height: 350px;
+  height: 310px;
 }
 
 .user-list li {
@@ -1456,6 +1496,7 @@ button:active {
   list-style: none;
   padding: 0;
   margin: 0;
+  height: 450px;
 }
 
 .participants-list li {
