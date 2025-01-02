@@ -48,7 +48,8 @@ const fetchUsers = async () => {
     users.value = response.data.data.content.map(user => ({
       userId: user.userCode,
       name: user.userName,
-      department: user.deptName
+      department: user.deptName,
+      userExpiredYn: user.userExpiredYn
     }));
     totalItems.value = response.data.data.totalElements;
   } catch (e) {
@@ -70,7 +71,7 @@ const toggleUserSelection = (user) => {
 
 // 사용자 비활성화 체크
 const isDisabled = (user) => {
-  return invitedUserSet.value.has(user.userId);
+  return invitedUserSet.value.has(user.userId) || user.userExpiredYn === "Y";
 };
 
 // 초대하기
