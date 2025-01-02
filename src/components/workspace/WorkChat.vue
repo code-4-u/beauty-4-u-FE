@@ -826,7 +826,7 @@ onMounted(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1rem;
   padding-bottom: 1rem;
   border-bottom: 2px solid #d1d5db;
 }
@@ -864,7 +864,7 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  padding: 0.5rem;
+  padding-right: 1rem;
 }
 
 .room-item {
