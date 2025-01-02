@@ -95,6 +95,11 @@ const handleCancel = () => {
 
 // 등록 버튼
 const handleSubmit = async () => {
+  if (!capturePreview.value) {
+    alert('캡처된 이미지가 없습니다.');
+    return;
+  }
+
   try {
     isUploading.value = true;
 
@@ -105,14 +110,12 @@ const handleSubmit = async () => {
     link.click();
 
     // 서버 업로드
-    const response = await uploadCapture(capturePreview.value, fileName.value, description.value);
-    if (response.success) {
-      alert("캡처 이미지 등록 완료");
-      handleCancel();
-    }
+    await uploadCapture(capturePreview.value, fileName.value, description.value);
+    alert("캡처 이미지가 성공적으로 등록되었습니다.");
+    handleCancel();
   } catch (error) {
-    console.error("캡처 등록 중 오류 발생: ", error);
-    alert("캡처 등록 중 오류 발생")
+    console.error("캡처 등록 중 오류:", error);
+    alert(error.response?.data?.message || "캡처 등록 중 오류가 발생했습니다.");
   } finally {
     isUploading.value = false;
   }
@@ -121,30 +124,57 @@ const handleSubmit = async () => {
 // 서버 업로드 함수
 const uploadCapture = async (imageData, fileName, description) => {
   try {
-    //   Base64 문자열을 Blob로 변환
-    const imageBlob = await fetch(imageData).then(r => r.blob());
-    const formData = new FormData();
-    formData.append('image', imageBlob, fileName);
+    // Base64 이미지 데이터를 Blob으로 변환
+    const imageBlob = await (await fetch(imageData)).blob();
 
-    // 이미지 파일 업로드
-    const response = await postFetch('/file/s3/upload', formData);
-    const s3Url = response.data.data;
-
-    //   워크보드 저장
-    const boardResponse = await postFetch('/teamspace/board', {
-      teamBoardTitle: fileName,
-      teamBoardContent: description
+    // File 객체 생성 - 파일명에 확장자 추가
+    const file = new File([imageBlob], `${fileName}`, {
+      type: 'image/png',
+      lastModified: new Date().getTime()
     });
 
-    //   이미지 엔티티 저장
-    await postFetch('/file/save', {
-      entityId: boardResponse.data.data,
-      imageUrls: [s3Url],
-      entityType: "teamboard"
-    })
+    // FormData 구성
+    const formData = new FormData();
+    formData.append('image', file);
+
+    // 1. S3 업로드 요청
+    const s3Response = await postFetch('/file/s3/upload', formData);
+    console.log('S3 업로드 응답:', s3Response);
+
+    if (!s3Response?.data?.data) {
+      throw new Error('S3 업로드 실패');
+    }
+
+    const s3Url = s3Response.data.data;
+
+    // 2. 워크보드 저장
+    const boardResponse = await postFetch('/teamspace/board', {
+      teamBoardTitle: fileName.replace('.png', ''),
+      teamBoardContent: description || ''
+    });
+    console.log('워크보드 응답:', boardResponse);
+
+    if (!boardResponse?.data?.data) {
+      throw new Error('Board save failed');
+    }
+
+    const boardId = boardResponse.data.data;
+
+    // 3. 파일 정보 저장
+    const fileResponse = await postFetch('/file/save', {
+      fileUrls: [boardId.toString()],
+      imageS3Urls: [s3Url],
+      entityType: "TEAMBOARD"  // enum 값 대문자로 수정
+    });
+    console.log('파일 정보 저장 응답:', fileResponse);
+
     return { success: true };
   } catch (error) {
-    console.error("캡처 업로드 중 에러 발생: ", error);
+    console.error('캡처 업로드 중 에러:', error);
+    if (error.response) {
+      console.error('서버 응답:', error.response.data);
+      console.error('상태 코드:', error.response.status);
+    }
     throw error;
   }
 };
