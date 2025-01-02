@@ -659,7 +659,7 @@ onMounted(() => {
         <!-- 채팅방 목록 -->
         <div class="chat-rooms">
           <div class="chat-rooms-header">
-            <h2>채팅 목록</h2>
+            <h2>채팅방 목록</h2>
             <button class="create-room-btn" @click="openCreateRoomModal">
               + 새 채팅방
             </button>
@@ -818,7 +818,7 @@ onMounted(() => {
 /* 채팅방 목록 영역 */
 .chat-rooms {
   flex: 0 0 300px;
-  border-right: 2px solid #f3f4f6;
+  border-right: 2px solid #d1d5db;
   overflow-y: auto;
 }
 
@@ -828,7 +828,7 @@ onMounted(() => {
   align-items: center;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
-  border-bottom: 2px solid #f3f4f6;
+  border-bottom: 2px solid #d1d5db;
 }
 
 .chat-rooms-header h2 {
@@ -845,7 +845,8 @@ onMounted(() => {
   background-color: #4CAF50;
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
+  padding: 0.5rem 1rem;
+  margin-right: 0.5rem;
   border-radius: 0.5rem;
   font-weight: 500;
   cursor: pointer;
@@ -862,29 +863,37 @@ onMounted(() => {
 .room-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  padding: 0.5rem;
 }
 
 .room-item {
-  padding: 1rem;
-  border-radius: 0.5rem;
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
   transition: all 0.2s ease;
   cursor: pointer;
-  border: 1px solid transparent;
+  background-color: #f8fafc;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
 }
 
 .room-item:hover {
-  background-color: #f9fafb;
+  background-color: #f1f5f9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .room-item.selected {
-  background-color: #f0fdf4;
-  border-color: #4CAF50;
+  background-color: #e8f5e9;
+  border: 2px solid #4CAF50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
 }
 
 .room-name {
-  font-weight: 500;
-  color: #374151;
+  font-weight: 600;
+  color: #1f2937;
+  font-size: 0.925rem;
+  letter-spacing: -0.01em;
 }
 
 /* 채팅 내용 영역 */
