@@ -1,7 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import {getFetch, postFetch, putFetch} from "@/stores/apiClient.js"
+import {getFetch, postFetch, putFetch, delFetch, delFetchData} from "@/stores/apiClient.js"
 import PromotionGoodsAddModal from "@/components/promotion/PromotionGoodsAddModal.vue";
 
 const route = useRoute()
@@ -17,7 +17,7 @@ const error = ref(null)
 // 수정 모드 상태 관리
 const isBasicInfoEditing = ref(false)
 const isGoodsEditing = ref(false)
-
+const deletedGoods = ref([]) // 삭제된 상품 목록
 // 수정용 임시 데이터 저장
 const editedBasicInfo = ref(null)
 const editedGoods = ref([])
@@ -114,6 +114,14 @@ const startGoodsEdit = () => {
   isGoodsEditing.value = true
 }
 
+// 상품 목록 삭제
+const removeGoods = (index) => {
+  const removed = editedGoods.value.splice(index, 1)[0]
+  if (removed.promotionGoodsId) {
+    deletedGoods.value.push(removed.promotionGoodsId)
+  }
+}
+
 // 기본 정보 수정 저장
 const saveBasicInfo = async () => {
   try {
@@ -168,6 +176,13 @@ const saveGoods = async () => {
           }))
     }
 
+    // 3. 삭제된 상품 제거
+    const deletePromotionGoodsReqData = {
+      promotionGoodsIdList: [...deletedGoods.value]
+    }
+
+    console.log('Delete Promotion Goods Request Data:', deletePromotionGoodsReqData);
+
     // 두 API 요청 동시 실행
     await Promise.all([
       // 기존 상품 할인율 수정
@@ -178,11 +193,18 @@ const saveGoods = async () => {
       // 새로운 상품 추가
       newGoodsReqData.saveGoodsDiscountDTOS.length > 0
           ? postFetch(`/promotionGoods`, newGoodsReqData)
+          : Promise.resolve(),
+
+      // 삭제된 상품 제거
+      deletePromotionGoodsReqData.promotionGoodsIdList.length > 0
+          ? delFetchData(`/promotionGoods`, deletePromotionGoodsReqData)
           : Promise.resolve()
     ])
 
+    console.log('Deleting goods with data:', deletePromotionGoodsReqData);
     // 성공 시 상태 업데이트
     promotionGoods.value = editedGoods.value
+    deletedGoods.value = [] // 삭제된 상품 초기화
     isGoodsEditing.value = false
   } catch (e) {
     console.error('Error saving goods:', e)
@@ -198,8 +220,10 @@ const cancelBasicInfoEdit = () => {
 
 const cancelGoodsEdit = () => {
   editedGoods.value = []
+  deletedGoods.value = []
   isGoodsEditing.value = false
 }
+
 
 const handleBack = () => {
   router.back()
@@ -426,6 +450,15 @@ onMounted(() => {
                       </div>
                     </div>
                   </div>
+
+                  <!-- 삭제 버튼 추가 -->
+                  <button
+                      class="delete-button"
+                      @click="removeGoods(index)"
+                  >
+                    삭제
+                  </button>
+
                 </div>
 
                 <button
@@ -577,18 +610,6 @@ onMounted(() => {
 
 .add-button:hover {
   background-color: #e5e7eb;
-}
-
-.remove-button {
-  padding: 4px 8px;
-  background-color: #ef4444;
-  color: white;
-  border: none;
-  font-size: 0.875rem;
-}
-
-.remove-button:hover {
-  background-color: #dc2626;
 }
 
 /* 그리드 레이아웃 */
@@ -791,6 +812,21 @@ onMounted(() => {
 
 .goods-card.editing {
   position: relative;
+}
+
+.delete-button {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.delete-button:hover {
+  background-color: #388E3C;
 }
 
 /* 반응형 스타일 */
