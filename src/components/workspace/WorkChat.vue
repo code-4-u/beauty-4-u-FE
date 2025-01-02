@@ -4,6 +4,10 @@ import { ref, computed, onMounted, onBeforeUnmount, nextTick  } from 'vue';
 import {delFetch, getFetch, postFetch} from "@/stores/apiClient.js"
 import { useAuthStore } from '@/stores/auth.js';
 import ChatImageManagement from "@/components/teamspace/ChatImageManagement.vue";
+import CreateChatRoomModal from './CreateChatRoomModal.vue';
+import InviteUserModal from './InviteUserModal.vue';
+import ParticipantListModal from './ParticipantListModal.vue';
+import ImagePreviewModal from "@/components/workspace/ImagePreviewModal.vue";
 
 const chatUrl = import.meta.env.VITE_API_CHAT_URL || 'localhost:8080';
 
@@ -90,26 +94,6 @@ const users = ref([]);
 const showParticipantModal = ref(false); // 사용자 목록 모달 열림 여부
 const participants = ref([]); // 참여자 목록
 
-// 사용자 목록 페이징
-const paginatedParticipants = computed(() => {
-  const startIndex = (currentPage.value - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  return filteredParticipants.value.slice(startIndex, endIndex);
-});
-
-// 검색 및 페이지네이션 적용된 참가자 목록
-const filteredParticipants = computed(() => {
-  if (!searchQuery.value) {
-    return participants.value;
-  }
-  return participants.value.filter(participant =>
-      (participant.userName || '').toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      (participant.email || '').toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-      (participant.deptName || '').toLowerCase().includes(searchQuery.value.toLowerCase())
-  );
-});
-
-
 // 사용자 초대 검색어와 페이징 상태 관리
 const searchQuery = ref('')
 const currentPage = ref(1)
@@ -148,7 +132,6 @@ const isImage = (url) => {
   return /\.(jpg|jpeg|png|gif|bmp|svg|webp)$/i.test(cleanUrl);
 };
 
-
 const insertImageAtCursor = (imageUrl, options = {}) => {
   if (!chatEditorRef.value) return;
 
@@ -180,8 +163,6 @@ const handleUpload = (files) => {
   uploadStatus.value = '';
 };
 
-
-
 // 디버그용
 // 이미지 로드 핸들러
 const handleImageLoad = (index, url) => {
@@ -193,8 +174,6 @@ const handleImageError = (index, url) => {
   console.error(`이미지 로드 실패: 메시지 ${index}, URL: ${url}`);
   messages[index].imageLoadError = true; // 반응성 유지
 };
-
-
 
 const handleRemove = (fileId) => {
   const fileToRemove = selectedFiles.value.find(f => f.id === fileId);
@@ -213,7 +192,6 @@ const handleRemove = (fileId) => {
     }
   }
 };
-
 
 // 총 페이지 수 계산
 const totalPages = computed(() => {
@@ -312,43 +290,25 @@ const isDisabled = (user) => {
   return invitedUserSet.value.has(user.userId); // Set으로 빠르게 탐색
 };
 
-
 // 새로운 채팅방 생성
-const createNewRoom = async() => {
-  if (!newRoomName.value.trim()) {
-    alert("채팅방 이름을 입력해주세요.");
-    return;
-  }
-
+const handleCreateRoom = async (roomData) => {
   try {
-    console.log(selectedUsers.value);
-
-    // 사용자 ID 배열로 변환
-    const userCodes = selectedUsers.value.map(user => user.userId);
-    console.log(userCodes);
-
-    // 요청 데이터 구성
     const requestData = {
-      chatRoomName: newRoomName.value.trim(), // 채팅방 이름
-      invitedUsers: userCodes // 초대된 사용자 ID 리스트
+      chatRoomName: roomData.roomName,
+      invitedUsers: roomData.selectedUsers.map(user => user.userId)
     };
 
-    const response = await postFetch(`/chat/create`,
-        requestData
-    );
+    const response = await postFetch(`/chat/create`, requestData);
 
-    // 채팅방 생성시 응답 정보 추가
-
-    if (response.status === 200) {
+    if (response.status === 201) {
       alert('채팅방이 성공적으로 생성되었습니다.');
+      await fetchChatRooms();
+      closeCreateRoomModal();
     }
   } catch (error) {
     console.error('채팅방 생성 실패:', error);
     alert('채팅방 생성 중 문제가 발생했습니다.');
   }
-
-  closeCreateRoomModal();
-  window.location.reload(); // 현재 페이지 새로고침
 };
 
 // 채팅방 나가기
@@ -364,7 +324,6 @@ const leaveChatRoom = async () => {
     alert('채팅방 나가기 중 오류가 발생했습니다.');
   }
 };
-
 
 // 사용자 목록 가져오기
 const fetchUsers = async () => {
@@ -392,75 +351,21 @@ const fetchUsers = async () => {
 
 }
 
-
-// 사용자 선택/해제
-const toggleUserSelection = (user) => {
-
-  if (user.userId === userCode.value) {
-    // 본인은 선택할 수 없음
-    return;
-  }
-
-  console.log(selectedUsers);
-  const index = selectedUsers.value.findIndex(u => u.userId === user.userId);
-  if (index === -1) {
-    selectedUsers.value.push(user);
-  } else {
-    selectedUsers.value.splice(index, 1);
-  }
-};
-
 // 사용자 초대
-const inviteUsers = async () => {
-  if (selectedUsers.value.length === 0) {
-    alert('초대할 사용자를 선택해주세요.');
-    return;
-  }
+const handleInviteUsers = async (selectedUsers) => {
   try {
-    console.log("사용자 초대 로그");
-    console.log(chatRoomId.value);
-    console.log(selectedUsers.value);
+    const userCodes = selectedUsers.map(user => user.userId);
+    const response = await postFetch(`/chat/${chatRoomId.value}/invite`, userCodes);
 
-    // 사용자 ID 배열로 변환
-    const userCodes = selectedUsers.value.map(user => user.userId);
-    console.log(userCodes);
-
-    const response = await postFetch(`/chat/${chatRoomId.value}/invite`,
-        userCodes
-    );
     if (response.status === 200) {
       alert('사용자가 성공적으로 초대되었습니다.');
-      closeInviteModal();
+      isInviteModalOpen.value = false;
     }
   } catch (error) {
     console.error('사용자 초대 실패:', error);
     alert('초대 중 문제가 발생했습니다.');
   }
 };
-
-// 페이지 변경
-const changePage = async (page) => {
-  currentPage.value = page;
-  await fetchUsers();
-};
-
-// 채팅방 사용자 목록 페이지 변경
-const changeChatUserPage = (page) => {
-  if (page >= 1 && page <= chatUserTotalPages.value) {
-    currentPage.value = page;
-  }
-};
-
-// 검색
-const handleSearch = async () => {
-  currentPage.value = 1;
-  await fetchUsers();
-};
-
-// 사용자 목록 검색
-
-
-
 
 // self 속성을 메세지에 추가
 const addSelfToMessages = (msgs) => msgs.map((msg) => ({
@@ -538,7 +443,7 @@ const connectWebSocket = (roomId) => {
     return;
   }
 
-  const socketUrl = `wss://${chatUrl}/chat`;
+  const socketUrl = `ws://${chatUrl}/chat`;
   stompClient = Stomp.over(() => new WebSocket(socketUrl));
 
   stompClient.connect(
@@ -578,8 +483,6 @@ const connectWebSocket = (roomId) => {
       }
   );
 };
-
-
 
 
 // 메시지 전송
@@ -748,6 +651,7 @@ onMounted(() => {
   fetchChatRooms();
 });
 </script>
+
 <template>
   <div class="container-wrapper">
     <div class="content-container">
@@ -755,13 +659,13 @@ onMounted(() => {
         <!-- 채팅방 목록 -->
         <div class="chat-rooms">
           <div class="chat-rooms-header">
-            <h2>채팅 목록</h2>
+            <h2>채팅방 목록</h2>
             <button class="create-room-btn" @click="openCreateRoomModal">
               + 새 채팅방
             </button>
           </div>
 
-          <!-- 왼쪽 사이드바 채팅방 정보 -->
+          <!-- 채팅방 목록 -->
           <div class="room-list">
             <div
                 v-for="room in chatRooms"
@@ -772,9 +676,7 @@ onMounted(() => {
             >
               <div class="room-info">
                 <div class="room-name">{{ room.chatRoomName }}</div>
-<!--                <div class="last-message">{{ room.lastMessage }}</div>-->
               </div>
-
             </div>
           </div>
         </div>
@@ -782,12 +684,13 @@ onMounted(() => {
         <!-- 채팅 내용 -->
         <div class="chat-content" v-if="selectedRoomName">
           <div class="chat-header">
-              <h3>{{ selectedRoomName }}</h3>
+            <h3>{{ selectedRoomName }}</h3>
             <button class="participants-btn" @click="openParticipantModal">사용자 목록</button>
             <button class="invite-btn" @click="openInviteModal">+ 사용자 추가</button>
             <button class="leave-btn" @click="leaveChatRoom">채팅방 나가기</button>
           </div>
 
+          <!-- 메시지 영역 -->
           <div class="messages">
             <template v-for="(message, index) in messages" :key="index">
               <!-- 날짜 헤더 -->
@@ -796,11 +699,8 @@ onMounted(() => {
               </div>
 
               <!-- 메시지 아이템 -->
-              <div
-                  :class="['message', message.self ? 'mine' : 'other']"
-              >
+              <div :class="['message', message.self ? 'mine' : 'other']">
                 <div class="message-content">
-                  <!-- 메시지 보낸 사람 이름 -->
                   <div class="sender" v-if="!message.self">
                     {{ message.userName || '알 수 없음' }}
                   </div>
@@ -808,70 +708,42 @@ onMounted(() => {
                     {{ message.userName }}
                   </div>
 
-                  <!-- 메시지 내용 -->
-                  <div
-                      class="bubble"
-                      v-if="message.messageContent"
-                      v-html="formatMessageContent(message.messageContent)"
-                  ></div>
-
-                <div v-if="message.s3PresignedUrls" class="attached-files">
-                  <div
-                      v-for="image in message.s3PresignedUrls"
-                      :key="image"
-                      class="file-preview"
-                  >
-                    <!-- 이미지 미리보기 -->
-                    <img
-                        v-if="image"
-                        :src="image"
-                        alt="미리보기 이미지"
-                        class="preview-image"
-                        @click="openModal(image)"
-                    />
+                  <div class="bubble" v-if="message.messageContent"
+                       v-html="formatMessageContent(message.messageContent)">
                   </div>
 
-                  <!-- 이미지 모달 -->
-                  <div v-if="modalImageUrl" class="modal-backdrop-image" @click="closeModal">
-                    <div class="modal-content">
-                      <!-- 닫기 버튼 -->
-                      <span class="close" @click="closeModal">&times;</span>
-
-                      <!-- 확대 이미지 -->
-                      <img :src="modalImageUrl" alt="확대 이미지" class="modal-image"/>
-
-                      <!-- 다운로드 버튼 -->
-                      <div class="modal-footer">
-                        <button class="download-button" @click="downloadImage(modalImageUrl)">이미지 다운로드</button>
-                      </div>
+                  <!-- 첨부 이미지 -->
+                  <div v-if="message.s3PresignedUrls" class="attached-files">
+                    <div v-for="image in message.s3PresignedUrls"
+                         :key="image"
+                         class="file-preview">
+                      <img v-if="image"
+                           :src="image"
+                           alt="미리보기 이미지"
+                           class="preview-image"
+                           @click="openModal(image)"
+                      />
                     </div>
                   </div>
 
-                  <!-- 메시지 전송 시간 -->
-                  <div class="timestamp">{{ formatDate(message.messageCreatedTime) }}</div>
-
+                  <div class="timestamp">
+                    {{ formatDate(message.messageCreatedTime) }}
                   </div>
                 </div>
-
-
               </div>
             </template>
           </div>
 
-
+          <!-- 메시지 입력 영역 -->
           <div class="message-input">
-            <textarea
-                v-model="messageContent"
-                :disabled="isSubmitting"
-                placeholder="메시지 입력"
-                @keypress="handleKeyPress"
+            <textarea v-model="messageContent"
+                      :disabled="isSubmitting"
+                      placeholder="메시지 입력"
+                      @keypress="handleKeyPress"
             ></textarea>
-
             <div v-if="uploadStatus" class="upload-status">
               {{ uploadStatus }}
             </div>
-
-
             <button @click="sendMessage">전송</button>
           </div>
 
@@ -884,341 +756,230 @@ onMounted(() => {
               @insert-to-editor="insertImageAtCursor"
               :disabled="isSubmitting"
           />
-
-        </div>
-
-      </div>
-    </div>
-
-    <!-- 채팅방 abc 사용자 목록 모달 -->
-    <div v-if="showParticipantModal" class="modal-backdrop">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>채팅방 사용자 목록</h3>
-          <button class="close-button" @click="closeParticipantModal">✕</button>
-        </div>
-
-        <!-- 검색 섹션 -->
-        <div class="search-box">
-          <input class="modal-input"
-                 v-model="searchQuery"
-                 type="text"
-                 placeholder="사용자 검색"
-          />
-        </div>
-
-
-        <div class="modal-body">
-          <ul class="participants-list">
-            <li v-for="participant in paginatedParticipants" :key="participant.userCode">
-              {{ participant.userName || "이름 없음" }}
-              ({{ participant.deptName }}, {{ participant.email }})
-            </li>
-          </ul>
-        </div>
-
-        <!-- 페이지네이션 -->
-        <div class="pagination">
-          <button
-              @click="changeChatUserPage(currentPage - 1)"
-              :disabled="currentPage === 1"
-          >
-            이전
-          </button>
-          <button
-              v-for="page in Array.from({ length: chatUserTotalPages }, (_, i) => i + 1)"
-              :key="page"
-              @click="changeChatUserPage(page)"
-              :class="{ active: currentPage === page }"
-          >
-            {{ page }}
-          </button>
-          <button
-              @click="changeChatUserPage(currentPage + 1)"
-              :disabled="currentPage === chatUserTotalPages"
-          >
-            다음
-          </button>
-        </div>
-
-
-        <div class="modal-footer">
-          <button class="close-btn" @click="closeParticipantModal">닫기</button>
         </div>
       </div>
     </div>
 
+    <!-- 모달 컴포넌트들 -->
+    <ImagePreviewModal
+        :is-open="!!modalImageUrl"
+        :image-url="modalImageUrl"
+        @close="closeModal"
+        @download="downloadImage"
+    />
 
-    <!-- 채팅방에서의 사용자 초대 모달 -->
-    <div v-if="isInviteModalOpen" class="modal-backdrop">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>사용자 초대</h3>
-          <button class="close-button" @click="closeInviteModal">✕</button>
-        </div>
+    <ParticipantListModal
+        :is-open="showParticipantModal"
+        :participants="participants"
+        @close="showParticipantModal = false"
+    />
 
-        <!-- 검색 섹션 -->
-        <div class="search-box">
-          <input class="modal-input"
-              v-model="searchQuery"
-              type="text"
-              placeholder="사용자 검색"
-              @input="handleSearch"
-          />
-        </div>
+    <InviteUserModal
+        :is-open="isInviteModalOpen"
+        :participants="participants"
+        @close="isInviteModalOpen = false"
+        @invite="handleInviteUsers"
+    />
 
-        <!-- 사용자 목록 -->
-        <ul class="user-list">
-          <li
-              v-for="user in users"
-              :key="user.userId"
-              @click="!isDisabled(user) ? toggleUserSelection(user) : null"
-              :class="{ selected: selectedUsers.includes(user), disabled: isDisabled(user) }"
-          >
-            {{ user.name }} ({{ user.department }})
-          </li>
-        </ul>
-
-        <!-- 페이지네이션 -->
-        <div class="pagination">
-          <button @click="changePage(currentPage - 1)" :disabled="currentPage === 1">
-            이전
-          </button>
-          <button
-              v-for="page in totalPages"
-              :key="page"
-              @click="changePage(page)"
-              :class="{ active: currentPage === page }"
-          >
-            {{ page }}
-          </button>
-          <button
-              @click="changePage(currentPage + 1)"
-              :disabled="currentPage === totalPages"
-          >
-            다음
-          </button>
-        </div>
-
-        <!-- 모달 푸터 -->
-        <div class="modal-footer">
-          <button class="cancel-btn" @click="closeInviteModal">취소</button>
-          <button class="create-btn" @click="inviteUsers">초대</button>
-        </div>
-      </div>
-    </div>
-
-
-
-    <!-- 새 채팅방 모달 -->
-    <div v-if="isCreateRoomModalOpen" class="modal-backdrop">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>새 채팅방 추가</h3>
-          <button class="close-button" @click="closeCreateRoomModal">✕</button>
-        </div>
-
-        <input
-            class="modal-input"
-            v-model="newRoomName"
-            placeholder="채팅방 이름 입력"
-            type="text"
-        />
-
-        <div class="spacer"></div>
-
-        <!-- 검색 섹션 -->
-        <div class="search-box">
-          <input class="modal-input"
-              v-model="searchQuery"
-              type="text"
-              placeholder="사용자 검색"
-              @input="handleSearch"
-          />
-        </div>
-
-
-
-        <!-- 사용자 목록-->
-        <ul class="user-list">
-          <li
-              v-for="user in users"
-              :key="user.userId"
-              @click="user.userId !== userCode ? toggleUserSelection(user) : null"
-              :class="{ selected: selectedUsers.includes(user), disabled: user.userId === userCode }"
-          >
-            {{ user.name }} ({{ user.department }})
-          </li>
-        </ul>
-
-        <!-- 페이지네이션 -->
-        <div class="pagination">
-          <button @click="changePage(currentPage - 1)" :disabled="currentPage === 1">
-            이전
-          </button>
-          <button
-              v-for="page in totalPages"
-              :key="page"
-              @click="changePage(page)"
-              :class="{ active: currentPage === page }"
-          >
-            {{ page }}
-          </button>
-          <button
-              @click="changePage(currentPage + 1)"
-              :disabled="currentPage === totalPages"
-          >
-            다음
-          </button>
-        </div>
-
-        <div class="modal-footer">
-          <button class="cancel-btn" @click="closeCreateRoomModal">취소</button>
-          <button class="create-btn" @click="createNewRoom">생성</button>
-        </div>
-      </div>
-    </div>
-
-
+    <CreateChatRoomModal
+        :is-open="isCreateRoomModalOpen"
+        :user-code="userCode"
+        @close="isCreateRoomModalOpen = false"
+        @create="handleCreateRoom"
+    />
   </div>
 </template>
 
 <style scoped>
 .container-wrapper {
-  padding: 12px;
+  padding: 2rem;
   background-color: var(--background-color);
   min-height: 100vh;
   width: 100%;
-  overflow-x: hidden;
 }
 
 .content-container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   background-color: white;
-  border-radius: 16px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  padding: 12px;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  padding: 2rem;
   width: 100%;
 }
 
 .chat-container {
   display: flex;
-  gap: 12px;
-  height: calc(100vh - 150px);
+  gap: 2rem;
+  height: calc(100vh - 200px);
   width: 100%;
-  overflow: hidden;
 }
 
+/* 채팅방 목록 영역 */
 .chat-rooms {
-  flex: 0 0 280px;
-  border-right: 1px solid #edf2f7;
+  flex: 0 0 300px;
+  border-right: 2px solid #d1d5db;
   overflow-y: auto;
-  min-width: 200px;
 }
 
 .chat-rooms-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 12px;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #d1d5db;
 }
 
 .chat-rooms-header h2 {
   font-size: 1.5rem;
-  color: #2d3748;
+  font-weight: 600;
+  color: #111827;
   margin: 0;
 }
 
 .create-room-btn {
-  padding: 8px 16px;
-  font-size: 0.9rem;
-  background-color: #4299e1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #4CAF50;
   color: white;
   border: none;
-  border-radius: 8px;
+  padding: 0.5rem 1rem;
+  margin-right: 0.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .create-room-btn:hover {
-  background-color: #3182ce;
+  background-color: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
+/* 채팅방 목록 스타일 */
 .room-list {
-  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding-right: 1rem;
 }
 
 .room-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 16px;
-  border-radius: 12px;
-  margin: 0 8px 8px 8px;
+  padding: 1rem 1.25rem;
+  border-radius: 0.75rem;
   transition: all 0.2s ease;
+  cursor: pointer;
+  background-color: #f8fafc;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
 }
 
 .room-item:hover {
-  background-color: #f8fafc;
+  background-color: #f1f5f9;
   transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 .room-item.selected {
-  background-color: #ebf8ff;
-  border: 1px solid #bee3f8;
-}
-
-.room-info {
-  flex: 1;
+  background-color: #e8f5e9;
+  border: 2px solid #4CAF50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
 }
 
 .room-name {
   font-weight: 600;
-  color: #2d3748;
-  margin-bottom: 6px;
+  color: #1f2937;
+  font-size: 0.925rem;
+  letter-spacing: -0.01em;
 }
 
-.timestamp {
-  font-size: 0.85em;
-  color: #a0aec0;
-}
-
+/* 채팅 내용 영역 */
 .chat-content {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background-color: #ffffff;
-  border-radius: 12px;
-  min-width: 0;
+  background-color: white;
+  border-radius: 0.5rem;
+  border: 1px solid #e5e7eb;
+  padding-bottom: 1rem;
 }
 
 .chat-header {
-  display: flex; /* Flexbox 레이아웃 활성화 */
-  justify-content: space-between; /* 좌우 요소 간격을 최대화 */
-  padding: 8px;
-  border-bottom: 1px solid #edf2f7;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .chat-header h3 {
   font-size: 1.25rem;
-  color: #2d3748;
   font-weight: 600;
+  color: #111827;
   margin: 0;
 }
 
+/* 버튼 스타일 통일 */
+.participants-btn,
+.invite-btn,
+.leave-btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+}
+
+.participants-btn {
+  background-color: #4CAF50;
+  color: white;
+  margin-left: auto;
+}
+
+.invite-btn {
+  background-color: white;
+  color: #4CAF50;
+  border-color: #4CAF50;
+}
+
+.leave-btn {
+  background-color: white;
+  color: #ef4444;
+  border-color: #ef4444;
+}
+
+.participants-btn:hover {
+  background-color: #45a049;
+}
+
+.invite-btn:hover {
+  background-color: #f0fdf4;
+}
+
+.leave-btn:hover {
+  background-color: #fef2f2;
+}
+
+/* 메시지 영역 */
 .messages {
   flex: 1;
   overflow-y: auto;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  padding: 1.5rem;
+  background-color: #f9fafb;
 }
 
 .message {
   display: flex;
-  margin-bottom: 4px;
+  margin-bottom: 1rem;
+}
+
+.message.mine {
+  justify-content: flex-end;
 }
 
 .message-content {
@@ -1226,495 +987,124 @@ onMounted(() => {
 }
 
 .sender {
-  font-size: 0.9em;
-  margin-bottom: 6px;
-  color: #718096;
-  font-weight: 500;
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.25rem;
 }
 
 .bubble {
-  background-color: #f7fafc;
-  padding: 12px 16px;
-  border-radius: 16px;
-  border-top-left-radius: 4px;
-  margin-bottom: 4px;
-  color: #2d3748;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  line-height: 1.5;
+  background-color: white;
+  padding: 0.75rem 1rem;
+  border-radius: 1rem;
+  border: 1px solid #e5e7eb;
+  color: #374151;
 }
 
-/* 본인의 메세지 CSS 처리 */
 .message.mine .bubble {
-  background-color: #4299e1;
+  background-color: #4CAF50;
   color: white;
-  border-top-right-radius: 4px;
-  border-top-left-radius: 16px;
+  border: none;
 }
 
+/* 입력 영역 */
 .message-input {
-  padding: 20px;
-  border-top: 1px solid #edf2f7;
+  padding: 1rem;
+  background-color: white;
+  border-top: 1px solid #e5e7eb;
   display: flex;
-  gap: 12px;
-  background-color: #ffffff;
-  border-radius: 0 0 12px 12px;
+  gap: 1rem;
+  align-items: flex-end;
 }
 
 textarea {
   flex: 1;
-  border: 2px solid #edf2f7;
-  border-radius: 12px;
-  padding: 12px 16px;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 0.75rem;
   resize: none;
-  height: 60px;
-  font-size: 1rem;
-  color: #2d3748;
-  transition: border-color 0.2s ease;
+  min-height: 60px;
+  font-size: 0.875rem;
 }
 
 textarea:focus {
   outline: none;
-  border-color: #4299e1;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.1);
 }
 
-textarea::placeholder {
-  color: #a0aec0;
-}
-
-button {
-  background-color: #4299e1;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 12px;
-  cursor: pointer;
-  font-weight: 500;
-  font-size: 1rem;
-  transition: all 0.2s ease;
-}
-
-button:hover {
-  background-color: #3182ce;
-  transform: translateY(-1px);
-}
-
-button:active {
-  transform: translateY(0);
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes slideIn {
-  from {
-    transform: translateY(-20px);
-    opacity: 0;
-  }
-  to {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-.invite-btn {
-  padding: 8px 16px;
-  font-size: 0.9rem;
-  background-color: #4299e1;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-top: -5px; /* 위로 5px 이동 */
-}
-
-.invite-btn:hover {
-  background-color: #3182ce;
-}
-
-/* 모달 */
-.modal-backdrop {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.4); /* 투명한 배경 */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000; /* 모달이 배경 위에 표시됨 */
-}
-
-.modal-backdrop-image {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.1); /* 투명한 배경 */
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000; /* 모달이 배경 위에 표시됨 */
-}
-
-
-.modal-content {
-  background: white;
-  border-radius: 8px;
-  width: 100%;
-  max-width: 800px;
-  padding: 1.5rem;
-  transform: translateY(0);
-  animation: modal-slide-up 0.3s ease-out;
-  z-index: 1010; /* 모달 창이 배경 위에 표시됨 */
-  pointer-events: auto; /* 모달에서 클릭 허용 */
-}
-
-.modal-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.modal-image {
-  max-width: 100%; /* 이미지 크기 조정 */
-  height: auto; /* 비율 유지 */
-  border-radius: 8px; /* 선택사항 */
-  margin-bottom: 1rem;
-}
-
-.modal-body {
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.modal-footer {
-  display: flex;
-  justify-content: flex-end; /* 버튼을 오른쪽 정렬 */
-  gap: 0.5rem; /* 버튼 간격 */
-  margin-top: 1rem; /* 상단 여백 */
-}
-
-.user-list {
-  list-style: none;
-  padding: 0;
-  margin: 1rem 0;
-  height: 310px;
-}
-
-.user-list li {
-  padding: 0.5rem;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.user-list li.selected {
-  background-color: #4299e1;
-  color: white;
-}
-
-.user-list li.disabled {
-  color: gray;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
-.pagination {
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-top: 1rem;
-}
-
-.participants-btn {
-  padding: 8px 16px;
-  font-size: 0.9rem;
-  background-color: #4caf50;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  margin-top: -5px; /* 위로 5px 이동 */
-  margin-left: 500px;
-  width: 160px;
-}
-
-.participants-btn:hover {
-  background-color: #45a049;
-}
-
-.participants-list {
-  list-style: none;
-  padding: 0;
-}
-
-.participants-list li {
-  padding: 0.5rem 0;
-  border-bottom: 1px solid #f1f1f1;
-}
-
-
-.close-btn {
-  padding: 8px 16px;
-  background-color: #f44336;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.close-btn:hover {
-  background-color: #d32f2f;
-}
-
-.participants-btn {
-  padding: 8px 16px;
-  font-size: 0.9rem;
-  background-color: #4caf50;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.participants-btn:hover {
-  background-color: #45a049;
-}
-
-.participants-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  height: 450px;
-}
-
-.participants-list li {
-  padding: 8px 12px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.participants-list li:last-child {
-  border-bottom: none;
-}
-
-.close-btn {
-  padding: 8px 16px;
+.message-input button {
   background-color: #4CAF50;
   color: white;
+  padding: 0.75rem 1.5rem;
   border: none;
-  border-radius: 8px;
+  border-radius: 0.5rem;
+  font-weight: 500;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.close-btn:hover {
-  background-color: #43a047;
+.message-input button:hover {
+  background-color: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
 /* 날짜 헤더 */
 .date-header {
   text-align: center;
-  margin: 10px auto; /* 위, 아래 여백과 가운데 정렬 */
-  font-size: 0.9em;
-  color: #495057;
-  font-weight: bold;
-  background-color: #f1f3f5;
-  padding: 4px 12px;
-  border-radius: 30px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-/* 채팅방 */
-.room-list {
-  padding: 0;
-  margin: 0;
-}
-
-.room-item {
-  padding: 10px 15px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.3s ease, transform 0.2s ease;
-}
-
-.room-item:hover {
-  background-color: #f4f4f4;
-  transform: translateY(-2px);
-}
-
-.room-item.selected {
-  background-color: #4299e1; /* 선택된 채팅방의 배경색 */
-  color: white; /* 선택된 채팅방의 텍스트 색 */
-  font-weight: bold;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-/* 파일 미리보기 이미지 스타일 */
-/* 부모 컨테이너 스타일 */
-.attached-files {
-  flex-wrap: wrap;
-  gap: 10px;
-}
-.preview-image {
-  max-width: 300px; /* 부모 요소 너비에 맞게 크기 제한 */
-  max-height: 200px; /* 최대 높이 제한 */
-  object-fit: contain; /* 이미지가 잘리지 않게 조정 */
-  cursor: pointer; /* 클릭 가능한 이미지처럼 보이도록 설정 */
-  margin: 2px; /* 이미지 간 간격 */
-  border: 2px solid #ddd; /* 테두리 추가 */
-  border-radius: 5px; /* 모서리를 약간 둥글게 */
-  background-color: #f9f9f9; /* 흰색 배경 이미지와 구분되는 배경색 */
-}
-
-
-.close {
-  position: absolute;
-  top: 10px;
-  right: 20px;
-  color: white;
-  font-size: 30px;
-  font-weight: bold;
-  cursor: pointer;
-}
-
-/* 파일 다운로드 버튼 */
-.download-button {
-  background-color: #4299e1;
-  color: white;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-size: 16px;
-  transition: background-color 0.2s ease-in-out;
-}
-
-.download-button:hover {
-  background-color: #007bff;
-}
-
-/* 채팅방 INPUT 태그 */
-.modal-input {
-  width: 100%; /* 가로 길이를 부모 컨테이너 기준으로 채움 */
-  padding: 10px 15px; /* 입력 필드의 내부 여백 */
-  font-size: 16px; /* 글자 크기 조정 */
-  border: 1px solid #ccc; /* 기본 테두리 */
-  border-radius: 5px; /* 모서리를 둥글게 */
-  outline: none; /* 포커스 시 기본 효과 제거 */
-  transition: border-color 0.3s ease, box-shadow 0.3s ease; /* 포커스 애니메이션 */
-}
-
-.modal-input:focus {
-  border-color: #007bff; /* 포커스 시 테두리 색 변경 */
-  box-shadow: 0 0 5px rgba(0, 123, 255, 0.5); /* 포커스 시 외곽선 효과 */
-}
-
-.modal-input::placeholder {
-  color: #999; /* placeholder 텍스트 색상 */
-  font-style: italic; /* placeholder 텍스트 스타일 */
-}
-
-/* 채팅방 이름 입력과 사용자 사이 공간 조절 */
-.spacer {
-  height: 10px;
-}
-
-/* 채팅방 추가 및 유저 초대시 닫는 버튼 */
-.close-button {
-  background: none;
-  border: none;
-  font-size: 1.25rem;
-  color: #6b7280;
-  cursor: pointer;
-  padding: 0.5rem;
-  transition: color 0.2s;
-}
-
-/* 페이지네이션(이전, 다음) */
-.pagination {
-  display: flex;
-  justify-content: center;
-  gap: 0.5rem;
-  margin-top: 2rem;
-}
-
-.pagination button {
   padding: 0.5rem 1rem;
+  background-color: white;
+  border-radius: 1rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 1rem 0;
   border: 1px solid #e5e7eb;
-  background-color: white;
+}
+
+/* 이미지 관련 */
+.attached-files {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.preview-image {
+  max-width: 200px;
+  max-height: 150px;
   border-radius: 0.5rem;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  color: #374151;
-  font-weight: 500;
+  border: 1px solid #e5e7eb;
 }
 
-.pagination button:hover:not(:disabled) {
-  border-color: #4CAF50;
-  color: #4CAF50;
-  background-color: #f0fdf4;
+.timestamp {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: 0.25rem;
 }
 
-.pagination button.active {
-  background-color: #4CAF50;
-  color: white;
-  border-color: #4CAF50;
-}
+@media (max-width: 768px) {
+  .container-wrapper {
+    padding: 1rem;
+  }
 
-.pagination button:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
+  .content-container {
+    padding: 1rem;
+  }
 
-.cancel-btn, .create-btn {
-  padding: 0.5rem 1.25rem;
-  border: 1px solid transparent;
-  border-radius: 0.5rem;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
+  .chat-container {
+    flex-direction: column;
+    height: auto;
+  }
 
-.cancel-btn {
-  background-color: white;
-  color: #374151;
-  border-color: #e5e7eb;
-}
+  .chat-rooms {
+    flex: none;
+    border-right: none;
+    border-bottom: 2px solid #f3f4f6;
+    padding-bottom: 1rem;
+  }
 
-.cancel-btn:hover {
-  background-color: #f9fafb;
-  border-color: #d1d5db;
-  color: #111827;
+  .chat-header {
+    flex-wrap: wrap;
+  }
 }
-
-.create-btn {
-  background-color: #4CAF50;
-  color: white;
-  border-color: #4CAF50;
-  padding: 0.5rem 2.5rem; /* 가로 패딩만 두 배로 증가 */
-}
-
-.create-btn:hover {
-  background-color: #43a047;
-  border-color: #388e3c;
-}
-
-.create-btn:disabled {
-  background-color: #a5d6a7;
-  border-color: #a5d6a7;
-  cursor: not-allowed;
-  opacity: 0.6;
-}
-
 </style>
