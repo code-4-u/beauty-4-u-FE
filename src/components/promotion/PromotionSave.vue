@@ -627,14 +627,21 @@ onMounted(async () => {
 }
 
 .date-inputs {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
   margin-bottom: 1.5rem;
+  min-width: 0;
 }
 
 .date-inputs .form-group {
   margin-bottom: 0;
-  flex: 1;
+  min-width: 0;
+}
+
+.date-inputs input {
+  width: 100%;
+  min-width: 0;
 }
 
 .filter-section {
