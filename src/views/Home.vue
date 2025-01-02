@@ -323,7 +323,7 @@ const saveEvent = async () => {
   try {
     const createScheduleReqData = {
       scheduleType: 'TEAMSCHEDULE',
-      scheduleUrl: ` `,
+      scheduleUrl: `팀 일정`,
       scheduleReqDTO: {
         scheduleTitle: eventForm.title,
         scheduleContent: eventForm.content,

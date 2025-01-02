@@ -45,7 +45,7 @@ export const useSSEStore = defineStore('sse', () => {
 
             notification.onclick = () => {
                 window.focus()
-                if (data.notiUrl) {
+                if (data.notiUrl && data.notiUrl !== '팀 일정') {
                     window.location.href = data.notiUrl
                 }
             }
