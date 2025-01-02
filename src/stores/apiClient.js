@@ -76,11 +76,25 @@ apiClient.interceptors.response.use(
 /* 공통 요청 함수 */
 const request = async (method, endpoint, data = null) => {
     try {
-        return await apiClient.request({
+        const config = {
             method: method,
             url: endpoint,
-            data: data
-        });
+        };
+
+        // FormData 처리 추가
+        if (data instanceof FormData) {
+            config.data = data;
+            config.headers = {
+                'Content-Type': 'multipart/form-data'
+            };
+        } else if (data) {
+            config.data = data;
+            config.headers = {
+                'Content-Type': 'application/json'
+            };
+        }
+
+        return await apiClient.request(config);
     } catch (error) {
         console.log('api 요청 중 에러 발생');
         throw error;
