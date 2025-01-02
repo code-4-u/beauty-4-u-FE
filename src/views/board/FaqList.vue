@@ -119,235 +119,355 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="container-wrapper">
-    <div class="content-container">
-      <div class="faq-section">
-        <div class="header">
-          <h2>FAQ</h2>
-          <!-- FAQ 등록 버튼에 v-if 조건 추가 -->
-          <button
-              v-if="userStore.userRole === 'ADMIN'"
-              class="add-button"
-              @click="goToFaqSave"
-          >
-            + FAQ 등록
-          </button>
-        </div>
+  <div class="container">
+    <div class="inform-management">
+      <div class="header">
+        <h2>FAQ</h2>
+        <button
+            v-if="userStore.userRole === 'ADMIN'"
+            class="add-button"
+            @click="goToFaqSave"
+        >
+          + FAQ 등록
+        </button>
+      </div>
 
-        <div class="search-area">
-          <input
-              type="text"
-              v-model="searchQuery"
-              placeholder="FAQ 제목 입력"
-              @keyup.enter="handleSearch"
-          />
-          <div class="button-group">
-            <button class="search-btn" @click="handleSearch">검색</button>
-
-            <select v-model="sort" class="sort-select" @change="handleSearch">
-              <option value="" selected>정렬 기준</option>
+      <!-- 필터링 섹션 -->
+      <div class="filter-section">
+        <div class="search-bar">
+          <div class="form-group">
+            <label>FAQ 제목</label>
+            <input
+                type="text"
+                v-model="searchQuery"
+                placeholder="FAQ 제목 입력"
+                @keyup.enter="handleSearch"
+            />
+          </div>
+          <div class="form-group">
+            <label>정렬 기준</label>
+            <select v-model="sort" @change="handleSearch">
+              <option value="">선택</option>
               <option value="title">제목명</option>
               <option value="view">조회수</option>
             </select>
-
-            <select v-model="order" class="order-select" @change="handleSearch">
-              <option value="" selected>정렬 방향</option>
+          </div>
+          <div class="form-group">
+            <label>정렬 방향</label>
+            <select v-model="order" @change="handleSearch">
+              <option value="">선택</option>
               <option value="asc">오름차순</option>
               <option value="desc">내림차순</option>
             </select>
           </div>
         </div>
-
-        <div class="customer-table">
-          <table class="table table-striped">
-            <thead>
-            <tr class="table-header">
-              <th>번호</th>
-              <th>제목</th>
-              <th>조회수</th>
-            </tr>
-            </thead>
-            <tbody>
-            <tr
-                v-for="(faq, index) in faqs"
-                :key="faq.faqId"
-                class="table-row"
-                @click="goToFaqDetail(faq.faqId, faq.faqViewcount)"
-            >
-              <td>
-                <div>{{ (currentPage - 1) * itemsPerPage + index + 1 }}</div>
-              </td>
-              <td>
-                <div>{{ faq.faqTitle }}</div>
-              </td>
-              <td>
-                <div>{{ faq.faqViewcount }}</div>
-              </td>
-            </tr>
-            </tbody>
-          </table>
-
-          <div class="pagination justify-content-center">
-            <button class="btn btn-light" @click="prevPage" :disabled="currentPage === 1">이전</button>
-            <span v-for="page in visiblePages" :key="page">
-              <button
-                  class="btn"
-                  :class="{ active: page === currentPage }"
-                  @click="changePage(page)"
-              >{{ page }}</button>
-            </span>
-            <button class="btn btn-light" @click="nextPage" :disabled="currentPage === totalPages">다음</button>
-          </div>
+        <div class="button-group">
+          <button class="search-button" @click="handleSearch">검색</button>
+          <button class="reset-button" @click="resetFilters">초기화</button>
         </div>
+      </div>
+
+      <!-- 테이블 섹션 -->
+      <div class="table-container">
+        <table class="custom-table">
+          <thead>
+          <tr>
+            <th>번호</th>
+            <th>제목</th>
+            <th>조회수</th>
+          </tr>
+          </thead>
+          <tbody>
+          <tr
+              v-for="(faq, index) in faqs"
+              :key="faq.faqId"
+              @click="goToFaqDetail(faq.faqId, faq.faqViewcount)"
+          >
+            <td>{{ (currentPage - 1) * itemsPerPage + index + 1 }}</td>
+            <td>{{ faq.faqTitle }}</td>
+            <td>{{ faq.faqViewcount }}</td>
+          </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 페이지네이션 -->
+      <div class="pagination">
+        <button
+            class="page-button"
+            @click="changePage(1)"
+            :disabled="currentPage === 1"
+        >
+          &lt;&lt;
+        </button>
+        <button
+            class="page-button"
+            @click="prevPage"
+            :disabled="currentPage === 1"
+        >
+          &lt;
+        </button>
+        <button
+            v-for="page in visiblePages"
+            :key="page"
+            :class="['page-button', { active: page === currentPage }]"
+            @click="changePage(page)"
+        >
+          {{ page }}
+        </button>
+        <button
+            class="page-button"
+            @click="nextPage"
+            :disabled="currentPage === totalPages"
+        >
+          &gt;
+        </button>
+        <button
+            class="page-button"
+            @click="changePage(totalPages)"
+            :disabled="currentPage === totalPages"
+        >
+          &gt;&gt;
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.container-wrapper {
-  padding: 24px;
-  background-color: var(--background-color);
+.container {
   min-height: 100vh;
+  background-color: var(--background-color);
+  padding: 2rem;
 }
 
-.content-container {
-  max-width: 1200px;
-  margin: 0 auto;
+.inform-management {
   background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 24px;
-}
-
-.faq-section {
-  margin-bottom: 24px;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f3f4f6;
 }
 
-.add-button {
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
+.header h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
 }
 
-.add-button:hover {
-  background-color: #45a049;
+.filter-section {
+  background-color: #f9fafb;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  margin-bottom: 2rem;
 }
 
-.search-area {
+.search-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.form-group {
   display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  padding: 8px;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.search-area input {
-  flex: 1;
-  border: none;
-  padding: 8px;
+.form-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.form-group input,
+.form-group select {
+  padding: 0.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  background-color: white;
 }
 
 .button-group {
   display: flex;
-  gap: 8px;
+  gap: 0.5rem;
+  justify-content: flex-end;
 }
 
-.search-btn {
+.search-button,
+.reset-button {
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.search-button {
   background-color: #4CAF50;
   color: white;
   border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
 }
 
-.customer-table {
+.search-button:hover {
+  background-color: #45a049;
+}
+
+.reset-button {
+  background-color: #9ca3af;
+  color: white;
+  border: none;
+}
+
+.reset-button:hover {
+  background-color: #6b7280;
+}
+
+.table-container {
+  margin: 2rem 0;
+  overflow-x: auto;
+}
+
+.custom-table {
   width: 100%;
   border-collapse: collapse;
+  background-color: white;
 }
 
-.table-header {
-  background-color: #f0f0f0;
-  border-bottom: 1px solid #ddd;
-}
-
-.table-header th {
+.custom-table th,
+.custom-table td {
+  padding: 1rem;
   text-align: left;
-  padding: 12px;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.table-row {
+.custom-table th {
+  background-color: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+}
+
+.custom-table tbody tr {
   cursor: pointer;
-  border-bottom: 1px solid #ddd;
+  transition: all 0.2s;
 }
 
-.table-row td {
-  padding: 10px;
-  text-align: left;
-}
-
-.table-row td div {
-  margin-bottom: 5px;
+.custom-table tbody tr:hover {
+  background-color: #f0fdf4;
 }
 
 .pagination {
-  margin-top: 20px;
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
 }
 
-.pagination button {
-  margin: 0 5px;
-  padding: 5px 10px;
-  border: none;
-  border-radius: 20px;
-  background-color: #f0f0f0;
-  color: black;
+.page-button {
+  min-width: 2.5rem;
+  height: 2.5rem;
+  padding: 0.5rem;
+  border: 1px solid #e5e7eb;
+  background-color: white;
+  border-radius: 0.5rem;
   cursor: pointer;
+  transition: all 0.2s ease;
+  color: #374151;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.pagination button.active {
+.page-button:hover:not(:disabled) {
+  border-color: #4CAF50;
+  color: #4CAF50;
+  background-color: #f0fdf4;
+}
+
+.page-button.active {
   background-color: #4CAF50;
   color: white;
+  border-color: #4CAF50;
 }
 
-.pagination button:disabled {
+.page-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.pagination span {
-  margin: 0 5px;
-}
-
-.table.table-striped tbody tr:hover {
-  background-color: #CFF7D3 !important;
+.add-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.table.table-striped tbody tr:hover td {
-  background-color: #CFF7D3 !important;
-  color: black !important;
+.add-button:hover {
+  background-color: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
 
-/* Select 스타일링 */
-.sort-select,
-.order-select {
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  background-color: white;
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .inform-management {
+    padding: 1rem;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .search-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .add-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .button-group {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .search-button,
+  .reset-button {
+    width: 100%;
+  }
+
+  .custom-table {
+    font-size: 0.875rem;
+  }
+
+  .custom-table th,
+  .custom-table td {
+    padding: 0.75rem;
+  }
 }
 </style>
