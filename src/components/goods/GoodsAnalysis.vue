@@ -26,6 +26,7 @@ const hasMore = ref(true);
 const searchResults = ref([]);
 const route = useRoute();
 const router = useRouter();
+const suggestions = ref([]);
 
 // 카테고리 관련 상태 추가
 const selectedTopCategory = ref('');
@@ -39,6 +40,45 @@ const selectedGoodsCode = ref('');
 
 const showSearchFilters = ref(false);
 
+const handleSearchInput = async () => {
+  if (!searchWord.value) {
+    suggestions.value = [];
+    return;
+  }
+  try {
+    const response = await getFetch(`/goods/search/${searchWord.value}`);
+    suggestions.value = response.data.data;
+  } catch (error) {
+    console.log('검색어 제안 조회 중 오류 발생:', error);
+    suggestions.value = [];
+  }
+};
+
+// 검색어 하이라이트 처리 함수
+const highlightText = (text) => {
+  if (!searchWord.value) return { before: text, match: '', after: '' };
+  const searchTerm = searchWord.value.toLowerCase();
+  const index = text.toLowerCase().indexOf(searchTerm);
+  if (index === -1) return { before: text, match: '', after: '' };
+
+  const before = text.slice(0, index);
+  const match = text.slice(index, index + searchTerm.length);
+  const after = text.slice(index + searchTerm.length);
+
+  return {
+    before,
+    match,
+    after
+  };
+};
+
+// 검색어 제안 선택 처리 함수
+const selectSuggestion = (item) => {
+  searchWord.value = item.goodsName;
+  suggestions.value = [];
+  handleSearch();
+};
+
 // 상품 선택 핸들러 추가
 const handleGoodsSelect = (goodsCode) => {
   selectedGoodsCode.value = goodsCode;
@@ -49,7 +89,6 @@ const handleGoodsSelect = (goodsCode) => {
     console.error("url 업데이트 중 오류: ", err);
   });
 };
-
 
 // 상위 카테고리 변경 핸들러
 const handleTopCategoryChange = async () => {
@@ -341,11 +380,27 @@ const handleCapture = async () => {
             <div class="search-form">
               <div class="form-group">
                 <label>상품명</label>
-                <input
-                    type="text"
-                    v-model="searchWord"
-                    placeholder="상품명을 입력하세요"
-                >
+                <div class="dropdown-container">
+                  <input
+                      type="text"
+                      v-model="searchWord"
+                      @input="handleSearchInput"
+                      placeholder="상품명을 입력하세요"
+                  >
+                  <!-- 연관검색어 드롭다운 -->
+                  <div v-if="suggestions.length > 0" class="dropdown-content">
+                    <div
+                        v-for="item in suggestions"
+                        :key="item.goodsCode"
+                        @click="selectSuggestion(item)"
+                        class="dropdown-item"
+                    >
+                      {{ highlightText(item.goodsName).before }}
+                      <span class="highlight">{{ highlightText(item.goodsName).match }}</span>
+                      {{ highlightText(item.goodsName).after }}
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <div class="form-group">
@@ -475,9 +530,15 @@ const handleCapture = async () => {
   gap: 20px;
 }
 
-.comparison-container,
+.comparison-container {
+  flex: 0 0 25%;
+  background: #f8f9fa;
+  border-radius: 4px;
+  padding: 16px;
+}
+
 .sales-container {
-  flex: 1;
+  flex: 0 0 75%;
   background: #f8f9fa;
   border-radius: 4px;
   padding: 16px;
