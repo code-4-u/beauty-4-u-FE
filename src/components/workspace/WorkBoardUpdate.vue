@@ -4,12 +4,9 @@ import {useRoute, useRouter} from 'vue-router';
 import {getFetch, postFetch, putFetch} from "@/stores/apiClient.js";
 import BoardEditor from "@/components/board/editor/BoardEditor.vue";
 import ImageManagement from "@/components/board/editor/ImageManagement.vue";
-import { useAuthStore } from '@/stores/auth.js';
 
 const router = useRouter();
 const route = useRoute();
-const useAuth = useAuthStore();
-const teamspaceId = computed(() => useAuth.teamspaceId);
 
 const teamBoardId = route.params['teamBoardId'];
 const teamBoardTitle = ref('');
@@ -123,7 +120,7 @@ const goBack = () => {
       URL.revokeObjectURL(file.tempUrl);
     }
   });
-  router.push(`/teamspace/${teamspaceId.value}/board`);
+  router.push(`/workspace/board`);
 };
 
 const updateTeamBoard = async () => {
