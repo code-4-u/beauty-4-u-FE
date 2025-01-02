@@ -108,68 +108,84 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="container-wrapper">
-    <div class="content-container">
-      <div class="qna-section">
-        <div class="header">
-          <h2>Q&A</h2>
-          <button class="add-button" @click="goToQnaSave">
-            + 질문 등록
-          </button>
-        </div>
+  <div class="container">
+    <div class="inform-management">
+      <div class="header">
+        <h2>Q&A</h2>
+        <button class="add-button" @click="goToQnaSave">
+          + 질문 등록
+        </button>
+      </div>
 
-        <div class="search-area">
-          <input
-              type="text"
-              placeholder="질문 제목 입력"
-              v-model="qnaTitle"
-              @input="fetchQnas"
-          />
-          <div class="button-group">
-            <button class="search-btn" @click="fetchQnas" @keyup.enter="fetchQnas">검색</button>
-
-            <label>
-              시작 날짜
-              <input type="date" v-model="startDate" @click="fetchQnas"/>
-            </label>
-
-            <label>
-              종료 날짜
-              <input type="date" v-model="endDate" @click="fetchQnas"/>
-            </label>
-
-            <select v-model="sort" class="sort-select" @change="fetchQnas">
-              <option value="" selected>정렬 기준</option>
+      <!-- 필터링 섹션 -->
+      <div class="filter-section">
+        <div class="search-bar">
+          <div class="form-group">
+            <label>질문명</label>
+            <input
+                type="text"
+                placeholder="질문 제목 입력"
+                v-model="qnaTitle"
+                @input="fetchQnas"
+            />
+          </div>
+          <div class="form-group">
+            <label>시작일</label>
+            <input
+                type="date"
+                v-model="startDate"
+                @change="fetchQnas"
+            />
+          </div>
+          <div class="form-group">
+            <label>종료일</label>
+            <input
+                type="date"
+                v-model="endDate"
+                @change="fetchQnas"
+            />
+          </div>
+          <div class="form-group">
+            <label>정렬 기준</label>
+            <select v-model="sort" @change="fetchQnas">
+              <option value="">선택</option>
               <option value="title">제목명</option>
               <option value="view">조회수</option>
               <option value="date">등록일</option>
             </select>
-
-            <select v-model="order" class="order-select" @change="fetchQnas">
-              <option value="" selected>정렬 방향</option>
+          </div>
+          <div class="form-group">
+            <label>정렬 방향</label>
+            <select v-model="order" @change="fetchQnas">
+              <option value="">선택</option>
               <option value="asc">오름차순</option>
               <option value="desc">내림차순</option>
             </select>
           </div>
         </div>
-
-        <div class="tag-area">
-      <span v-if="startDate" class="tag">
-        시작 기간: {{ startDate }}
-        <i class="icon-close" @click="removeTag('startDate')">✕</i>
-      </span>
-
-          <span v-if="endDate" class="tag">
-        종료 기간: {{ endDate }}
-        <i class="icon-close" @click="removeTag('endDate')">✕</i>
-      </span>
+        <div class="button-group">
+          <button class="search-button" @click="fetchQnas">검색</button>
+          <button class="reset-button" @click="resetFilters">초기화</button>
         </div>
       </div>
 
-      <div class="customer-table">
-        <table class="table table-striped">
+      <!-- 선택된 필터 태그 -->
+      <div class="tag-area" v-if="startDate || endDate">
+        <span v-if="startDate" class="badge">
+          시작 기간: {{ startDate }}
+          <i class="icon-close" @click="removeTag('startDate')">✕</i>
+        </span>
+        <span v-if="endDate" class="badge">
+          종료 기간: {{ endDate }}
+          <i class="icon-close" @click="removeTag('endDate')">✕</i>
+        </span>
+      </div>
+
+      <!-- 테이블 섹션 -->
+      <div class="table-container">
+        <table class="custom-table">
           <thead>
-          <tr class="table-header">
+          <tr>
             <th>등록일</th>
             <th>질문</th>
             <th>작성자</th>
@@ -181,136 +197,199 @@ onMounted(() => {
           <tr
               v-for="qna in qnas"
               :key="qna.inquiryId"
-              class="table-row"
               @click="goToQnaDetail(qna.inquiryId, qna.inquiryViewcount)"
           >
-            <td>
-              <div>{{ formatDate(qna.createdDate) }}</div>
-            </td>
-            <td>
-              <div>{{ qna.inquiryTitle }}</div>
-            </td>
-            <td>
-              <div>{{ qna.userName }}</div>
-            </td>
+            <td>{{ formatDate(qna.createdDate) }}</td>
+            <td>{{ qna.inquiryTitle }}</td>
+            <td>{{ qna.userName }}</td>
             <td>
               <div :class="['status-badge', qna.inquiryReplyYn === 'Y' ? 'answered' : 'waiting']">
                 {{ qna.inquiryReplyYn === 'Y' ? '답변완료' : '답변대기' }}
               </div>
             </td>
-            <td>
-              <div>{{ qna.inquiryViewcount }}</div>
-            </td>
+            <td>{{ qna.inquiryViewcount }}</td>
           </tr>
           </tbody>
         </table>
+      </div>
 
-        <div class="pagination justify-content-center">
-          <button class="btn btn-light" @click="prevPage" :disabled="currentPage === 1">이전</button>
-          <span v-for="page in visiblePages" :key="page">
+      <!-- 페이지네이션 -->
+      <div class="pagination">
         <button
-            class="btn" :class="{ active: page === currentPage }"
+            class="page-button"
+            @click="changePage(1)"
+            :disabled="currentPage === 1"
+        >
+          &lt;&lt;
+        </button>
+        <button
+            class="page-button"
+            @click="prevPage"
+            :disabled="currentPage === 1"
+        >
+          &lt;
+        </button>
+        <button
+            v-for="page in visiblePages"
+            :key="page"
+            :class="['page-button', { active: page === currentPage }]"
             @click="changePage(page)"
-        >{{ page }}</button>
-      </span>
-          <button class="btn btn-light" @click="nextPage" :disabled="currentPage === totalPages">다음</button>
-        </div>
+        >
+          {{ page }}
+        </button>
+        <button
+            class="page-button"
+            @click="nextPage"
+            :disabled="currentPage === totalPages"
+        >
+          &gt;
+        </button>
+        <button
+            class="page-button"
+            @click="changePage(totalPages)"
+            :disabled="currentPage === totalPages"
+        >
+          &gt;&gt;
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.container-wrapper {
-  padding: 24px;
-  background-color: var(--background-color);
+.container {
   min-height: 100vh;
+  background-color: var(--background-color);
+  padding: 2rem;
 }
 
-.content-container {
-  max-width: 1200px;
-  margin: 0 auto;
+.inform-management {
   background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 24px;
-}
-
-.stat-value strong {
-  font-size: 24px;
-  font-weight: 600;
-}
-
-.qna-section {
-  margin-bottom: 24px;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f3f4f6;
 }
 
-.add-button {
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
+.header h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
 }
 
-.search-area {
+.filter-section {
+  background-color: #f9fafb;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.search-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.form-group {
   display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  padding: 8px;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.search-area input {
-  flex: 1;
-  border: none;
-  padding: 8px;
+.form-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.form-group input,
+.form-group select {
+  padding: 0.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  background-color: white;
 }
 
 .button-group {
   display: flex;
-  gap: 8px;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.search-button,
+.reset-button {
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.search-button {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+}
+
+.search-button:hover {
+  background-color: #45a049;
+}
+
+.reset-button {
+  background-color: #9ca3af;
+  color: white;
+  border: none;
+}
+
+.reset-button:hover {
+  background-color: #6b7280;
 }
 
 .tag-area {
   display: flex;
-  gap: 8px;
+  gap: 0.5rem;
   flex-wrap: wrap;
-  margin-bottom: 16px;
+  margin-bottom: 1rem;
 }
 
-.tag {
+.badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
   display: inline-flex;
   align-items: center;
-  height: 24px;
-  padding: 0 8px;
-  border-radius: 4px;
-  font-size: 13px;
-  background: #f0f9ff;
-  color: #0288d1;
-  cursor: pointer;
+  gap: 0.5rem;
+  background-color: #dbeafe;
+  color: #1e40af;
 }
 
 .icon-close {
-  font-size: 12px;
-  margin-left: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
 }
 
+.icon-close:hover {
+  opacity: 0.7;
+}
+
+/* 상태 배지 스타일 */
 .status-badge {
   display: inline-block;
-  padding: 4px 8px;
-  border-radius: 12px;
-  font-size: 12px;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
   font-weight: 500;
 }
 
@@ -324,69 +403,140 @@ onMounted(() => {
   color: #2e7d32;
 }
 
-.customer-table {
+.table-container {
+  margin: 2rem 0;
+  overflow-x: auto;
+}
+
+.custom-table {
   width: 100%;
   border-collapse: collapse;
+  background-color: white;
 }
 
-.table-header {
-  background-color: #f0f0f0;
-  border-bottom: 1px solid #ddd;
-}
-
-.table-header th {
+.custom-table th,
+.custom-table td {
+  padding: 1rem;
   text-align: left;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.table-row {
+.custom-table th {
+  background-color: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+}
+
+.custom-table tbody tr {
   cursor: pointer;
-  border-bottom: 1px solid #ddd;
+  transition: all 0.2s;
 }
 
-.table-row td {
-  padding: 10px;
-  text-align: left;
-}
-
-.table-row td div {
-  margin-bottom: 5px;
+.custom-table tbody tr:hover {
+  background-color: #f0fdf4;
 }
 
 .pagination {
-  margin-top: 20px;
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
 }
 
-.pagination button {
-  margin: 0 5px;
-  padding: 5px 10px;
-  border: none;
-  border-radius: 20px;
-  background-color: #f0f0f0;
-  color: black;
+.page-button {
+  min-width: 2.5rem;
+  height: 2.5rem;
+  padding: 0.5rem;
+  border: 1px solid #e5e7eb;
+  background-color: white;
+  border-radius: 0.5rem;
   cursor: pointer;
+  transition: all 0.2s ease;
+  color: #374151;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.pagination button.active {
+.page-button:hover:not(:disabled) {
+  border-color: #4CAF50;
+  color: #4CAF50;
+  background-color: #f0fdf4;
+}
+
+.page-button.active {
   background-color: #4CAF50;
   color: white;
+  border-color: #4CAF50;
 }
 
-.pagination span {
-  margin: 0 5px;
-  padding: 5px 10px;
-  border-radius: 20px;
-  background-color: #f0f0f0;
+.page-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.table.table-striped tbody tr:hover {
-  background-color: #CFF7D3 !important;
-  color: white !important;
+.add-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.table.table-striped tbody tr:hover td {
-  background-color: #CFF7D3 !important;
-  color: black !important;
+.add-button:hover {
+  background-color: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+
+  .inform-management {
+    padding: 1rem;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .search-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .add-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .button-group {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .search-button,
+  .reset-button {
+    width: 100%;
+  }
+
+  .custom-table {
+    font-size: 0.875rem;
+  }
+
+  .custom-table th,
+  .custom-table td {
+    padding: 0.75rem;
+  }
 }
 </style>
