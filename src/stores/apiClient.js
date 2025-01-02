@@ -105,5 +105,7 @@ const getFetch = (endpoint) => request('GET', endpoint);
 const postFetch = (endpoint, data) => request('POST', endpoint, data);
 const putFetch = (endpoint, data) => request('PUT', endpoint, data);
 const delFetch = (endpoint) => request('DELETE', endpoint);
+const delFetchData = (endpoint, data) => request('DELETE', endpoint, data);
 
-export { getFetch, postFetch, putFetch, delFetch };
+
+export { getFetch, postFetch, putFetch, delFetch, delFetchData };
