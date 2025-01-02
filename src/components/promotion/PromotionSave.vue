@@ -509,7 +509,7 @@ onMounted(async () => {
                             @click.stop="toggleProduct(product)"
                             title="상품 제거"
                         >
-                          ×
+                          <span class="remove-icon">×</span>
                         </button>
                       </div>
                     </div>
@@ -888,6 +888,46 @@ onMounted(async () => {
   background-color: #45a049;
 }
 
+.selected-product-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.remove-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  color: #9ca3af;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.remove-button:hover {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #ef4444;
+  transform: scale(1.05);
+}
+
+.remove-button:active {
+  transform: scale(0.95);
+}
+
+.remove-icon {
+  font-size: 18px;
+  line-height: 1;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
 @media (max-width: 768px) {
   .page-container {
     padding: 16px;
@@ -939,6 +979,52 @@ onMounted(async () => {
 .products-grid::-webkit-scrollbar-thumb:hover,
 .selected-products-list::-webkit-scrollbar-thumb:hover {
   background: #cdcdcd;
+}
+
+.discount-input-wrapper {
+  position: relative;
+  width: 65px;
+  height: 32px;
+  background: #f3f4f6;
+  border-radius: 16px;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  transition: all 0.2s ease;
+}
+
+.discount-input-wrapper:hover {
+  background: #e5e7eb;
+}
+
+.discount-input {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  padding: 0 24px 0 12px;
+  font-size: 0.875rem;
+  color: #374151;
+  text-align: right;
+  font-weight: 500;
+}
+
+.discount-input:focus {
+  outline: none;
+}
+
+.discount-input-wrapper:focus-within {
+  background: white;
+  box-shadow: 0 0 0 2px #4CAF50;
+}
+
+.discount-symbol {
+  position: absolute;
+  right: 12px;
+  color: #6b7280;
+  font-size: 0.75rem;
+  font-weight: 500;
+  pointer-events: none;
 }
 
 /* 숫자 입력 화살표 제거 */
