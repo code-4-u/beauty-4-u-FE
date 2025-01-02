@@ -27,6 +27,7 @@ const products = ref([])
 const loading = ref(false)
 const error = ref(null)
 const brands = ref([])
+const totalItems = ref(0)
 
 // API 호출 함수들
 const fetchBrands = async () => {
@@ -54,9 +55,11 @@ const search = async () => {
 
     const response = await getFetch(`/goods/search?${queryParams.toString()}`)
     if (response?.data?.data) {
-      products.value = response.data.data
+      products.value = response.data.data.goodsList
+      totalItems.value = response.data.data.totalCount
     } else {
       products.value = []
+      totalItems.value = 0
     }
   } catch (e) {
     error.value = '상품 검색 중 오류가 발생했습니다.'

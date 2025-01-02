@@ -93,7 +93,6 @@ const search = async () => {
     })
 
     const response = await getFetch(`/goods/search?${queryParams.toString()}`)
-    console.log('response: ', response.data.data);
     if (response?.data?.data) {
       products.value = response.data.data.goodsList
       totalItems.value = response.data.data.totalCount
