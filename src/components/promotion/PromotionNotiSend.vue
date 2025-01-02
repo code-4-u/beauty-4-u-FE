@@ -1,5 +1,5 @@
 <script setup>
-import {ref, onMounted, computed} from 'vue'
+import {ref, onMounted, computed, watch, onUnmounted} from 'vue'
 import {getFetch, postFetch} from "@/stores/apiClient.js";
 import {FontAwesomeIcon} from "@fortawesome/vue-fontawesome";
 import PromotionNotiModal from "@/components/promotion/PromotionNotiModal.vue";
@@ -22,6 +22,10 @@ const selectedPromotion = ref('');
 const currAnalysisNumber = ref(0);
 const isLoadingModalOpen = ref(false);  // 로딩 모달 상태 추가
 
+//타이머 관련 코드 추가
+const timer = ref(0)
+const timerInterval = ref(null)
+
 const handlePromotionSelect = (promotion) => {
   selectedPromotion.value = promotion;
 }
@@ -41,6 +45,38 @@ const pageNumbers = computed(() => {
   const end = Math.min(currentPageGroup.value * 5, totalPages.value)
   return Array.from({length: end - start + 1}, (_, i) => start + i)
 });
+
+const formattedTime = computed(() => {
+  const minutes = Math.floor(timer.value / 60)
+  const seconds = timer.value % 60
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`
+})
+
+// 타이머 시작 함수
+const startTimer = () => {
+  timer.value = 0
+  timerInterval.value = setInterval(() => {
+    timer.value++
+  }, 1000)
+}
+
+// 타이머 정지 함수
+const stopTimer = () => {
+  if (timerInterval.value) {
+    clearInterval(timerInterval.value)
+    timerInterval.value = null
+    timer.value = 0
+  }
+}
+
+// 로딩 모달 상태 감시
+watch(isLoadingModalOpen, (newValue) => {
+  if (newValue) {
+    startTimer()
+  } else {
+    stopTimer()
+  }
+})
 
 // API 호출 함수
 const fetchCustomer = async () => {
@@ -79,7 +115,7 @@ const sendNotiCustomer = async () => {
 const findCurrentAnalysisNumber = async () => {
   try {
     const response = await getFetch(`/promotionNoti/number`);
-    currAnalysisNumber.value = response.data;
+    currAnalysisNumber.value = response.data.data;
   } catch (e) {
     console.log("최근 분석 번호를 조회하는데 실패하였습니다.", e)
   }
@@ -115,6 +151,11 @@ const formatDate = (dateString) => {
 onMounted(() => {
   findCurrentAnalysisNumber();
 })
+
+// 컴포넌트 언마운트 시 타이머 정리
+onUnmounted(() => {
+  stopTimer()
+})
 </script>
 
 <template>
@@ -140,7 +181,9 @@ onMounted(() => {
       <div v-if="isLoadingModalOpen" class="modal-overlay">
         <div class="loading-modal">
           <div class="spinner"></div>
+          <div class="timer">{{ formattedTime }}</div>
           <p>재추천 실행중...</p>
+          <p class="info-text">고객 추천은 약 1~3분 정도 소요됩니다.</p>
         </div>
       </div>
 
@@ -172,7 +215,7 @@ onMounted(() => {
             <button
                 class="search-button"
                 @click="runningRecommend">
-              고객별 재추천 실행
+              고객별 추천 실행
             </button>
             <button
                 class="search-button"
@@ -586,5 +629,31 @@ td {
 @keyframes spin {
   0% { transform: rotate(0deg); }
   100% { transform: rotate(360deg); }
+}
+
+.timer {
+  font-size: 1.2em;
+  margin: 10px 0;
+  font-weight: bold;
+  color: #4CAF50;
+}
+
+.info-text {
+  font-size: 0.9em;
+  color: #666;
+  margin-top: 8px;
+}
+
+.search-button:disabled {
+  background-color: #cccccc;  /* 회색 배경 */
+  cursor: not-allowed;        /* 비활성화된 커서 스타일 */
+  opacity: 0.7;              /* 약간 투명하게 */
+}
+
+/* hover 효과도 방지하기 위한 스타일 */
+.search-button:disabled:hover {
+  background-color: #cccccc;
+  transform: none;
+  box-shadow: none;
 }
 </style>
