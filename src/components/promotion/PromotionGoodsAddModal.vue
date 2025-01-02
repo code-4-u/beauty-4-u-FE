@@ -107,7 +107,7 @@ onMounted(() => {
       </div>
 
       <!-- 검색 필터 -->
-      <div class="filter-section">
+      <form class="filter-section" @submit.prevent="search">
         <div class="search-bar">
           <div class="form-group">
             <label>상품명</label>
@@ -116,7 +116,6 @@ onMounted(() => {
                 type="text"
                 placeholder="상품명 입력"
                 class="form-input"
-                @keypress.enter.prevent="search"
             />
           </div>
 
@@ -137,19 +136,18 @@ onMounted(() => {
 
         <div class="button-group">
           <button
-              type="button"
-              class="search-button"
-              @click.prevent="search">
+              type="submit"
+              class="search-button">
             검색
           </button>
           <button
               type="button"
               class="reset-button"
-              @click.prevent="resetSearch">
+              @click="resetSearch">
             초기화
           </button>
         </div>
-      </div>
+      </form>
 
       <!-- 상품 목록 -->
       <div class="products-grid">
