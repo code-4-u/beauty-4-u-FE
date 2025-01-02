@@ -24,15 +24,22 @@ const selectedBrand = ref(null)
 const totalItems = ref(0)
 const totalPages = ref(0)
 
+const isLoading = ref(false)
+const hasMore = ref(true)
+
+
 // 상품 검색 관련 상태
 const searchFilters = reactive({
   goodsName: '',
   brandCode: '',
-  page: 1,
-  count: 8,
+  page: 0,  // 0부터 시작
+  count: 12,  // 한 번에 가져올 개수
   sort: '',
   order: 'desc'
 })
+const currentPage = ref(1)
+const itemsPerPage = 10
+const displayedProducts = ref([])
 
 const products = ref([])
 const loading = ref(false)
@@ -56,7 +63,7 @@ const fetchPromotionTypes = async () => {
       sort: '',
       order: '',
       page: 1,
-      count: 20
+      count: 4000
     })
     const response = await getFetch(`/promotionType?${queryParams}`)
     promotionTypes.value = response.data.data
@@ -66,27 +73,45 @@ const fetchPromotionTypes = async () => {
 }
 
 const handleSearchInput = async () => {
-  if (!searchTerm.value) {
+  if (!searchFilters.goodsName) {
     suggestions.value = []
     return
   }
   try {
-    const response = await getFetch(`/goods/search/${searchTerm.value}`)
+    const response = await getFetch(`/goods/search/${searchFilters.goodsName}`)
     suggestions.value = response.data.data
   } catch (error) {
     suggestions.value = []
   }
 }
 
-const search = async () => {
-  loading.value = true
-  error.value = null
+
+// highlightText 함수 추가
+const highlightText = (text) => {
+  if (!searchFilters.goodsName) return { before: text, match: '', after: '' }
+  const searchTerm = searchFilters.goodsName.toLowerCase()
+  const index = text.toLowerCase().indexOf(searchTerm)
+  if (index === -1) return { before: text, match: '', after: '' }
+
+  return {
+    before: text.slice(0, index),
+    match: text.slice(index, index + searchTerm.length),
+    after: text.slice(index + searchTerm.length)
+  }
+}
+
+const search = async (isInitialSearch = true) => {
+  if (isInitialSearch) {
+    loading.value = true
+    searchFilters.page = 0
+    products.value = []
+  }
 
   try {
     const queryParams = new URLSearchParams({
       goodsName: searchFilters.goodsName,
       brandCode: searchFilters.brandCode,
-      page: searchFilters.page - 1,
+      page: searchFilters.page,
       count: searchFilters.count,
       sort: searchFilters.sort,
       order: searchFilters.order
@@ -94,12 +119,11 @@ const search = async () => {
 
     const response = await getFetch(`/goods/search?${queryParams.toString()}`)
     if (response?.data?.data) {
-      products.value = response.data.data.goodsList
+      const newProducts = response.data.data.goodsList
+      products.value = isInitialSearch ? newProducts : [...products.value, ...newProducts]
       totalItems.value = response.data.data.totalCount
-    } else {
-      products.value = []
-      totalItems.value = 0
-      totalPages.value = 0
+      displayedProducts.value = products.value
+      hasMore.value = products.value.length < totalItems.value
     }
   } catch (e) {
     error.value = '상품 검색 중 오류가 발생했습니다.'
@@ -109,15 +133,37 @@ const search = async () => {
   }
 }
 
+
+const handleScroll = async (e) => {
+  const element = e.target
+  if (!loading.value && hasMore.value && element.scrollHeight - element.scrollTop <= element.clientHeight * 1.5) {
+    searchFilters.page += 1
+    await search(false)
+  }
+}
+
+const updateDisplayedProducts = () => {
+  const start = 0
+  const end = currentPage.value * itemsPerPage
+  displayedProducts.value = products.value.slice(start, end)
+}
+
+onMounted(async () => {
+  await Promise.all([
+    fetchBrands(),
+    fetchPromotionTypes()
+  ])
+})
+
 // 브랜드 선택 처리
 const selectBrand = async (brand) => {
   selectedBrand.value = brand
   await search()
 }
 
-// 검색어 제안 선택 처리
+// selectSuggestion도 수정
 const selectSuggestion = (item) => {
-  searchTerm.value = item.goodsName
+  searchFilters.goodsName = item.goodsName
   suggestions.value = []
   search()
 }
@@ -372,13 +418,27 @@ onMounted(async () => {
                 <div class="search-bar">
                   <div class="form-group">
                     <label>상품명</label>
-                    <input
-                        v-model="searchFilters.goodsName"
-                        type="text"
-                        placeholder="상품명 입력"
-                        class="form-input"
-                        @keypress.enter.prevent="search"
-                    />
+                    <div class="dropdown-container">
+                      <input
+                          v-model="searchFilters.goodsName"
+                          @input="handleSearchInput"
+                          type="text"
+                          placeholder="상품명 입력"
+                          class="form-input"
+                      />
+                      <div v-if="suggestions.length > 0" class="dropdown-content">
+                        <div
+                            v-for="item in suggestions"
+                            :key="item.goodsCode"
+                            @click="selectSuggestion(item)"
+                            class="dropdown-item"
+                        >
+                          {{ highlightText(item.goodsName).before }}
+                          <span class="highlight">{{ highlightText(item.goodsName).match }}</span>
+                          {{ highlightText(item.goodsName).after }}
+                        </div>
+                      </div>
+                    </div>
                   </div>
 
                   <div class="form-group">
@@ -414,8 +474,8 @@ onMounted(async () => {
 
               <!-- 상품 목록 -->
               <div class="products-section">
-                <div class="products-grid">
-                  <div v-if="loading" class="loading-indicator">
+                <div class="products-grid" @scroll="handleScroll">
+                  <div v-if="loading && products.length === 0" class="loading-indicator">
                     검색중...
                   </div>
                   <div v-else-if="products.length === 0 && !error" class="empty-state">
@@ -423,7 +483,7 @@ onMounted(async () => {
                   </div>
                   <template v-else>
                     <div
-                        v-for="product in products"
+                        v-for="product in displayedProducts"
                         :key="product.goodsCode"
                         :class="['product-item', { selected: isProductSelected(product.goodsCode) }]"
                         @click="toggleProduct(product)"
@@ -708,6 +768,9 @@ onMounted(async () => {
   padding: 0.5rem;
   background: #f9fafb;
   border-radius: 4px;
+  height: 400px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .product-item {
@@ -1043,5 +1106,38 @@ onMounted(async () => {
 
 .discount-input[type=number] {
   -moz-appearance: textfield;
+}
+
+.dropdown-container {
+  position: relative;
+  width: 100%;
+}
+
+.dropdown-content {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  max-height: 200px;
+  overflow-y: auto;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+}
+
+.dropdown-item {
+  padding: 8px 12px;
+  cursor: pointer;
+}
+
+.dropdown-item:hover {
+  background-color: #f5f5f5;
+}
+
+.highlight {
+  font-weight: bold;
+  color: #4CAF50;
 }
 </style>
