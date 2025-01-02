@@ -121,73 +121,85 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="container-wrapper">
-    <div class="content-container">
-      <div class="inform-section">
-        <div class="header">
-          <h2>공지사항</h2>
-          <!-- 공지사항 등록 버튼에 v-if 조건 추가 -->
-          <button
-              v-if="userStore.userRole === 'ADMIN'"
-              class="add-button"
-              @click="goToInformSave"
-          >
-            + 공지사항 등록
-          </button>
-        </div>
+  <div class="container">
+    <div class="inform-management">
+      <div class="header">
+        <h2>공지사항</h2>
+        <button
+            v-if="userStore.userRole === 'ADMIN'"
+            class="add-button"
+            @click="goToInformSave"
+        >
+          + 공지사항 등록
+        </button>
+      </div>
 
-        <div class="search-area">
-          <input
-              type="text"
-              placeholder="공지사항 제목 입력"
-              v-model="informTitle"
-              @input="fetchInforms"
-          />
-          <div class="button-group">
-            <button class="search-btn" @click="fetchInforms" @keyup.enter="fetchInforms">검색</button>
-
-            <label>
-              시작 날짜
-              <input type="date" v-model="startDate" @click="fetchInforms"/>
-            </label>
-
-            <label>
-              종료 날짜
-              <input type="date" v-model="endDate" @click="fetchInforms"/>
-            </label>
-
-            <select v-model="sort" class="sort-select" @change="fetchInforms">
-              <option value="" selected>정렬 기준</option>
+      <div class="filter-section">
+        <div class="search-bar">
+          <div class="form-group">
+            <label>공지사항명</label>
+            <input
+                type="text"
+                placeholder="공지사항 제목 입력"
+                v-model="informTitle"
+                @input="fetchInforms"
+            />
+          </div>
+          <div class="form-group">
+            <label>시작일</label>
+            <input
+                type="date"
+                v-model="startDate"
+                @change="fetchInforms"
+            />
+          </div>
+          <div class="form-group">
+            <label>종료일</label>
+            <input
+                type="date"
+                v-model="endDate"
+                @change="fetchInforms"
+            />
+          </div>
+          <div class="form-group">
+            <label>정렬 기준</label>
+            <select v-model="sort" @change="fetchInforms">
+              <option value="">선택</option>
               <option value="title">제목명</option>
               <option value="view">조회수</option>
               <option value="date">등록일</option>
             </select>
-
-            <select v-model="order" class="order-select" @change="fetchInforms">
-              <option value="" selected>정렬 방향</option>
+          </div>
+          <div class="form-group">
+            <label>정렬 방향</label>
+            <select v-model="order" @change="fetchInforms">
+              <option value="">선택</option>
               <option value="asc">오름차순</option>
               <option value="desc">내림차순</option>
             </select>
           </div>
         </div>
-
-        <div class="tag-area">
-          <span v-if="startDate" class="tag">
-            시작 기간: {{ startDate }}
-            <i class="icon-close" @click="removeTag('startDate')">✕</i>
-          </span>
-
-          <span v-if="endDate" class="tag">
-            종료 기간: {{ endDate }}
-            <i class="icon-close" @click="removeTag('endDate')">✕</i>
-          </span>
+        <div class="button-group">
+          <button class="search-button" @click="fetchInforms">검색</button>
+          <button class="reset-button" @click="resetFilters">초기화</button>
         </div>
       </div>
 
-      <div class="customer-table">
-        <table class="table table-striped">
+      <div class="tag-area" v-if="startDate || endDate">
+        <span v-if="startDate" class="badge">
+          시작 기간: {{ startDate }}
+          <i class="icon-close" @click="removeTag('startDate')">✕</i>
+        </span>
+        <span v-if="endDate" class="badge">
+          종료 기간: {{ endDate }}
+          <i class="icon-close" @click="removeTag('endDate')">✕</i>
+        </span>
+      </div>
+
+      <div class="table-container">
+        <table class="custom-table">
           <thead>
-          <tr class="table-header">
+          <tr>
             <th>등록일</th>
             <th>공지사항</th>
             <th>작성자</th>
@@ -198,192 +210,321 @@ onMounted(() => {
           <tr
               v-for="inform in informs"
               :key="inform.informId"
-              class="table-row"
               @click="goToInformDetail(inform.informId, inform.informViewcount)"
           >
-            <td>
-              <div>{{ formatDate(inform.createdDate) }}</div>
-            </td>
-            <td>
-              <div>{{ inform.informTitle }}</div>
-            </td>
-            <td>
-              <div>{{ inform.userName }}</div>
-            </td>
-            <td>
-              <div>{{ inform.informViewcount }}</div>
-            </td>
+            <td>{{ formatDate(inform.createdDate) }}</td>
+            <td>{{ inform.informTitle }}</td>
+            <td>{{ inform.userName }}</td>
+            <td>{{ inform.informViewcount }}</td>
           </tr>
           </tbody>
         </table>
+      </div>
 
-        <div class="pagination justify-content-center">
-          <button class="btn btn-light" @click="prevPage" :disabled="currentPage === 1">이전</button>
-          <span v-for="page in visiblePages" :key="page">
-            <button
-                class="btn"
-                :class="{ active: page === currentPage }"
-                @click="changePage(page)"
-            >{{ page }}</button>
-          </span>
-          <button class="btn btn-light" @click="nextPage" :disabled="currentPage === totalPages">다음</button>
-        </div>
+      <div class="pagination">
+        <button
+            class="page-button"
+            @click="changePage(1)"
+            :disabled="currentPage === 1"
+        >
+          &lt;&lt;
+        </button>
+        <button
+            class="page-button"
+            @click="prevPage"
+            :disabled="currentPage === 1"
+        >
+          &lt;
+        </button>
+        <button
+            v-for="page in visiblePages"
+            :key="page"
+            :class="['page-button', { active: page === currentPage }]"
+            @click="changePage(page)"
+        >
+          {{ page }}
+        </button>
+        <button
+            class="page-button"
+            @click="nextPage"
+            :disabled="currentPage === totalPages"
+        >
+          &gt;
+        </button>
+        <button
+            class="page-button"
+            @click="changePage(totalPages)"
+            :disabled="currentPage === totalPages"
+        >
+          &gt;&gt;
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-.container-wrapper {
-  padding: 24px;
-  background-color: var(--background-color);
+.container {
   min-height: 100vh;
+  background-color: var(--background-color);
+  padding: 2rem;
 }
 
-.content-container {
-  max-width: 1200px;
-  margin: 0 auto;
+.inform-management {
   background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 24px;
-}
-
-.stat-value strong {
-  font-size: 24px;
-  font-weight: 600;
-}
-
-.inform-section {
-  margin-bottom: 24px;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #f3f4f6;
+}
+
+.header h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #111827;
 }
 
 .add-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
   background-color: #4CAF50;
   color: white;
   border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
-.search-area {
+.add-button:hover {
+  background-color: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.filter-section {
+  background-color: #f9fafb;
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.search-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.form-group {
   display: flex;
-  gap: 8px;
-  margin-bottom: 8px;
-  background: white;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  padding: 8px;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
-.search-area input {
-  flex: 1;
-  border: none;
-  padding: 8px;
+.form-group label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.form-group input,
+.form-group select {
+  padding: 0.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.375rem;
+  background-color: white;
 }
 
 .button-group {
   display: flex;
-  gap: 8px;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.search-button,
+.reset-button {
+  padding: 0.5rem 1rem;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.search-button {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+}
+
+.search-button:hover {
+  background-color: #45a049;
+}
+
+.reset-button {
+  background-color: #9ca3af;
+  color: white;
+  border: none;
+}
+
+.reset-button:hover {
+  background-color: #6b7280;
 }
 
 .tag-area {
   display: flex;
-  gap: 8px;
+  gap: 0.5rem;
   flex-wrap: wrap;
-  margin-bottom: 16px;
+  margin-bottom: 1rem;
 }
 
-.tag {
+.badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
   display: inline-flex;
   align-items: center;
-  height: 24px;
-  padding: 0 8px;
-  border-radius: 4px;
-  font-size: 13px;
-  background: #f0f9ff;
-  color: #0288d1;
-  cursor: pointer;
+  gap: 0.5rem;
+  background-color: #dbeafe;
+  color: #1e40af;
 }
 
 .icon-close {
-  font-size: 12px;
-  margin-left: 4px;
+  cursor: pointer;
+  font-size: 0.75rem;
 }
 
-.customer-table {
+.icon-close:hover {
+  opacity: 0.7;
+}
+
+.table-container {
+  margin: 2rem 0;
+  overflow-x: auto;
+}
+
+.custom-table {
   width: 100%;
   border-collapse: collapse;
+  background-color: white;
 }
 
-.table-header {
-  background-color: #f0f0f0;
-  border-bottom: 1px solid #ddd;
-}
-
-.table-header th {
+.custom-table th,
+.custom-table td {
+  padding: 1rem;
   text-align: left;
+  border-bottom: 1px solid #e5e7eb;
 }
 
-.table-row {
+.custom-table th {
+  background-color: #f9fafb;
+  font-weight: 600;
+  color: #374151;
+}
+
+.custom-table tbody tr {
   cursor: pointer;
-  border-bottom: 1px solid #ddd;
+  transition: all 0.2s;
 }
 
-.table-row td {
-  padding: 10px;
-  text-align: left;
-}
-
-.table-row td div {
-  margin-bottom: 5px;
+.custom-table tbody tr:hover {
+  background-color: #f0fdf4;
 }
 
 .pagination {
-  margin-top: 20px;
-  text-align: center;
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
 }
 
-.pagination button {
-  margin: 0 5px;
-  padding: 5px 10px;
-  border: none;
-  border-radius: 20px;
-  background-color: #f0f0f0;
-  color: black;
+.page-button {
+  min-width: 2.5rem;
+  height: 2.5rem;
+  padding: 0.5rem;
+  border: 1px solid #e5e7eb;
+  background-color: white;
+  border-radius: 0.5rem;
   cursor: pointer;
+  transition: all 0.2s ease;
+  color: #374151;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.pagination button.active {
+.page-button:hover:not(:disabled) {
+  border-color: #4CAF50;
+  color: #4CAF50;
+  background-color: #f0fdf4;
+}
+
+.page-button.active {
   background-color: #4CAF50;
   color: white;
+  border-color: #4CAF50;
 }
 
-.pagination span {
-  margin: 0 5px;
-  padding: 5px 10px;
-  border-radius: 20px;
-  background-color: #f0f0f0;
+.page-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-/* 부트스트랩 스타일 덮어쓰기 */
-.table.table-striped tbody tr:hover {
-  background-color: #CFF7D3 !important;
-  color: white !important;
-  cursor: pointer;
-}
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
 
-/* 선택된 행의 스타일 */
-.table.table-striped tbody tr:hover td {
-  background-color: #CFF7D3 !important;
-  color: black !important;
+  .inform-management {
+    padding: 1rem;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .search-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .add-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .button-group {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .search-button,
+  .reset-button {
+    width: 100%;
+  }
+
+  .custom-table {
+    font-size: 0.875rem;
+  }
+
+  .custom-table th,
+  .custom-table td {
+    padding: 0.75rem;
+  }
 }
 </style>
