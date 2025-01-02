@@ -1,5 +1,5 @@
 <script setup>
-import {ref, onMounted, watch} from 'vue';
+import {ref, onMounted, watch, computed} from 'vue';
 import {getFetch} from "@/stores/apiClient.js";
 import {FontAwesomeIcon} from "@fortawesome/vue-fontawesome";
 
@@ -50,6 +50,35 @@ const monthOptions = Array.from({length: 12}, (_, i) => ({
   value: String(i + 1).padStart(2, '0'),
   label: `${i + 1}월`
 }));
+
+const sortedPromotions = computed(() => {
+  if (!promotions.value.length) return [];
+
+  // 가장 높은 percent를 가진 프로모션 찾기
+  const maxPercentPromotion = [...promotions.value].sort((a, b) => b.percent - a.percent)[0];
+
+  // 나머지 프로모션들
+  const otherPromotions = promotions.value.filter(p => p !== maxPercentPromotion);
+
+  // 정렬 조건이 있는 경우 나머지 프로모션들을 정렬
+  if (sort.value && order.value) {
+    otherPromotions.sort((a, b) => {
+      if (order.value === 'asc') {
+        return a[sort.value] > b[sort.value] ? 1 : -1;
+      } else {
+        return a[sort.value] < b[sort.value] ? 1 : -1;
+      }
+    });
+  }
+
+  return [maxPercentPromotion, ...otherPromotions];
+});
+
+const isTopPerformer = (promotion) => {
+  if (!promotions.value.length) return false;
+  const maxPercent = Math.max(...promotions.value.map(p => p.percent));
+  return promotion.percent === maxPercent;
+};
 
 const fetchPromotions = async () => {
   loading.value = true;
@@ -130,63 +159,70 @@ onMounted(() => {
       필터
     </button>
 
-    <div v-show="showFilters" class="filters">
-      <div class="filter-row">
-        <div class="filter-group">
-          <label class="filter-label">연도</label>
-          <select v-model="year" class="filter-select">
-            <option value="">전체</option>
-            <option v-for="option in yearOptions"
-                    :key="option.value"
-                    :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
+    <Transition name="slide-fade">
+      <div v-show="showFilters" class="filters">
+        <div class="filter-row">
+          <div class="filter-group">
+            <label class="filter-label">연도</label>
+            <select v-model="year" class="filter-select">
+              <option value="">전체</option>
+              <option v-for="option in yearOptions"
+                      :key="option.value"
+                      :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label">월</label>
+            <select v-model="month" class="filter-select">
+              <option value="">전체</option>
+              <option v-for="option in monthOptions"
+                      :key="option.value"
+                      :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label">프로모션명</label>
+            <input type="text"
+                   v-model="promotionTitle"
+                   placeholder="검색어를 입력하세요"
+                   @keyup.enter="handleSearch"
+                   class="filter-input">
+          </div>
+
+          <div class="filter-group">
+            <label class="filter-label">정렬</label>
+            <select @change="handleSortChange" class="filter-select">
+              <option value="">기본 정렬</option>
+              <option v-for="option in sortOptions"
+                      :key="option.value + '-asc'"
+                      :value="`${option.value}-asc`">
+                {{ option.label }} 오름차순
+              </option>
+              <option v-for="option in sortOptions"
+                      :key="option.value + '-desc'"
+                      :value="`${option.value}-desc`">
+                {{ option.label }} 내림차순
+              </option>
+            </select>
+          </div>
         </div>
 
-        <div class="filter-group">
-          <label class="filter-label">월</label>
-          <select v-model="month" class="filter-select">
-            <option value="">전체</option>
-            <option v-for="option in monthOptions"
-                    :key="option.value"
-                    :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
-        </div>
-
-        <div class="filter-group">
-          <label class="filter-label">프로모션명</label>
-          <input type="text"
-                 v-model="promotionTitle"
-                 placeholder="검색어를 입력하세요"
-                 @keyup.enter="handleSearch"
-                 class="filter-input">
-        </div>
-
-        <div class="filter-group">
-          <label class="filter-label">정렬</label>
-          <select @change="handleSortChange" class="filter-select">
-            <option value="">기본 정렬</option>
-            <option v-for="option in sortOptions"
-                    :key="option.value"
-                    :value="option.value">
-              {{ option.label }}
-            </option>
-          </select>
+        <div class="button-row">
+          <button class="btn btn-reset" @click="resetFilters">
+            <i class="fas fa-undo"></i> 초기화
+          </button>
+          <button class="btn btn-search" @click="handleSearch">
+            <i class="fas fa-search"></i> 검색
+          </button>
         </div>
       </div>
-
-      <div class="button-row">
-        <button class="btn btn-reset" @click="resetFilters">
-          <i class="fas fa-undo"></i> 초기화
-        </button>
-        <button class="btn btn-search" @click="handleSearch">
-          <i class="fas fa-search"></i> 검색
-        </button>
-      </div>
-    </div>
+    </Transition>
 
     <div class="promotion-list">
       <div v-if="loading" class="loading">
@@ -194,12 +230,15 @@ onMounted(() => {
         <p>데이터를 불러오는 중...</p>
       </div>
 
-      <div v-else-if="promotions.length > 0" class="promotion-grid">
-        <div v-for="promotion in promotions"
+      <div v-else-if="sortedPromotions.length > 0" class="promotion-grid">
+        <div v-for="promotion in sortedPromotions"
              :key="promotion.id"
-             class="promotion-card">
+             :class="['promotion-card', { 'top-performer': isTopPerformer(promotion) }]">
           <div class="promotion-header">
-            <h3 class="promotion-title">{{ promotion.promotionTitle }}</h3>
+            <h3 class="promotion-title">
+              {{ promotion.promotionTitle }}
+              <span v-if="isTopPerformer(promotion)" class="top-badge">최고 성과</span>
+            </h3>
           </div>
           <div class="promotion-body">
             <div class="promotion-info">
@@ -221,7 +260,10 @@ onMounted(() => {
               </div>
               <div class="info-row">
                 <span class="info-label">비교</span>
-                <span class="info-value" :class="getPercentColorClass(promotion.percent)">
+                <span class="info-value" :class="[
+                  getPercentColorClass(promotion.percent),
+                  { 'top-percent': isTopPerformer(promotion) }
+                ]">
                   {{ promotion.percent }}%
                 </span>
               </div>
@@ -338,6 +380,7 @@ onMounted(() => {
   border: 1px solid #e0e0e0;
   border-radius: 8px;
   overflow: hidden;
+  transition: all 0.3s ease;
 }
 
 .promotion-header {
@@ -386,6 +429,7 @@ onMounted(() => {
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .btn-reset {
@@ -394,10 +438,21 @@ onMounted(() => {
   color: #666;
 }
 
+.btn-reset:hover {
+  background: #e9ecef;
+}
+
 .btn-search {
-  background: #4299e1;
+  background: #98FB98;
   border: none;
-  color: white;
+  color: #006400;
+  font-weight: bold;
+  transition: all 0.3s ease;
+}
+
+.btn-search:hover {
+  background: #90EE90;
+  box-shadow: 0 0 10px rgba(152, 251, 152, 0.5);
 }
 
 .loading,
@@ -451,5 +506,125 @@ onMounted(() => {
 
 .text-neutral {
   color: #333;
+}
+
+/* Top performer styles */
+@keyframes sparkle {
+  0%, 100% {
+    border-color: #98FB98;
+    box-shadow: 0 0 10px #98FB98;
+  }
+  50% {
+    border-color: #90EE90;
+    box-shadow: 0 0 20px #90EE90;
+  }
+}
+
+@keyframes backgroundSparkle {
+  0%, 100% {
+    background-color: rgba(152, 251, 152, 0.3);
+  }
+  50% {
+    background-color: rgba(144, 238, 144, 0.5);
+  }
+}
+
+.top-performer {
+  border: 2px solid #98FB98;
+  background-color: rgba(152, 251, 152, 0.2);
+  transform: scale(1.02);
+  animation: sparkle 2s infinite ease-in-out;
+  position: relative;
+  overflow: hidden;
+}
+
+.top-performer::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+      45deg,
+      transparent 45%,
+      rgba(152, 251, 152, 0.2) 50%,
+      transparent 55%
+  );
+  animation: shine 3s infinite;
+}
+
+@keyframes shine {
+  0% {
+    transform: translate(-30%, -30%) rotate(0deg);
+  }
+  100% {
+    transform: translate(30%, 30%) rotate(360deg);
+  }
+}
+
+.top-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  margin-left: 8px;
+  background-color: #98FB98;
+  color: #006400;
+  font-size: 11px;
+  border-radius: 12px;
+  font-weight: bold;
+  animation: backgroundSparkle 2s infinite ease-in-out;
+}
+
+.top-percent {
+  font-size: 15px;
+  font-weight: 700;
+  color: #2E8B57 !important;
+  text-shadow: 0 0 5px rgba(152, 251, 152, 0.5);
+}
+
+.promotion-card.top-performer .promotion-header {
+  background-color: #98FB98;
+  animation: backgroundSparkle 2s infinite ease-in-out;
+}
+
+.promotion-card.top-performer .promotion-title {
+  color: #006400;
+}
+
+.highlight {
+  color: #2E8B57;
+  font-weight: 600;
+}
+
+/* 슬라이드 애니메이션 */
+.slide-fade-enter-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-fade-leave-active {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateY(-20px);
+  opacity: 0;
+}
+
+.slide-fade-enter-to,
+.slide-fade-leave-from {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+/* 필터 컨테이너 스타일 수정 */
+.filters {
+  background: white;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  transform-origin: top;
+  will-change: transform, opacity;
 }
 </style>
