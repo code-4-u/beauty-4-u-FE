@@ -1,9 +1,9 @@
 <script setup>
 import {computed, onMounted, ref} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
-import {getFetch, postFetch, putFetch, delFetch} from "@/stores/apiClient.js";
+import {delFetch, getFetch, postFetch, putFetch} from "@/stores/apiClient.js";
 import {formatDate} from "@/stores/util.js";
-import { useAuthStore } from '@/stores/auth.js';
+import {useAuthStore} from '@/stores/auth.js';
 
 const router = useRouter();
 const route = useRoute();
@@ -56,12 +56,11 @@ const fetchTeamBoardDetail = async () => {
     teamBoardDetail.value = response.data.data.teamBoardDetailDTO;
     teamBoardReplyList.value = response.data.data.teamBoardReplyList;
 
-    // 본문에서 이미지 URL 추출 및 저장
-    const imageRegex = /<img[^>]*src="([^"]*)"[^>]*>/g;
-    const content = teamBoardDetail.value.teamBoardContent || '';
-    const imageMatches = [...content.matchAll(imageRegex)];
-    originalImages.value = imageMatches.map(match => match[1]);
-
+    // 이미지 URL 가져오기
+    const fileResponse = await getFetch(`/file/list?fileType=TEAMBOARD&fileUrl=${teamBoardId}`);
+    if (fileResponse?.data?.data?.fileList && fileResponse.data.data.fileList.length > 0) {
+      originalImages.value = fileResponse.data.data.fileList;
+    }
   } catch (error) {
     console.error("게시글 세부 정보를 가져오는 데 오류가 발생했습니다:", error);
   }
@@ -196,10 +195,27 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- 본문 섹션 -->
     <div class="content-section">
-      <h4 class="section-title">본문</h4>
-      <div v-html="teamBoardDetail.teamBoardContent" class="post-content"></div>
+      <!-- 이미지 섹션 -->
+      <div v-if="originalImages.length > 0" class="image-section">
+        <h4 class="section-title">첨부 이미지</h4>
+        <div class="image-container">
+          <div v-for="(imageUrl, index) in originalImages"
+               :key="index"
+               class="image-wrapper">
+            <img :src="imageUrl"
+                 alt="첨부 이미지"
+                 @click="openImagePreview(imageUrl)"
+                 class="attached-image"/>
+          </div>
+        </div>
+      </div>
+
+      <!-- 본문 섹션 -->
+      <div class="text-content-section">
+        <h4 class="section-title">본문</h4>
+        <div class="post-content" v-html="teamBoardDetail.teamBoardContent"></div>
+      </div>
     </div>
 
     <!-- 이미지 미리보기 모달 -->
@@ -207,10 +223,14 @@ onMounted(() => {
       <div class="modal-content">
         <div class="modal-header">
           <h3 class="modal-title">이미지 미리보기</h3>
-          <button class="modal-close" @click="closeImagePreview">&times;</button>
         </div>
         <div class="modal-body">
           <img :src="previewImageUrl" alt="이미지 미리보기" class="preview-image"/>
+        </div>
+        <div class="button-wrapper">
+          <button class="btn btn-secondary" @click="closeImagePreview">
+            닫기
+          </button>
         </div>
       </div>
     </div>
@@ -351,6 +371,45 @@ onMounted(() => {
 
 .content-section {
   margin: 2rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.image-section {
+  padding: 1.5rem;
+  background-color: #fff;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+}
+
+.image-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.image-wrapper {
+  max-width: 600px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.attached-image {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.attached-image:hover {
+  transform: scale(1.02);
+}
+
+.text-content-section {
   padding: 1.5rem;
   background-color: #fff;
   border-radius: 8px;
@@ -370,6 +429,28 @@ onMounted(() => {
   cursor: pointer;
 }
 
+.post-content :deep(.board-image) {
+  margin: 20px auto;
+  text-align: center;
+  max-width: 800px;
+}
+
+.post-content :deep(.board-image img) {
+  max-width: 100%;
+  height: auto;
+  max-height: 600px;
+  width: auto;
+  object-fit: contain;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+}
+
+.post-content :deep(.board-image img:hover) {
+  transform: scale(1.01);
+}
+
 /* 모달 스타일 */
 .modal-overlay {
   position: fixed;
@@ -377,59 +458,96 @@ onMounted(() => {
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  animation: fadeIn 0.3s ease-out;
 }
 
 .modal-content {
   background: white;
+  padding: 24px;
   border-radius: 8px;
-  max-width: 90%;
-  max-height: 90%;
-  overflow: hidden;
+  max-width: 800px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  position: relative;
+  animation: slide-up 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .modal-header {
-  padding: 1rem;
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid #e0e0e0;
+  gap: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 2px solid #29C458;
+  margin-bottom: 20px;
 }
 
 .modal-title {
   margin: 0;
-  font-size: 1.2rem;
   color: #333;
-}
-
-.modal-close {
-  background: none;
-  border: none;
-  font-size: 1.5rem;
-  color: #666;
-  cursor: pointer;
-  padding: 0.5rem;
-}
-
-.modal-close:hover {
-  color: #333;
+  font-size: 18px;
 }
 
 .modal-body {
-  padding: 1rem;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  margin: 20px 0;
+  padding: 0;
+  border-bottom: 2px solid #29C458;
 }
 
 .preview-image {
   max-width: 100%;
-  max-height: calc(90vh - 100px);
-  object-fit: contain;
+  height: auto;
+  border-radius: 4px;
+}
+
+.btn-secondary {
+  background-color: #29C458;
+  color: white;
+  min-width: 80px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .comments-section {
@@ -575,13 +693,8 @@ onMounted(() => {
   transform: translateY(-1px);
 }
 
-.btn-secondary {
-  background-color: #6c757d;
-  color: white;
-}
-
 .btn-secondary:hover {
-  background-color: #5a6268;
+  background-color: #23a94c;
   transform: translateY(-1px);
 }
 
@@ -613,10 +726,19 @@ onMounted(() => {
   gap: 0.75rem;
 }
 
+.button-wrapper {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin: 20px 0 0 0;
+  padding: 0;
+  width: 100%;
+}
+
 @media (max-width: 768px) {
-  .board-detail-container {
-    margin: 0.75rem;
-    padding: 0.75rem;
+  .image-wrapper {
+    max-width: 95%;
+    max-height: 70vh;
   }
 
   .info-section {
@@ -664,7 +786,8 @@ onMounted(() => {
   }
 
   .preview-image {
-    max-height: calc(80vh - 120px);
+    max-height: calc(70vh - 80px); /* 뷰포트 높이의 80% */
+    object-fit: contain;
   }
 }
 </style>
