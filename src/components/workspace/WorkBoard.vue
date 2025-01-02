@@ -45,7 +45,7 @@ const fetchWorks = async () => {
         boardList.map(async (work) => {
           try {
             // 게시글에 연결된 파일 목록 조회
-            const fileResponse = await getFetch(`/file/list?fileUrl=/teamboard/${work.teamBoardId}`);
+            const fileResponse = await getFetch(`/file/list?fileType=TEAMBOARD&fileUrl=${work.teamBoardId}`);
             const fileList = fileResponse.data.data.fileList;
 
             // S3 URL을 직접 썸네일로 사용
