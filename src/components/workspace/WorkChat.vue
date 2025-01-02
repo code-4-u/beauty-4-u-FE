@@ -432,7 +432,7 @@ const connectWebSocket = (roomId) => {
     return;
   }
 
-  const socketUrl = `ws://${chatUrl}/chat`;
+  const socketUrl = `wss://${chatUrl}/chat`;
   stompClient = Stomp.over(() => new WebSocket(socketUrl));
 
   stompClient.connect(
