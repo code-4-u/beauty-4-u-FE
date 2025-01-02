@@ -1,7 +1,7 @@
 <script setup>
-import {onMounted, reactive, ref} from 'vue'
-import {delFetch, getFetch, postFetch, putFetch} from "@/stores/apiClient.js";
-import {FontAwesomeIcon} from "@fortawesome/vue-fontawesome";
+import {onMounted, reactive, ref, computed} from 'vue'  // computed 추가
+import {delFetch, getFetch, postFetch, putFetch} from "@/stores/apiClient.js"
+import {FontAwesomeIcon} from "@fortawesome/vue-fontawesome"
 
 const props = defineProps({
   isOpen: {
@@ -14,9 +14,10 @@ const emit = defineEmits(['update:isOpen', 'closed'])
 
 // 상태 관리
 const types = ref([])
+const totalCount = ref(0)  // 총 개수 관리를 위한 ref 추가
 const error = ref(null)
 const editingType = ref(null)
-const editingTypeName = ref('') // 수정용 상태 추가
+const editingTypeName = ref('')
 const newType = ref({
   promotionTypeName: ''
 })
@@ -24,14 +25,14 @@ const newType = ref({
 // 모달 닫기
 const closeModal = () => {
   emit('update:isOpen', false)
-  emit('closed') // 모달이 닫힐 때 새로운 이벤트 발생
+  emit('closed')
   resetForm()
 }
 
 // 폼 초기화
 const resetForm = () => {
   editingType.value = null
-  editingTypeName.value = '' // 수정용 상태 초기화
+  editingTypeName.value = ''
   newType.value = {
     promotionTypeName: ''
   }
@@ -45,6 +46,23 @@ const filters = reactive({
   page: 1,
   count: 8
 })
+
+// 페이지네이션 관련 computed 속성 추가
+const totalPages = computed(() => Math.ceil(totalCount.value / filters.count))
+
+const currentPageGroup = computed(() => Math.ceil(filters.page / 5))
+
+const pageNumbers = computed(() => {
+  const start = (currentPageGroup.value - 1) * 5 + 1
+  const end = Math.min(currentPageGroup.value * 5, totalPages.value)
+  return Array.from({ length: end - start + 1 }, (_, i) => start + i)
+})
+
+// 페이지 이동 함수
+const goToPage = (page) => {
+  filters.page = page
+  fetchTypes()
+}
 
 // 정렬 토글 함수
 const toggleSort = (field) => {
@@ -82,30 +100,34 @@ const fetchTypes = async () => {
       count: filters.count
     })
 
-    const response = await getFetch(`/promotionType?${queryParams}`);
-    types.value = response.data.data
+    const response = await getFetch(`/promotionType?${queryParams}`)
+    console.log('API Response:', response) // 전체 응답 확인
+    console.log('Types Data:', response.data.promotionTypeList) // types 데이터만 확인
+
+    types.value = response.data.data.promotionTypeList
+    totalCount.value = response.data.data.totalCount
 
   } catch (e) {
     error.value = '프로모션 종류 목록을 불러오는데 실패했습니다.'
     console.error('Error fetching promotion types:', e)
   }
-};
+}
 
 // 프로모션 타입 추가
 const handleAdd = async () => {
   try {
     const response = await postFetch('/promotionType', {
       promotionTypeName: newType.value.promotionTypeName
-    });
+    })
 
     if (response.status === 200 || response.status === 201) {
-      await fetchTypes();
-      alert('프로모션 타입이 성공적으로 추가되었습니다.');
-      newType.value.promotionTypeName = ''; // 입력 필드 초기화
+      await fetchTypes()
+      alert('프로모션 타입이 성공적으로 추가되었습니다.')
+      newType.value.promotionTypeName = ''
     }
   } catch (error) {
-    console.error('프로모션 타입 추가 중 오류 발생:', error);
-    alert('추가 중 오류가 발생했습니다.');
+    console.error('프로모션 타입 추가 중 오류 발생:', error)
+    alert('추가 중 오류가 발생했습니다.')
   }
 }
 
@@ -114,16 +136,16 @@ const handleUpdate = async () => {
   try {
     const response = await putFetch(`/promotionType/${editingType.value.promotionTypeId}`, {
       promotionTypeName: editingTypeName.value
-    });
+    })
 
     if (response.status === 200) {
-      await fetchTypes();
-      alert('프로모션 타입이 성공적으로 수정되었습니다.');
-      resetForm();
+      await fetchTypes()
+      alert('프로모션 타입이 성공적으로 수정되었습니다.')
+      resetForm()
     }
   } catch (error) {
-    console.error('프로모션 타입 수정 중 오류 발생:', error);
-    alert('수정 중 오류가 발생했습니다.');
+    console.error('프로모션 타입 수정 중 오류 발생:', error)
+    alert('수정 중 오류가 발생했습니다.')
   }
 }
 
@@ -140,11 +162,11 @@ const handleDelete = async (promotionTypeId) => {
   }
 
   try {
-    const response = await delFetch(`/promotionType/${promotionTypeId}`);
+    const response = await delFetch(`/promotionType/${promotionTypeId}`)
 
     if (response.status === 200) {
-      await fetchTypes();
-      alert('프로모션 타입이 성공적으로 삭제되었습니다.');
+      await fetchTypes()
+      alert('프로모션 타입이 성공적으로 삭제되었습니다.')
     }
   } catch (error) {
     console.error('프로모션 종류 삭제 중 오류 발생:', error)
@@ -153,11 +175,12 @@ const handleDelete = async (promotionTypeId) => {
 }
 
 onMounted(() => {
-  fetchTypes();
+  fetchTypes()
 })
 </script>
 
 <template>
+  &lt;template&gt;
   <div v-if="isOpen" class="modal-backdrop">
     <div class="modal-content">
       <!-- 헤더 -->
@@ -198,7 +221,7 @@ onMounted(() => {
         </div>
       </div>
 
-      <!-- 목록 -->
+      <!-- 테이블 -->
       <div class="table-container">
         <table>
           <thead>
@@ -207,15 +230,15 @@ onMounted(() => {
             <th @click="toggleSort('promotionTypeName')" class="sortable">
               종류명
               <span v-if="filters.sort === 'promotionTypeName'" class="sort-icon">
-                {{ filters.order === 'asc' ? '↑' : '↓' }}
-              </span>
+                  {{ filters.order === 'asc' ? '↑' : '↓' }}
+                </span>
             </th>
             <th>관리</th>
           </tr>
           </thead>
           <tbody>
           <tr v-for="(type, index) in types" :key="type.promotionTypeId">
-            <td>{{ index + 1 }}</td>
+            <td>{{ (filters.page - 1) * filters.count + index + 1 }}</td>
             <td>
               <div v-if="editingType?.promotionTypeId === type.promotionTypeId" class="inline-edit">
                 <input
@@ -248,6 +271,56 @@ onMounted(() => {
           </tbody>
         </table>
       </div>
+
+      <!-- 페이지네이션 추가 -->
+      <div class="pagination" v-if="totalCount > 0">
+        <!-- 첫 페이지로 -->
+        <button
+            :disabled="filters.page === 1"
+            @click="goToPage(1)"
+            class="page-button"
+        >
+          &lt;&lt;
+        </button>
+
+        <!-- 이전 페이지 그룹으로 -->
+        <button
+            :disabled="filters.page === 1"
+            @click="goToPage(Math.max(1, pageNumbers[0] - 5))"
+            class="page-button"
+        >
+          &lt;
+        </button>
+
+        <!-- 페이지 번호들 -->
+        <button
+            v-for="page in pageNumbers"
+            :key="page"
+            :class="['page-button', { active: filters.page === page }]"
+            @click="goToPage(page)"
+        >
+          {{ page }}
+        </button>
+
+        <!-- 다음 페이지 그룹으로 -->
+        <button
+            :disabled="filters.page >= totalPages"
+            @click="goToPage(Math.min(totalPages, pageNumbers[pageNumbers.length - 1] + 1))"
+            class="page-button"
+        >
+          &gt;
+        </button>
+
+        <!-- 마지막 페이지로 -->
+        <button
+            :disabled="filters.page >= totalPages"
+            @click="goToPage(totalPages)"
+            class="page-button"
+        >
+          &gt;&gt;
+        </button>
+      </div>
+
     </div>
   </div>
 </template>
@@ -368,13 +441,13 @@ onMounted(() => {
 }
 
 .search-button {
-  background-color: #3b82f6;
+  background-color: #4CAF50;
   color: white;
   border: none;
 }
 
 .search-button:hover {
-  background-color: #2563eb;
+  background-color: #4CAF50;
 }
 
 .reset-button {
@@ -599,6 +672,121 @@ td:last-child {
   }
 }
 
+@keyframes modal-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.modal-backdrop {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 800px;
+  padding: 1.5rem;
+  transform: translateY(0);
+  animation: modal-slide-up 0.3s ease-out;
+  max-height: 90vh;  /* 최대 높이 제한 추가 */
+  overflow-y: auto;  /* 스크롤 가능하도록 설정 */
+}
+
+/* 페이지네이션 스타일 추가 */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
+  padding: 1rem 0;
+  border-top: 1px solid #e5e7eb;
+}
+
+.page-button {
+  min-width: 2.5rem;
+  height: 2.5rem;
+  padding: 0.5rem;
+  border: 1px solid #e5e7eb;
+  background-color: white;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  color: #374151;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.page-button:hover:not(:disabled) {
+  border-color: #4CAF50;  /* 기존 #3b82f6에서 변경 */
+  color: #4CAF50;
+  background-color: #f0fdf4;  /* 기존 #eff6ff에서 변경 */
+}
+
+.page-button.active {
+  background-color: #4CAF50;  /* 기존 #3b82f6에서 변경 */
+  color: white;
+  border-color: #4CAF50;
+}
+
+.page-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background-color: #f3f4f6;
+}
+
+/* No. 칼럼 스타일 수정 */
+th:first-child,
+td:first-child {
+  width: 80px;
+  text-align: center;
+}
+
+/* 반응형 스타일 */
+@media (max-width: 640px) {
+  .modal-content {
+    margin: 1rem;
+    padding: 1rem;
+  }
+
+  .pagination {
+    gap: 0.25rem;
+  }
+
+  .page-button {
+    min-width: 2rem;
+    height: 2rem;
+    padding: 0.25rem;
+    font-size: 0.875rem;
+  }
+
+  /* 모바일에서 페이지 번호 버튼만 표시 */
+  .page-button:first-child,
+  .page-button:last-child {
+    display: none;
+  }
+}
+
+/* 애니메이션 */
 @keyframes modal-slide-up {
   from {
     opacity: 0;
