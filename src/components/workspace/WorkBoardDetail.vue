@@ -1,5 +1,5 @@
 <script setup>
-import {computed, onMounted, ref} from 'vue';
+import {computed, onMounted, onUnmounted, ref} from 'vue';
 import {useRoute, useRouter} from 'vue-router';
 import {delFetch, getFetch, postFetch, putFetch} from "@/stores/apiClient.js";
 import {formatDate} from "@/stores/util.js";
@@ -16,24 +16,59 @@ const teamBoardDetail = ref({});
 const teamBoardReplyList = ref([]);
 const originalImages = ref([]);
 
-// 이미지 미리보기 위한 상태
+// 이미지 미리보기 및 캐러셀 관련 상태
 const isImagePreviewOpen = ref(false);
 const previewImageUrl = ref('');
+const currentImageIndex = ref(0);
 
 const newReplyContent = ref('');
 const editingReplyId = ref(null);
 const editReplyContent = ref('');
 
-// 이미지 미리보기 열기 함수
-const openImagePreview = (imageUrl) => {
-  previewImageUrl.value = imageUrl;
+const ITEMS_PER_ROW = 6;
+const ROWS_TO_SHOW = 2;
+const showAllImages = ref(false);
+
+// 이미지 네비게이션 함수
+const showNextImage = () => {
+  if (currentImageIndex.value < originalImages.value.length - 1) {
+    currentImageIndex.value++;
+    previewImageUrl.value = originalImages.value[currentImageIndex.value];
+  }
+};
+
+const showPrevImage = () => {
+  if (currentImageIndex.value > 0) {
+    currentImageIndex.value--;
+    previewImageUrl.value = originalImages.value[currentImageIndex.value];
+  }
+};
+
+// 특정 이미지 보기
+const showImage = (index) => {
+  currentImageIndex.value = index;
+  previewImageUrl.value = originalImages.value[index];
   isImagePreviewOpen.value = true;
 };
 
-// 이미지 미리보기 닫기 함수
+// 이미지 미리보기 닫기
 const closeImagePreview = () => {
   isImagePreviewOpen.value = false;
   previewImageUrl.value = '';
+  currentImageIndex.value = 0;
+};
+
+// 키보드 이벤트 핸들러
+const handleKeydown = (e) => {
+  if (!isImagePreviewOpen.value) return;
+
+  if (e.key === 'ArrowRight') {
+    showNextImage();
+  } else if (e.key === 'ArrowLeft') {
+    showPrevImage();
+  } else if (e.key === 'Escape') {
+    closeImagePreview();
+  }
 };
 
 // 게시글 작성자 여부를 확인하는 computed 속성
@@ -174,9 +209,24 @@ const deleteReply = async (replyId) => {
   }
 };
 
+const displayedImages = computed(() => {
+  if (showAllImages.value) return originalImages.value;
+  return originalImages.value.slice(0, 6);
+});
+
+const toggleImages = () => {
+  showAllImages.value = !showAllImages.value;
+};
+
+// 컴포넌트 마운트/언마운트 시 이벤트 리스너 관리
 onMounted(() => {
   fetchTeamBoardDetail();
-})
+  window.addEventListener('keydown', handleKeydown);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleKeydown);
+});
 </script>
 
 <template>
@@ -196,42 +246,63 @@ onMounted(() => {
     </div>
 
     <div class="content-section">
-      <!-- 이미지 섹션 -->
+      <!-- 이미지 갤러리 섹션 -->
       <div v-if="originalImages.length > 0" class="image-section">
         <h4 class="section-title">첨부 이미지</h4>
-        <div class="image-container">
-          <div v-for="(imageUrl, index) in originalImages"
-               :key="index"
-               class="image-wrapper">
-            <img :src="imageUrl"
-                 alt="첨부 이미지"
-                 @click="openImagePreview(imageUrl)"
-                 class="attached-image"/>
+        <div class="gallery-container">
+          <div class="gallery-grid" :class="{ 'expanded': showAllImages }">
+            <div v-for="(imageUrl, index) in displayedImages"
+                 :key="index"
+                 class="gallery-item"
+                 @click="showImage(index)">
+              <img :src="imageUrl"
+                   :alt="'이미지 ' + (index + 1)"
+                   class="gallery-thumbnail"/>
+            </div>
           </div>
+          <button
+              @click="toggleImages"
+              class="gallery-toggle-btn">
+            {{ showAllImages ? '접기' : '더보기' }}
+          </button>
         </div>
       </div>
 
       <!-- 본문 섹션 -->
       <div class="text-content-section">
         <h4 class="section-title">본문</h4>
-        <div class="post-content" v-html="teamBoardDetail.teamBoardContent"></div>
+        <div class="post-content">{{ teamBoardDetail.teamBoardContent }}</div>
       </div>
     </div>
 
-    <!-- 이미지 미리보기 모달 -->
+    <!-- 이미지 캐러셀 모달 -->
     <div v-if="isImagePreviewOpen" class="modal-overlay" @click.self="closeImagePreview">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3 class="modal-title">이미지 미리보기</h3>
+      <div class="modal-carousel">
+        <button class="carousel-btn prev"
+                @click.stop="showPrevImage"
+                :disabled="currentImageIndex === 0">
+          &#10094;
+        </button>
+
+        <div class="carousel-content">
+          <img :src="originalImages[currentImageIndex]"
+               :alt="'이미지 ' + (currentImageIndex + 1)"
+               class="carousel-image"/>
+
+          <div class="carousel-counter">
+            {{ currentImageIndex + 1 }} / {{ originalImages.length }}
+          </div>
         </div>
-        <div class="modal-body">
-          <img :src="previewImageUrl" alt="이미지 미리보기" class="preview-image"/>
-        </div>
-        <div class="button-wrapper">
-          <button class="btn btn-secondary" @click="closeImagePreview">
-            닫기
-          </button>
-        </div>
+
+        <button class="carousel-btn next"
+                @click.stop="showNextImage"
+                :disabled="currentImageIndex === originalImages.length - 1">
+          &#10095;
+        </button>
+
+        <button class="close-btn" @click="closeImagePreview">
+          &#10005;
+        </button>
       </div>
     </div>
 
@@ -383,30 +454,36 @@ onMounted(() => {
   border: 1px solid #e0e0e0;
 }
 
-.image-container {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  justify-content: center;
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 80px);
+  gap: 0.4rem;
+  padding: 0.75rem;
+  max-height: 90px; /* 한 줄 높이로 조정 */
+  overflow-y: hidden;
+  transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1);  /* max-height와 opacity 모두에 애니메이션 적용 */
+  opacity: 1;
 }
 
-.image-wrapper {
-  max-width: 600px;
-  width: 100%;
-  margin: 0 auto;
-}
-
-.attached-image {
-  width: 100%;
-  height: auto;
+.gallery-item {
+  aspect-ratio: 1;
+  overflow: hidden;
   border-radius: 8px;
   cursor: pointer;
   transition: transform 0.2s ease;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
-.attached-image:hover {
-  transform: scale(1.02);
+
+.gallery-item:hover {
+  transform: scale(1.2);  /* 1.05에서 1.1로 증가 */
+  z-index: 1;  /* hover 시 다른 이미지 위에 표시 */
+}
+
+.gallery-thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .text-content-section {
@@ -451,103 +528,102 @@ onMounted(() => {
   transform: scale(1.01);
 }
 
-/* 모달 스타일 */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  background: rgba(0, 0, 0, 0.8);
   display: flex;
   justify-content: center;
   align-items: center;
   z-index: 1000;
-  animation: fadeIn 0.3s ease-out;
 }
 
-.modal-content {
-  background: white;
-  padding: 24px;
-  border-radius: 8px;
-  max-width: 800px;
-  width: 90%;
-  max-height: 80vh;
-  overflow-y: auto;
+.modal-carousel {
   position: relative;
-  animation: slide-up 0.3s ease-out;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-@keyframes slide-up {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.modal-header {
+  background: transparent;
+  max-width: 90vw;
+  max-height: 90vh;
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding-bottom: 0.75rem;
-  border-bottom: 1px solid #f0f0f0;
-  border-bottom: 2px solid #29C458;
-  margin-bottom: 20px;
+  padding: 2rem;
 }
 
-.modal-title {
-  margin: 0;
-  color: #333;
-  font-size: 18px;
+.carousel-content {
+  position: relative;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
-.modal-body {
-  margin: 20px 0;
-  padding: 0;
-  border-bottom: 2px solid #29C458;
-}
-
-.preview-image {
+.carousel-image {
   max-width: 100%;
-  height: auto;
-  border-radius: 4px;
+  max-height: 80vh;
+  object-fit: contain;
 }
 
-.btn-secondary {
-  background-color: #29C458;
+.carousel-btn {
+  background: rgba(255, 255, 255, 0.2);
   color: white;
-  min-width: 80px;
-  padding: 8px 16px;
   border: none;
-  border-radius: 4px;
-  font-weight: 500;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
   cursor: pointer;
-  transition: all 0.2s ease;
-}
-
-.btn {
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  min-width: 80px;
+  font-size: 1.5rem;
+  transition: background-color 0.2s;
+  margin: 0 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 2;
+}
+
+.carousel-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.carousel-btn:disabled {
+  background: rgba(255, 255, 255, 0.1);
+  cursor: not-allowed;
+}
+
+.carousel-counter {
+  position: absolute;
+  bottom: -2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  font-size: 0.9rem;
+}
+
+.close-btn {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  transition: background-color 0.2s;
+  z-index: 2;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
 }
 
 .comments-section {
@@ -693,6 +769,11 @@ onMounted(() => {
   transform: translateY(-1px);
 }
 
+.btn-secondary {
+  background-color: #29C458;
+  color: white;
+}
+
 .btn-secondary:hover {
   background-color: #23a94c;
   transform: translateY(-1px);
@@ -726,19 +807,37 @@ onMounted(() => {
   gap: 0.75rem;
 }
 
-.button-wrapper {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin: 20px 0 0 0;
-  padding: 0;
-  width: 100%;
-}
-
 @media (max-width: 768px) {
   .image-wrapper {
     max-width: 95%;
-    max-height: 70vh;
+  }
+
+  .gallery-grid {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 0.5rem;
+    padding: 0.5rem;
+  }
+
+  .modal-carousel {
+    padding: 1rem;
+  }
+
+  .carousel-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+    margin: 0 0.5rem;
+  }
+
+  .carousel-counter {
+    font-size: 0.8rem;
+    padding: 0.3rem 0.8rem;
+  }
+
+  .close-btn {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
   }
 
   .info-section {
@@ -780,14 +879,56 @@ onMounted(() => {
     gap: 0.25rem;
   }
 
-  .modal-content {
-    width: 95%;
-    max-height: 80vh;
-  }
-
   .preview-image {
-    max-height: calc(70vh - 80px); /* 뷰포트 높이의 80% */
+    max-height: calc(70vh - 80px);
     object-fit: contain;
+  }
+}
+
+.gallery-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);  /* 4개에서 6개로 변경 */
+  gap: 0.5rem;  /* 1rem에서 0.5rem으로 줄임 */
+  padding: 1rem;
+  max-height: 260px;  /* 320px에서 260px로 줄임 */
+  overflow-y: hidden;
+  transition: max-height 0.3s ease;
+}
+
+.gallery-grid.expanded {
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.gallery-toggle-btn {
+  align-self: center;
+  padding: 0.5rem 1rem;
+  background-color: #29C458;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.gallery-toggle-btn:hover {
+  background-color: #23a94c;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 </style>
