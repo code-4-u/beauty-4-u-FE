@@ -2,72 +2,34 @@
 import {onBeforeUnmount, ref} from 'vue';
 import {useRouter} from 'vue-router';
 import {postFetch} from "@/stores/apiClient.js";
-import BoardEditor from "@/components/board/editor/BoardEditor.vue";
 import {useAuthStore} from '@/stores/auth.js';
-import ImageManagement from "@/components/board/editor/ImageManagement.vue";
+import WorkBoardImageManage from '@/components/workspace/editor/WorkBoardImageManage.vue'
 
 const router = useRouter();
 const useAuth = useAuthStore();
 const teamBoardTitle = ref('');
-const editorContent = ref('<p>내용을 입력해주세요.</p>');
+const editorContent = ref('내용을 입력해주세요.');
 const selectedFiles = ref([]);
 const imageUrls = ref([]);
-const boardEditorRef = ref(null);
 const uploadStatus = ref('');
 const isSubmitting = ref(false);
-
-const insertImageAtCursor = (imageUrl, options = {}) => {
-  if (!boardEditorRef.value) return;
-
-  try {
-    if (options.removeUrl) {  // 이미지 제거 케이스
-      boardEditorRef.value.removeImage(options.removeUrl);
-    } else if (options.file) {    // 이미지 추가 케이스
-      // ImageManagement에서 이미 생성된 tempUrl 사용
-      boardEditorRef.value.insertImage(imageUrl, {
-        style: `max-width: ${options.width || 400}px; height: ${options.height || 'auto'};`,
-        'data-temp-url': 'true'
-      });
-    }
-  } catch (error) {
-    console.error('이미지 삽입 중 오류:', error);
-  }
-};
 
 // 이미지 관리 핸들러
 const handleUpload = (files) => {
   uploadStatus.value = '업로드 중...';
-
-  // selectedFiles에 파일 추가
-  selectedFiles.value = [
-    ...selectedFiles.value,
-    ...files
-  ];
-
+  selectedFiles.value = [...selectedFiles.value, ...files];
   uploadStatus.value = '';
 };
 
 const handleRemove = (fileId) => {
   const fileToRemove = selectedFiles.value.find(f => f.id === fileId);
-  if (fileToRemove) {
-    // 임시 URL 제거
-    if (fileToRemove.tempUrl) {
-      URL.revokeObjectURL(fileToRemove.tempUrl);
-    }
-    // 목록에서 제거
-    selectedFiles.value = selectedFiles.value.filter(f => f.id !== fileId);
-
-    // 본문에서 이미지 제거
-    if (fileToRemove.tempUrl) {
-      const regex = new RegExp(`<img[^>]*src="${fileToRemove.tempUrl}"[^>]*>`, 'g');
-      editorContent.value = editorContent.value.replace(regex, '');
-    }
+  if (fileToRemove && fileToRemove.tempUrl) {
+    URL.revokeObjectURL(fileToRemove.tempUrl);
   }
+  selectedFiles.value = selectedFiles.value.filter(f => f.id !== fileId);
 };
 
-// 목록으로 돌아가기
 const goBack = () => {
-  // 임시 URL 정리
   selectedFiles.value.forEach(file => {
     if (file.tempUrl) {
       URL.revokeObjectURL(file.tempUrl);
@@ -76,12 +38,11 @@ const goBack = () => {
   router.push('/workspace/board');
 };
 
-// 워크보드 저장
 const saveWorkBoard = async () => {
   if (isSubmitting.value) return;
 
-  const uploadedS3Urls = []; // S3에 업로드된 URL들을 추적
-  const originalFileNames = []; // 원본 파일명 추적
+  const uploadedS3Urls = [];
+  const originalFileNames = [];
 
   try {
     isSubmitting.value = true;
@@ -92,7 +53,6 @@ const saveWorkBoard = async () => {
       return;
     }
 
-    // 1. 선택된 파일들을 S3에 업로드
     const uploadPromises = selectedFiles.value.map(async (fileInfo) => {
       const formData = new FormData();
       formData.append('image', fileInfo.file);
@@ -100,15 +60,8 @@ const saveWorkBoard = async () => {
       try {
         const response = await postFetch('/file/s3/upload', formData);
         const s3Url = response.data.data;
-
         uploadedS3Urls.push(s3Url);
         originalFileNames.push(fileInfo.name);
-
-        // tempUrl을 실제 S3 URL로 교체
-        editorContent.value = editorContent.value.replace(
-            fileInfo.tempUrl,
-            s3Url
-        );
         return s3Url;
       } catch (error) {
         console.error('이미지 업로드 실패:', error);
@@ -116,25 +69,25 @@ const saveWorkBoard = async () => {
       }
     });
 
-    // 모든 이미지 업로드 완료 대기
     const s3Urls = await Promise.all(uploadPromises);
 
-    // 2. 변환된 content로 게시글 저장
     const response = await postFetch(`/teamspace/board`, {
       teamBoardTitle: teamBoardTitle.value,
       teamBoardContent: editorContent.value
     });
 
-    // 3. 파일 정보 DB 저장 (원본 파일명 포함)
+    const teamBoardId = response.data.data;
+    const fileUrlList = ref([]);
+    fileUrlList.value = s3Urls.map(() => teamBoardId);
+
     if (s3Urls.length > 0) {
       await postFetch('/file/save', {
-        imageS3Urls: s3Urls,           // s3 url 배열
-        fileUrls: originalFileNames,   // 원본 파일명 배열
-        entityType: "TEAMBOARD"        // 엔티티 타입
+        imageS3Urls: s3Urls,
+        fileUrls: fileUrlList.value,
+        entityType: "TEAMBOARD"
       });
     }
 
-    // 4. 임시 URL 정리
     selectedFiles.value.forEach(file => {
       if (file.tempUrl) {
         URL.revokeObjectURL(file.tempUrl);
@@ -142,14 +95,11 @@ const saveWorkBoard = async () => {
     });
 
     alert('저장되었습니다.');
-
-    // 5. 목록으로 이동
     await router.push('/workspace/board');
 
   } catch (error) {
     console.error('저장에 실패했습니다.', error);
 
-    // 에러시 s3에 이미지들 삭제
     if (uploadedS3Urls.length > 0) {
       try {
         await postFetch('/file/s3/uploadList', uploadedS3Urls);
@@ -165,7 +115,6 @@ const saveWorkBoard = async () => {
   }
 };
 
-// 컴포넌트 언마운트 시 임시 URL 정리
 onBeforeUnmount(() => {
   selectedFiles.value.forEach(file => {
     if (file.tempUrl) {
@@ -192,21 +141,21 @@ onBeforeUnmount(() => {
 
     <div class="info-section"></div>
 
-    <ImageManagement
+    <WorkBoardImageManage
         :selected-files="selectedFiles"
         :image-urls="imageUrls"
         @upload="handleUpload"
         @remove="handleRemove"
-        @insert-to-editor="insertImageAtCursor"
         :disabled="isSubmitting"
     />
 
     <div class="editor-container">
-      <board-editor
-          ref="boardEditorRef"
+      <textarea
           v-model="editorContent"
+          class="content-textarea"
+          placeholder="내용을 입력하세요"
           :disabled="isSubmitting"
-      />
+      ></textarea>
     </div>
 
     <div v-if="uploadStatus" class="upload-status">
@@ -399,5 +348,19 @@ onBeforeUnmount(() => {
   .btn {
     width: 100%;
   }
+}
+
+.content-textarea {
+  width: 100%;
+  min-height: 300px;
+  padding: 1rem;
+  border: none;
+  resize: vertical;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.content-textarea:focus {
+  outline: none;
 }
 </style>
