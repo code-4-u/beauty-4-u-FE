@@ -66,7 +66,7 @@ const fetchPromotionTypes = async () => {
       count: 4000
     })
     const response = await getFetch(`/promotionType?${queryParams}`)
-    promotionTypes.value = response.data.data
+    promotionTypes.value = response.data.data.promotionTypeList
   } catch (error) {
     console.error('프로모션 타입 목록 조회 중 오류 발생:', error)
   }
