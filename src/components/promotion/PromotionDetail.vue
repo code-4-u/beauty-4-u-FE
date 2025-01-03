@@ -93,7 +93,7 @@ const fetchPromotionDetail = async () => {
 
     promotion.value = promotionResponse.data.data
     promotionGoods.value = goodsResponse.data.data
-    promotionTypes.value = typesResponse.data.data
+    promotionTypes.value = typesResponse.data.data.promotionTypeList
   } catch (e) {
     error.value = '프로모션 정보를 불러오는데 실패했습니다.'
     console.error('Error fetching promotion details:', e)
