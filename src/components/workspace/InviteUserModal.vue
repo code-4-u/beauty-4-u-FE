@@ -229,8 +229,7 @@ watch(() => props.isOpen, async (newValue) => {
 }
 
 .search-box {
-  background-color: #f9fafb;
-  padding: 1.5rem;
+  background-color: #4CAF50;
   border-radius: 0.5rem;
   margin-bottom: 1.5rem;
 }
@@ -242,6 +241,7 @@ watch(() => props.isOpen, async (newValue) => {
   border-radius: 0.375rem;
   background-color: white;
   font-size: 0.875rem;
+  height: 50px;
 }
 
 .modal-input:focus {
@@ -257,7 +257,7 @@ watch(() => props.isOpen, async (newValue) => {
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
   overflow-y: auto;
-  max-height: 400px;
+  height: 350px;
 }
 
 .user-list li {
