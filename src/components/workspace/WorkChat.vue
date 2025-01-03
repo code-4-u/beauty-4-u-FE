@@ -302,6 +302,15 @@ const handleCreateRoom = async (roomData) => {
 
 // 채팅방 나가기
 const leaveChatRoom = async () => {
+
+  // 채팅방 나가기 여부 확인
+  const confirmLeave = window.confirm('해당 채팅방을 나가시겠습니까?');
+
+  if (!confirmLeave) {
+    console.log('채팅방 나가기 취소됨');
+    return; // 사용자가 취소를 선택한 경우 함수 종료
+  }
+
   try {
     const response = await delFetch(`/chat/${chatRoomId.value}/leave`);
     console.log('채팅방 나가기 성공:', response.data);
@@ -1013,7 +1022,6 @@ textarea {
   border-radius: 0.5rem;
   padding: 0.75rem;
   resize: none;
-  min-height: 60px;
   font-size: 0.875rem;
 }
 
@@ -1032,6 +1040,7 @@ textarea:focus {
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  height: 65px;
 }
 
 .message-input button:hover {
@@ -1064,15 +1073,29 @@ textarea:focus {
 .attached-files {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 0.3rem; /* 이미지 간 간격 */
   margin-top: 0.5rem;
+  justify-content: flex-end; /* 우측 정렬 */
+}
+
+.file-preview {
+  width: 160px; /* 고정된 너비 */
+  height: 160px; /* 고정된 높이로 사각형 */
+  overflow: hidden; /* 이미지가 영역을 넘지 않도록 */
+  border-radius: 0.375rem; /* 모서리를 살짝 둥글게 */
+  background-color: #f3f4f6; /* 이미지 로드 전 배경 색상 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* 부드러운 그림자 추가 */
 }
 
 .preview-image {
-  max-width: 200px;
-  max-height: 150px;
-  border-radius: 0.5rem;
-  border: 1px solid #e5e7eb;
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* 이미지 크기 조정 */
+  cursor: pointer; /* 클릭 가능한 느낌 */
+  transition: transform 0.2s ease-in-out; /* 호버 시 애니메이션 */
 }
 
 .timestamp {
