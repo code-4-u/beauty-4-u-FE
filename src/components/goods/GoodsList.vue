@@ -202,7 +202,7 @@ onMounted(() => {
     <div class="product-management">
       <div class="header">
         <h2>상품 관리</h2>
-        <button @click="handleIndex" v-show="false">인덱스 초기화</button>
+        <button @click="handleIndex" >인덱스 초기화</button>
       </div>
       <!-- 필터링 섹션 -->
       <div class="filter-section">

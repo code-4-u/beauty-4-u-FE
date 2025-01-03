@@ -180,7 +180,6 @@ onMounted(() => {
 </script>
 
 <template>
-  &lt;template&gt;
   <div v-if="isOpen" class="modal-backdrop">
     <div class="modal-content">
       <!-- 헤더 -->
