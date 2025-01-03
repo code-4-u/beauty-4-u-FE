@@ -4,6 +4,7 @@ import {computed, onMounted, ref} from 'vue';
 import {getFetch} from "@/stores/apiClient.js";
 import {ArcElement, BarElement, CategoryScale, Chart as ChartJS, Legend, LinearScale, Title, Tooltip} from 'chart.js';
 import CaptureModal from "@/components/capture/CaptureModal.vue";
+import {FontAwesomeIcon} from "@fortawesome/vue-fontawesome";
 
 
 // Register ChartJS components
@@ -40,6 +41,8 @@ const promotionByComparison = ref([]);
 
 /* 통신 완료 여부 함수 */
 const loadFin = ref(false);
+
+const showSearchFilters = ref(false);
 
 /* 프로모션 리스트 */
 const promotionList = computed(() => transformSearchData(promotionSearchResult.value));
@@ -181,7 +184,7 @@ const loadSearchPromotion = async () => {
     if(searchKeyword.value) searchParams.append('searchKeyword', searchKeyword.value);
     if(startDate.value) searchParams.append('startDate', startDate.value);
     if(endDate.value) searchParams.append('endDate', endDate.value);
-    if(promotionTypeId.value) searchParams.append('promotionTypeId', promotionTypeId.value);
+    if(promotionTypeId.value) searchParams.append('promotionTypeId', Number(promotionTypeId.value));
     if(promotionStatus.value) searchParams.append('promotionStatus', promotionStatus.value);
 
     const response = await getFetch(`/promotion-statistical/search-promotion?${searchParams.toString()}`);
@@ -489,61 +492,78 @@ onMounted(()=> {
     <div class="search-panel" :class="{ 'open': isSearchOpen }">
       <div class="search-content">
         <h3>검색 필터</h3>
-        <div class="search-form">
-          <div class="form-group">
-            <label>프로모션명</label>
-            <input v-model="searchKeyword" type="text" placeholder="프로모션명을 입력하세요" @keyup.enter="loadSearchPromotion">
-          </div>
 
-          <div class="form-group">
-            <label>기간 선택</label>
-            <div class="date-inputs">
-              <input v-model="startDate" type="date">
-              <span>~</span>
-              <input v-model="endDate" type="date">
+        <!-- 필터 토글 버튼 추가 -->
+        <button @click="showSearchFilters = !showSearchFilters" class="filter-toggle-btn">
+          <font-awesome-icon :icon="['fas', 'fa-up-down']"></font-awesome-icon>
+          필터
+        </button>
+
+        <transition name="slide-fade">
+          <div v-show="showSearchFilters" class="search-form">
+            <div class="form-group">
+              <label>프로모션명</label>
+              <input
+                  v-model="searchKeyword"
+                  type="text"
+                  placeholder="프로모션명을 입력하세요"
+                  @keyup.enter="loadSearchPromotion">
             </div>
-          </div>
 
-          <div class="form-group">
-            <label>프로모션 종류</label>
-            <select v-model="promotionTypeId">
-              <option value="">전체</option>
-              <option v-for="option in promotionType" :value="option.promotionTypeId">
-                {{option.promotionTypeName}}
-              </option>
-            </select>
-          </div>
+            <div class="form-group">
+              <label>기간 선택</label>
+              <div class="date-inputs">
+                <input v-model="startDate" type="date">
+                <span>~</span>
+                <input v-model="endDate" type="date">
+              </div>
+            </div>
 
-          <div class="form-group">
-            <label>상태</label>
-            <select>
-              <option value="">전체</option>
-              <option value="ongoing">진행중</option>
-              <option value="ended">종료</option>
-              <option value="before">예정</option>
-            </select>
-          </div>
+            <div class="form-group">
+              <label>프로모션 종류</label>
+              <select v-model="promotionTypeId">
+                <option value="">전체</option>
+                <option v-for="option in promotionType"
+                        :key="option.promotionTypeId"
+                        :value="option.promotionTypeId">
+                  {{option.promotionTypeName}}
+                </option>
+              </select>
+            </div>
 
-          <button class="search-btn" @click="loadSearchPromotion">검색</button>
-          <div class="promotion-history">
-            <h4>프로모션 내역</h4>
-            <div class="promotion-scroll-container">
-              <div v-for="group in promotionList"
-                   :key="group.promotionTypeId"
-                   class="promotion-group">
-                <button class="search-promotion-result" @click="loadPromotionByYearSales(group.promotionTypeId, group.promotionTypeName)">
-                  {{ group.promotionTypeName }}
-                </button>
-                <div class="promotion-items">
-                  <label v-for="item in group.items"
-                         :key="item.promotionId">
-                    {{ item.promotionTitle }}
-                  </label>
-                </div>
+            <div class="form-group">
+              <label>상태</label>
+              <select v-model="promotionStatus">
+                <option value="">전체</option>
+                <option value="ongoing">진행중</option>
+                <option value="ended">종료</option>
+                <option value="before">예정</option>
+              </select>
+            </div>
+
+            <button class="search-btn" @click="loadSearchPromotion">검색</button>
+          </div>
+        </transition>
+
+        <div class="promotion-history" v-if="promotionList.length > 0">
+          <h4>프로모션 내역</h4>
+          <div class="promotion-scroll-container">
+            <div v-for="group in promotionList"
+                  :key="group.promotionTypeId"
+                 class="promotion-group">
+              <button class="search-promotion-result" @click="loadPromotionByYearSales(group.promotionTypeId, group.promotionTypeName)">
+                      {{ group.promotionTypeName }}
+              </button>
+              <div class="promotion-items">
+                <label v-for="item in group.items"
+                        :key="item.promotionId">
+                      {{ item.promotionTitle }}
+                </label>
               </div>
             </div>
           </div>
         </div>
+
       </div>
     </div>
   </div>
@@ -1074,5 +1094,177 @@ h3 {
 .right-section .data-table td.rank-down {
   color: #0d6efd !important;
   font-weight: 600;
+}
+.search-panel {
+  position: fixed;
+  left: -25%;
+  top: 60px;
+  width: 25%;
+  height: calc(100% - 60px);
+  background: white;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  transition: left 0.3s ease;
+  z-index: 999;
+  overflow-y: auto;
+}
+
+.search-panel.open {
+  left: 0;
+}
+
+.search-content {
+  padding: 24px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.filter-toggle-btn {
+  width: 23%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 16px;
+  margin: 12px 0;
+  background: white;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #666;
+  cursor: pointer;
+}
+
+.search-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-weight: 500;
+  color: #333;
+}
+
+.form-group input,
+.form-group select {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.date-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.date-inputs input {
+  flex: 1;
+}
+
+.search-btn {
+  padding: 12px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.search-btn:hover {
+  background: #45a049;
+}
+
+/* 프로모션 내역 스타일 */
+.promotion-history {
+  margin-top: 24px;
+  flex: 1;
+}
+
+.promotion-history h4 {
+  margin-bottom: 16px;
+  color: #333;
+}
+
+.promotion-scroll-container {
+  max-height: calc(100vh - 400px);
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.promotion-type-group {
+  margin-bottom: 16px;
+}
+
+.promotion-type-button {
+  width: 100%;
+  text-align: left;
+  padding: 10px 12px;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-bottom: 8px;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.promotion-type-button:hover {
+  background: #45a049;
+}
+
+.promotion-items {
+  padding-left: 12px;
+}
+
+.promotion-item {
+  padding: 8px 12px;
+  color: #333;
+  font-size: 14px;
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.promotion-item:hover {
+  background: #f5f5f5;
+}
+
+.slide-fade-enter-active,
+.slide-fade-leave-active {
+  transition: all 0.3s ease;
+}
+
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-20px);
+}
+
+/* 스크롤바 스타일링 */
+.promotion-scroll-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.promotion-scroll-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.promotion-scroll-container::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.promotion-scroll-container::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
 }
 </style>
