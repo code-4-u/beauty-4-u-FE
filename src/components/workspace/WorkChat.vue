@@ -192,8 +192,11 @@ const downloadImage = async (url) => {
   try {
     // Axios 요청
     const response = await axios.get(url, {
-      responseType: 'blob', // Blob으로 응답 받기
-      withCredentials: false, // CORS 문제 방지
+      responseType: 'blob',
+      withCredentials: false,
+      headers: {
+        'Cache-Control': 'no-cache',
+      },
     });
 
     // Blob 데이터 생성
