@@ -1,66 +1,71 @@
 <script setup>
 import {ref, computed, watch} from 'vue';
-import { getFetch } from "@/stores/apiClient.js";
 
 const props = defineProps({
   isOpen: {
     type: Boolean,
     required: true
-  }
+  },
+  chatRoomId: {
+    type: String,
+    required: true
+  },
+  participants: {
+    type: Array,
+    required: true,
+  },
+
 });
 
 const emit = defineEmits(['close']);
 
 // 상태 관리
 const users = ref([]);
+const paginatedUsers = ref([]); // 현재 페이지에 표시할 사용자 데이터
 const searchQuery = ref('');
 const currentPage = ref(1);
 const totalItems = ref(0);
-const itemsPerPage = 10;
+const itemsPerPage = 5;
 
 // 총 페이지 수 계산
 const totalPages = computed(() => {
   return Math.ceil(totalItems.value / itemsPerPage);
 });
 
-// 사용자 목록 가져오기
-const fetchUsers = async () => {
-  try {
-    const params = new URLSearchParams({
-      page: currentPage.value,
-      count: itemsPerPage
-    });
-
-    if (searchQuery.value) {
-      params.append('search', searchQuery.value);
-    }
-
-    const response = await getFetch(`/user/list?${params.toString()}`);
-    users.value = response.data.data.content.map(user => ({
-      userId: user.userCode,
-      name: user.userName,
-      department: user.deptName
-    }));
-    totalItems.value = response.data.data.totalElements;
-  } catch (e) {
-    console.error('Error fetching users:', e);
-  }
+// 현재 페이지에 맞는 사용자 데이터 계산
+const updatePaginatedUsers = () => {
+  const startIndex = (currentPage.value - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  paginatedUsers.value = users.value.slice(startIndex, endIndex);
 };
+
 
 // 페이지 변경
 const changePage = async (page) => {
   currentPage.value = page;
-  await fetchUsers();
+  updatePaginatedUsers();
 };
 
 // 검색
-const handleSearch = async () => {
-  currentPage.value = 1;
-  await fetchUsers();
+const handleSearch = () => {
+  const filteredUsers = props.participants.filter((user) =>
+      user.userName.toLowerCase().includes(searchQuery.value.toLowerCase())
+  );
+  users.value = filteredUsers.map((user) => ({
+    userId: user.userCode,
+    name: user.userName || "이름 없음",
+    department: user.deptName || "부서 없음",
+  }));
+  totalItems.value = users.value.length;
+  currentPage.value = 1; // 검색 시 페이지 초기화
+  updatePaginatedUsers();
 };
 
 // 모달 닫기
 const closeModal = () => {
+  users.value = [];
+  paginatedUsers.value = [];
+  totalItems.value = 0;
   searchQuery.value = '';
   currentPage.value = 1;
   emit('close');
@@ -68,9 +73,16 @@ const closeModal = () => {
 
 watch(() => props.isOpen, async (newValue) => {
   if (newValue) {  // 모달이 열릴 때
+    users.value = props.participants.map(user => ({
+      userId: user.userCode,
+      name: user.userName || '이름 없음',
+      department: user.deptName || '부서 없음',
+    }));
+
+    totalItems.value = users.value.length;
     currentPage.value = 1;  // 페이지 초기화
     searchQuery.value = '';  // 검색어 초기화
-    await fetchUsers();  // 사용자 목록 가져오기
+    updatePaginatedUsers();
   }
 });
 </script>
@@ -96,7 +108,7 @@ watch(() => props.isOpen, async (newValue) => {
       <!-- 사용자 목록 -->
       <div class="modal-body">
         <ul class="participants-list">
-          <li v-for="user in users" :key="user.userId">
+          <li v-for="user in paginatedUsers" :key="user.userId">
             {{ user.name || "이름 없음" }}
             ({{ user.department }})
           </li>
@@ -224,6 +236,7 @@ watch(() => props.isOpen, async (newValue) => {
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
   overflow: hidden;
+  height: 400px;
 }
 
 .participants-list li {
