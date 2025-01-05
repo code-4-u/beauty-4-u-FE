@@ -481,7 +481,14 @@ onMounted(() => {
                   </div>
                   <div class="goods-info">
                     <!-- 신규 추가 뱃지 -->
-                    <div v-if="!goods.promotionGoodsId" class="new-badge">신규 추가</div>
+                    <template v-if="!goods.promotionGoodsId">
+                      <div class="new-badge-container">
+                        <div class="new-badge">신규 추가</div>
+                        <button class="remove-button" @click.stop="removeGoods(index)" title="상품 제거">
+                          <span class="remove-icon">×</span>
+                        </button>
+                      </div>
+                    </template>
 
                     <div class="goods-name">{{ goods.goodsName }}</div>
                     <div class="goods-brand">{{ goods.brandName }}</div>
@@ -868,6 +875,13 @@ onMounted(() => {
   color: #6b7280;
 }
 
+.new-badge-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
 .new-badge {
   display: inline-block;
   background-color: #4CAF50;
@@ -876,7 +890,6 @@ onMounted(() => {
   border-radius: 4px;
   font-size: 0.75rem;
   font-weight: 500;
-  margin-bottom: 8px;
 }
 
 .delete-button {
@@ -999,6 +1012,40 @@ onMounted(() => {
 
 .delete-info::before {
   content: '⚠️';
+}
+
+.remove-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  color: #9ca3af;
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.remove-button:hover {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #ef4444;
+  transform: scale(1.05);
+}
+
+.remove-button:active {
+  transform: scale(0.95);
+}
+
+.remove-icon {
+  font-size: 18px;
+  line-height: 1;
+  font-weight: 500;
+  margin-bottom: 4px;
 }
 
 /* 반응형 스타일 */
