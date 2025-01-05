@@ -148,14 +148,8 @@ const saveBasicInfo = async () => {
     // API 호출
     await putFetch(`/promotion/${promotionId}`, promotionReqData)
 
-    // 성공 시 상태 업데이트
-    promotion.value = {
-      ...promotion.value,
-      ...promotionReqData,
-      promotionTypeName: promotionTypes.value.find(
-          type => type.promotionTypeId === promotionReqData.promotionTypeId
-      )?.promotionTypeName
-    }
+    // 성공 시 데이터 다시 조회
+    await fetchPromotionDetail()
     isBasicInfoEditing.value = false
   } catch (e) {
     console.error('Error saving basic info:', e)
