@@ -101,8 +101,6 @@ const fetchTypes = async () => {
     })
 
     const response = await getFetch(`/promotionType?${queryParams}`)
-    console.log('API Response:', response) // 전체 응답 확인
-    console.log('Types Data:', response.data.promotionTypeList) // types 데이터만 확인
 
     types.value = response.data.data.promotionTypeList
     totalCount.value = response.data.data.totalCount
