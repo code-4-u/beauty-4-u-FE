@@ -13,6 +13,7 @@ const promotionGoods = ref([])
 const promotionTypes = ref([]) // 프로모션 타입 목록 저장
 const loading = ref(true)
 const error = ref(null)
+const checkedForDeletion = ref(new Set())
 
 // 수정 모드 상태 관리
 const isBasicInfoEditing = ref(false)
@@ -108,9 +109,19 @@ const startBasicInfoEdit = () => {
   isBasicInfoEditing.value = true
 }
 
+// 상품 체크/체크해제 처리 함수
+const toggleDeletion = (goodsId) => {
+  if (checkedForDeletion.value.has(goodsId)) {
+    checkedForDeletion.value.delete(goodsId)
+  } else {
+    checkedForDeletion.value.add(goodsId)
+  }
+}
+
 // 상품 목록 수정 시작
 const startGoodsEdit = () => {
   editedGoods.value = promotionGoods.value.map(item => ({ ...item }))
+  checkedForDeletion.value = new Set() // 체크 상태 초기화
   isGoodsEditing.value = true
 }
 
@@ -155,9 +166,14 @@ const saveBasicInfo = async () => {
 // 상품 목록 수정 저장
 const saveGoods = async () => {
   try {
-    // 1. 기존 상품의 할인율 수정
+    // 1. 삭제하지 않을 상품만 필터링
+    const remainingGoods = editedGoods.value.filter(
+        goods => !checkedForDeletion.value.has(goods.promotionGoodsId)
+    )
+
+    // 2. 기존 상품의 할인율 수정
     const updatePromotionGoodsReqData = {
-      promotionGoodsList: editedGoods.value
+      promotionGoodsList: remainingGoods
           .filter(goods => goods.promotionGoodsId) // 기존 상품만 필터링
           .map(goods => ({
             promotionGoodsId: goods.promotionGoodsId,
@@ -165,10 +181,10 @@ const saveGoods = async () => {
           }))
     }
 
-    // 2. 새로 추가된 상품 등록
+    // 3. 새로 추가된 상품 등록
     const newGoodsReqData = {
       promotionId: promotionId,
-      saveGoodsDiscountDTOS: editedGoods.value
+      saveGoodsDiscountDTOS: remainingGoods
           .filter(goods => !goods.promotionGoodsId) // 새로 추가된 상품만 필터링
           .map(goods => ({
             goodsCode: goods.goodsCode,
@@ -176,14 +192,12 @@ const saveGoods = async () => {
           }))
     }
 
-    // 3. 삭제된 상품 제거
+    // 4. 삭제할 상품 ID 목록 생성
     const deletePromotionGoodsReqData = {
-      promotionGoodsIdList: [...deletedGoods.value]
+      promotionGoodsIdList: Array.from(checkedForDeletion.value)
     }
 
-    console.log('Delete Promotion Goods Request Data:', deletePromotionGoodsReqData);
-
-    // 두 API 요청 동시 실행
+    // API 요청 실행
     await Promise.all([
       // 기존 상품 할인율 수정
       updatePromotionGoodsReqData.promotionGoodsList.length > 0
@@ -201,14 +215,27 @@ const saveGoods = async () => {
           : Promise.resolve()
     ])
 
-    console.log('Deleting goods with data:', deletePromotionGoodsReqData);
     // 성공 시 상태 업데이트
-    promotionGoods.value = editedGoods.value
-    deletedGoods.value = [] // 삭제된 상품 초기화
+    await fetchPromotionDetail()
+    checkedForDeletion.value = new Set() // 체크 상태 초기화
     isGoodsEditing.value = false
   } catch (e) {
     console.error('Error saving goods:', e)
     alert('할인 상품 수정에 실패했습니다.')
+  }
+}
+
+const toggleAllDeletion = () => {
+  const existingGoods = editedGoods.value.filter(g => g.promotionGoodsId);
+
+  if (checkedForDeletion.value.size === existingGoods.length) {
+    // 전체 해제
+    checkedForDeletion.value = new Set();
+  } else {
+    // 전체 선택
+    checkedForDeletion.value = new Set(
+        existingGoods.map(g => g.promotionGoodsId)
+    );
   }
 }
 
@@ -220,10 +247,9 @@ const cancelBasicInfoEdit = () => {
 
 const cancelGoodsEdit = () => {
   editedGoods.value = []
-  deletedGoods.value = []
+  checkedForDeletion.value = new Set() // 체크 상태 초기화
   isGoodsEditing.value = false
 }
-
 
 const handleBack = () => {
   router.back()
@@ -383,7 +409,24 @@ onMounted(() => {
           <!-- 할인 상품 섹션 -->
           <section class="goods-section">
             <div class="section-header">
-              <h3>할인 상품 목록</h3>
+              <div class="section-header-left">
+                <h3>할인 상품 목록</h3>
+                <template v-if="isGoodsEditing && editedGoods.length > 0">
+                  <div class="selection-controls">
+                    <label class="checkbox-label">
+                      <input
+                          type="checkbox"
+                          :checked="checkedForDeletion.size === editedGoods.filter(g => g.promotionGoodsId).length"
+                          @change="toggleAllDeletion"
+                      />
+                      전체 선택
+                    </label>
+                    <span v-if="checkedForDeletion.size > 0" class="selected-count">
+                      <span class="delete-info">{{ checkedForDeletion.size }}개 선택됨 (삭제 예정)</span>
+                    </span>
+                  </div>
+                </template>
+              </div>
               <div class="button-group">
                 <template v-if="!isGoodsEditing">
                   <button class="edit-button" @click="startGoodsEdit">수정</button>
@@ -423,7 +466,19 @@ onMounted(() => {
               <template v-else>
                 <div v-for="(goods, index) in editedGoods"
                      :key="goods.goodsCode"
-                     class="goods-card editing">
+                     class="goods-card editing"
+                     :class="{ 'checked': checkedForDeletion.has(goods.promotionGoodsId) }"
+                     @click="goods.promotionGoodsId && toggleDeletion(goods.promotionGoodsId)"
+                >
+                  <div v-if="goods.promotionGoodsId"
+                       class="delete-checkbox"
+                       @click.stop>
+                    <input
+                        type="checkbox"
+                        :checked="checkedForDeletion.has(goods.promotionGoodsId)"
+                        @change="toggleDeletion(goods.promotionGoodsId)"
+                    />
+                  </div>
                   <div class="goods-info">
                     <!-- 신규 추가 뱃지 -->
                     <div v-if="!goods.promotionGoodsId" class="new-badge">신규 추가</div>
@@ -435,30 +490,26 @@ onMounted(() => {
                         {{ formatPrice(goods.goodsPrice) }}원
                       </div>
                       <div class="discount-input-wrapper">
-                        <input
-                            v-model.number="goods.discountRate"
-                            class="edit-input discount-input"
-                            type="number"
-                            min="0"
-                            max="100"
-                            placeholder="할인율"
-                        />
-                        <span class="discount-unit">%</span>
+                        <template v-if="!checkedForDeletion.has(goods.promotionGoodsId)">
+                          <input
+                              v-model.number="goods.discountRate"
+                              class="edit-input discount-input"
+                              type="number"
+                              min="0"
+                              max="100"
+                              placeholder="할인율"
+                          />
+                          <span class="discount-unit">%</span>
+                        </template>
+                        <template v-else>
+                          <span class="disabled-discount">{{ goods.discountRate ?? 0 }}%</span>
+                        </template>
                       </div>
                       <div class="final-price">
                         {{ calculateFinalPrice(goods.goodsPrice, goods.discountRate) }}원
                       </div>
                     </div>
                   </div>
-
-                  <!-- 삭제 버튼 추가 -->
-                  <button
-                      class="delete-button"
-                      @click="removeGoods(index)"
-                  >
-                    삭제
-                  </button>
-
                 </div>
 
                 <button
@@ -708,8 +759,8 @@ onMounted(() => {
 /* 상품 카드 스타일 */
 .goods-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
 }
 
 .goods-card {
@@ -728,22 +779,33 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+}
+
+.goods-card.editing:hover {
+  background-color: #f8fafc;
 }
 
 .goods-name {
   font-weight: 500;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  padding: 0 4px;
 }
 
 .goods-brand {
   color: #6b7280;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   margin-bottom: 8px;
+  padding: 0 4px;
 }
 
 .price-info {
   border-top: 1px solid #e5e7eb;
-  padding-top: 8px;
+  padding: 12px 4px 0;
   margin-top: 8px;
 }
 
@@ -751,6 +813,12 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   margin-top: 8px;
+}
+
+.original-price,
+.discount-rate,
+.final-price {
+  padding: 2px 0;
 }
 
 .original-price {
@@ -786,13 +854,14 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin: 8px 0;
+  margin: 10px 0;
+  padding: 0 4px;
 }
 
 .discount-input {
-  width: 80px;
+  width: 60px;
   text-align: right;
-  padding-right: 8px;
+  padding-right: 6px;
 }
 
 .discount-unit {
@@ -810,10 +879,6 @@ onMounted(() => {
   margin-bottom: 8px;
 }
 
-.goods-card.editing {
-  position: relative;
-}
-
 .delete-button {
   background-color: #4CAF50;
   color: white;
@@ -827,6 +892,113 @@ onMounted(() => {
 
 .delete-button:hover {
   background-color: #388E3C;
+}
+
+.section-header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.selection-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: 16px;
+  padding-left: 16px;
+  border-left: 1px solid #e5e7eb;
+}
+
+.selected-count {
+  font-size: 0.875rem;
+  color: #2196F3;
+  font-weight: 500;
+}
+
+.goods-card.editing {
+  position: relative;
+  padding-left: 48px; /* 체크박스 공간 확보 */
+}
+
+.delete-checkbox {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+}
+
+.delete-checkbox input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.goods-card.editing.checked {
+  background-color: #f3f4f6;
+  border-color: #d1d5db;
+  opacity: 0.7;
+  position: relative;
+}
+
+.goods-card.editing.checked::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 10px,
+      rgba(209, 213, 219, 0.2) 10px,
+      rgba(209, 213, 219, 0.2) 20px
+  );
+  pointer-events: none;
+}
+
+.goods-card.editing.checked .goods-name {
+  color: #6b7280;
+}
+
+.goods-card.editing.checked .goods-brand,
+.goods-card.editing.checked .price-info {
+  opacity: 0.7;
+}
+
+.goods-card.editing.checked:hover {
+  background-color: #e5e7eb;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+.disabled-discount {
+  color: #6b7280;
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+.delete-info {
+  color: #ef4444;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.delete-info::before {
+  content: '⚠️';
 }
 
 /* 반응형 스타일 */
