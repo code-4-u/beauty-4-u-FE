@@ -137,7 +137,7 @@ const removeGoods = (index) => {
 const saveBasicInfo = async () => {
   try {
     const promotionReqData = {
-      promotionTypeId: Number(editedBasicInfo.value.promotionTypeId),
+      promotionType: Number(editedBasicInfo.value.promotionTypeId),
       promotionTitle: editedBasicInfo.value.promotionTitle,
       promotionContent: editedBasicInfo.value.promotionContent,
       promotionStartDate: editedBasicInfo.value.promotionStartDate,
