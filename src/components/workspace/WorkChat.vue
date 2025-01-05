@@ -8,6 +8,7 @@ import CreateChatRoomModal from './CreateChatRoomModal.vue';
 import InviteUserModal from './InviteUserModal.vue';
 import ParticipantListModal from './ParticipantListModal.vue';
 import ImagePreviewModal from "@/components/workspace/ImagePreviewModal.vue";
+import axios from "axios";
 
 const chatUrl = import.meta.env.VITE_API_CHAT_URL || 'localhost:8080';
 
@@ -122,16 +123,6 @@ const imageUrls = ref([]);
 const chatEditorRef = ref(null);
 const isSubmitting = ref(false);
 
-const openFile = (url) => {
-  window.open(url, "_blank");
-};
-
-// URL이 이미지인지 확인
-const isImage = (url) => {
-  const cleanUrl = url.split('?')[0]; // 쿼리 매개변수 제거
-  return /\.(jpg|jpeg|png|gif|bmp|svg|webp)$/i.test(cleanUrl);
-};
-
 const insertImageAtCursor = (imageUrl, options = {}) => {
   if (!chatEditorRef.value) return;
 
@@ -182,16 +173,6 @@ const handleRemove = (fileId) => {
   }
 };
 
-// 총 페이지 수 계산
-const totalPages = computed(() => {
-  return Math.ceil(totalItems.value / itemsPerPage)
-})
-
-// 채팅방 유저 총 페이지 수 계산
-const chatUserTotalPages = computed(() => {
-  return Math.ceil(filteredParticipants.value.length / itemsPerPage)
-})
-
 // 파일 모달 열기/닫기
 const modalImageUrl = ref(null); // 현재 표시할 이미지의 URL
 
@@ -209,23 +190,33 @@ const closeModal = () => {
 // 이미지 다운로드
 const downloadImage = async (url) => {
   try {
-    const response = await fetch(url, {
-      method: 'GET',
+    // Axios 요청
+    const response = await axios.get(url, {
+      responseType: 'blob',
+      withCredentials: false,
+      headers: {
+        'Cache-Control': 'no-cache',
+      },
     });
 
-    if (!response.ok) throw new Error('다운로드 실패');
-    const blob = await response.blob(); // 파일 데이터를 Blob으로 변환
+    // Blob 데이터 생성
+    const blob = response.data; // Axios 응답에서 Blob 데이터는 data에 저장됨
     const downloadUrl = URL.createObjectURL(blob);
+
+    // 다운로드 링크 생성 및 클릭
     const link = document.createElement('a');
     link.href = downloadUrl;
-    link.download = url.split('/').pop(); // 파일 이름 추출
+    link.download = url.split('/').pop(); // URL에서 파일 이름 추출
     link.click();
-    URL.revokeObjectURL(downloadUrl); // URL 해제
+
+    // URL 해제
+    URL.revokeObjectURL(downloadUrl);
   } catch (error) {
     console.error('이미지 다운로드 실패:', error);
     alert('이미지 다운로드에 실패했습니다.');
   }
 };
+
 
 
 // 채팅 참가자 목록 모달 열기/닫기
@@ -269,14 +260,6 @@ const closeInviteModal = () => {
   inviteSearch.value = '';
   searchedUsers.value = [];
   selectedUsers.value = [];
-};
-
-// 참가자를 Set으로 변환
-const invitedUserSet = computed(() => new Set(participants.value.map((user) => user.userCode)));
-
-const isDisabled = (user) => {
-  // 본인 또는 이미 초대된 사용자라면 비활성화
-  return invitedUserSet.value.has(user.userId); // Set으로 빠르게 탐색
 };
 
 // 새로운 채팅방 생성
@@ -771,6 +754,7 @@ onMounted(() => {
     <ParticipantListModal
         :is-open="showParticipantModal"
         :participants="participants"
+        :chatRoomId="chatRoomId"
         @close="showParticipantModal = false"
     />
 
