@@ -498,7 +498,7 @@ const handleCapture = async () => {
 
 .layout-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: auto 1fr 1fr;
   gap: 24px;
   margin-top: 24px;
 }
@@ -513,6 +513,8 @@ const handleCapture = async () => {
   overflow-y: auto;
   display: flex;
   flex-direction: column;
+  width: max-content;
+  min-width: 320px;
 }
 
 .list-container {
