@@ -839,11 +839,11 @@ onMounted(()=> {
 
 .list-content, .ranking-content {
   margin-top: 16px;
-  height: 400px;
+  flex: 1;
   background: #f8f9fa;
   border-radius: 4px;
   padding: 16px;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .list-content::-webkit-scrollbar,
