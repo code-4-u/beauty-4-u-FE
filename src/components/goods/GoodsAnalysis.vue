@@ -509,7 +509,7 @@ const handleCapture = async () => {
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  height: calc(100vh - 72px);
+  height: calc(100vh);
 }
 
 .list-container {
@@ -524,21 +524,21 @@ const handleCapture = async () => {
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  height: calc(100vh - 72px);
+  height: calc(100vh);
   display: flex;
   flex-direction: column;
   gap: 20px;
 }
 
 .comparison-container {
-  flex: 0 0 25%;
+  flex: 0 0 30%;
   background: #f8f9fa;
   border-radius: 4px;
   padding: 16px;
 }
 
 .sales-container {
-  flex: 0 0 75%;
+  flex: 0 0 70%;
   background: #f8f9fa;
   border-radius: 4px;
   padding: 16px;
@@ -556,7 +556,7 @@ const handleCapture = async () => {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   gap: 24px;
-  height: calc(100vh - 72px);
+  height: calc(100vh);
   overflow: hidden;
 }
 
