@@ -348,7 +348,7 @@ onMounted(() => {
   border-radius: 8px;
   padding: 16px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-  max-height: calc(100vh - 250px);
+  max-height: calc(100vh);
   overflow-y: auto;
 }
 
