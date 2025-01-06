@@ -357,6 +357,12 @@ const handleInviteUsers = async (selectedUsers) => {
   }
 };
 
+// self 속성을 메세지에 추가
+const addSelfToMessages = (msgs) => msgs.map((msg) => ({
+  ...msg,
+  self: msg.userCode === userCode.value,
+}));
+
 
 // 스크롤 최하단으로 이동
 const scrollToBottom = async (smooth = false) => {
