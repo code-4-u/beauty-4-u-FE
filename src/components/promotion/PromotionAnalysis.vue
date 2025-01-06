@@ -843,7 +843,6 @@ onMounted(()=> {
   background: #f8f9fa;
   border-radius: 4px;
   padding: 16px;
-  max-height: 400px;
   overflow-y: auto;
 }
 
@@ -1080,7 +1079,7 @@ h3 {
 }
 
 .list-block {
-  height: 500px;
+  height: calc(100vh - 500px);
   display: flex;
   flex-direction: column;
 }
