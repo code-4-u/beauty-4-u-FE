@@ -8,6 +8,7 @@ import WorkBoardUpdate from "@/components/workspace/WorkBoardUpdate.vue";
 export default [
     {
         path: '/workspace',
+        meta: { requiresAuth: true },
         children: [
             {
                 path: '',

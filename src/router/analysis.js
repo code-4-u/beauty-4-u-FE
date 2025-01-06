@@ -4,6 +4,7 @@ import Test from "@/views/analysis/Test02.vue"
 export default [
     {
         path:"/stats",
-        component: Test
+        component: Test,
+        meta: { requiresAuth: true },
     }
 ];
