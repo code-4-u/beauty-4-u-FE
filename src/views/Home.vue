@@ -471,6 +471,7 @@ onMounted(() => {
 <template>
   <div class="page-container">
     <div class="main-content">
+      프론트 cicd 테스트
       <!-- 기간 선택 탭 -->
       <div class="period-tabs">
         <button v-for="period in periods"
