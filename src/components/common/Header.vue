@@ -56,7 +56,7 @@ headerItems.value = [
   },
   {
     id: 4,
-    name: '고객센터',
+    name: '지원센터',
     link: '',
     subItems: [
       {id: 41, name: '공지사항', link: '/inform'},
