@@ -834,7 +834,7 @@ onMounted(()=> {
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  height: 100%;
+  height: calc(100vh - 100px);
 }
 
 .list-content, .ranking-content {
@@ -843,7 +843,8 @@ onMounted(()=> {
   background: #f8f9fa;
   border-radius: 4px;
   padding: 16px;
-  overflow: hidden;
+  max-height: 400px;
+  overflow-y: auto;
 }
 
 .list-content::-webkit-scrollbar,
@@ -973,7 +974,7 @@ h3 {
   padding: 20px;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  height: 100%;
+  height: calc(100vh - 100px);
   display: flex;
   flex-direction: column;
 }
@@ -1079,7 +1080,7 @@ h3 {
 }
 
 .list-block {
-  min-height: 300px;
+  height: 500px;
   display: flex;
   flex-direction: column;
 }
