@@ -142,6 +142,7 @@ export const useSSEStore = defineStore('sse', () => {
                     'Authorization': `Bearer ${token}`,
                     'Connection': 'keep-alive',
                     'Cache-Control': 'no-cache',
+                    'X-Protocol': 'http1.1'
                 },
                 withCredentials: true,
                 heartbeatTimeout: 3600000,
