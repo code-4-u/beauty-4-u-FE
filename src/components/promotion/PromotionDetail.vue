@@ -83,7 +83,13 @@ const fetchPromotionDetail = async () => {
     const [promotionResponse, goodsResponse, typesResponse] = await Promise.all([
       getFetch(`/promotion/${promotionId}`),
       getFetch(`/promotionGoods/${promotionId}?${goodsListParams}`),
-      getFetch(`/promotionType`)
+      getFetch(`/promotionType?${new URLSearchParams({
+        promotionTypeName: '',
+        sort: '',
+        order: '',
+        page: 1,
+        count: 30
+      })}`)
     ])
 
     promotion.value = promotionResponse.data.data
