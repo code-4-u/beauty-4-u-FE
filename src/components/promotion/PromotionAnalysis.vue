@@ -839,10 +839,33 @@ onMounted(()=> {
 
 .list-content, .ranking-content {
   margin-top: 16px;
-  min-height: 200px;
+  height: 400px;
   background: #f8f9fa;
   border-radius: 4px;
   padding: 16px;
+  overflow-y: auto;
+}
+
+.list-content::-webkit-scrollbar,
+.ranking-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.list-content::-webkit-scrollbar-track,
+.ranking-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.list-content::-webkit-scrollbar-thumb,
+.ranking-content::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 3px;
+}
+
+.list-content::-webkit-scrollbar-thumb:hover,
+.ranking-content::-webkit-scrollbar-thumb:hover {
+  background: #aaa;
 }
 
 h3 {
