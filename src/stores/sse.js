@@ -139,9 +139,7 @@ export const useSSEStore = defineStore('sse', () => {
 
             const options = {
                 headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Connection': 'keep-alive',
-                    'Cache-Control': 'no-cache'
+                    'Authorization': `Bearer ${token}`
                 },
                 withCredentials: true,
                 heartbeatTimeout: 3600000,
@@ -174,6 +172,12 @@ export const useSSEStore = defineStore('sse', () => {
             eventSource.onerror = async (error) => {
                 // console.error('SSE 에러:', error)
                 connectionStatus.value = 'error'
+
+
+                if (error.status === 200) {
+                    await connectSSE();
+                    return;
+                }
 
                 if (eventSource) {
                     eventSource.close()
