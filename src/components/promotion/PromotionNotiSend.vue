@@ -107,7 +107,7 @@ const sendNotiCustomer = async () => {
       }
     }
   } catch (e) {
-    console.log("알림 발송에 실패했습니다.", e);
+    // console.log("알림 발송에 실패했습니다.", e);
   }
 }
 
@@ -117,7 +117,7 @@ const findCurrentAnalysisNumber = async () => {
     const response = await getFetch(`/promotionNoti/number`);
     currAnalysisNumber.value = response.data.data;
   } catch (e) {
-    console.log("최근 분석 번호를 조회하는데 실패하였습니다.", e)
+    // console.log("최근 분석 번호를 조회하는데 실패하였습니다.", e)
   }
 }
 
@@ -128,7 +128,7 @@ const runningRecommend = async () => {
     const response = await getFetch(`/collaboFilter/goods`);
     currAnalysisNumber.value = response.data.analysisId;
   } catch (e) {
-    console.log("고객별 맞춤 추천 하는데 실패하였습니다.", e);
+    // console.log("고객별 맞춤 추천 하는데 실패하였습니다.", e);
   } finally {
     isLoadingModalOpen.value = false;
   }

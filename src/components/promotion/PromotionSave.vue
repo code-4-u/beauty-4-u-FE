@@ -276,7 +276,7 @@ const handleSubmit = async () => {
     if (promotionResponse.status === 200 || promotionResponse.status === 201) {
       promotionId = promotionResponse.data.data
 
-      console.log('promotionId: ', promotionId);
+      // console.log('promotionId: ', promotionId);
 
       const promotionGoodsData = {
         promotionId: promotionId,

@@ -63,15 +63,15 @@ const fetchCustomerDetails = async () => {
     count: itemsPerPage.value
   });
 
-  console.log(`${searchParams}`);
-  console.log(props.customerCode);
+  // console.log(`${searchParams}`);
+  // console.log(props.customerCode);
   try {
-    console.log(props.customerCode);
+    // console.log(props.customerCode);
     const response = await getFetch(`/customer/${props.customerCode}/orderinfo/list?${searchParams}`)
-    console.log(response);
+    // console.log(response);
     customerOrderInfo.value = response.data.data.customerOrderInfoList;
     totalCount.value = response.data.data.totalCount;
-    console.log(customerOrderInfo.value);
+    // console.log(customerOrderInfo.value);
   } catch (error) {
     console.error('고객 정보를 가져오는 데 실패했습니다:', error);
   }

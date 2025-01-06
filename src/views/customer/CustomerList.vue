@@ -38,7 +38,7 @@ const fetchCustomerStats = async () => {
     newCustomers.value = customerStats.value.customerNewCount; // 신규 가입 수
     inactiveCustomers.value = customerStats.value.customerDormantCount; // 휴면 고객 수
 
-    console.log(newCustomers.value);
+    // console.log(newCustomers.value);
   } catch (error) {
     console.error('고객 통계 조회 실패:', error);
   }
@@ -96,10 +96,10 @@ const performSearch = async () => {
   // 검색 요청을 보내는 로직 (예: API 호출)
   try {
     const response = await getFetch(`/customer/list?${searchParams}`);
-    console.log('검색 결과:', response);
+    // console.log('검색 결과:', response);
     customers.value = response.data.data.customerList; // 검색 결과를 customers에 저장
     totalCount.value = response.data.data.totalCount;
-    console.log(customers.value);
+    // console.log(customers.value);
   } catch (error) {
     console.error('검색 요청 실패:', error);
   }

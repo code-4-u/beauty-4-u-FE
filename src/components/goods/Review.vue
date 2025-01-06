@@ -122,7 +122,7 @@ const handleSort = async (column, order) => {
     const response = await getFetch(`/review/list/sort?${queryParams}`);
 
     if(response && response.data) {
-      console.log("정렬 응답: ",response.data)
+      // console.log("정렬 응답: ",response.data)
       searchReview.value = response.data;
     }
   } catch (error){
@@ -172,7 +172,7 @@ const searchByDate = async () => {
     }
 
   } catch (error){
-    console.log("날짜 검색 실패: ", error)
+    // console.log("날짜 검색 실패: ", error)
   }
 };
 
@@ -191,10 +191,10 @@ const fetchReviews = async () => {
     const response = await getFetch('/review/list')
 
     if(response && response.data) {
-      console.log("받은 데이터:" , response.data);
-      console.log("데이터 길이: ", response.data.length)
+      // console.log("받은 데이터:" , response.data);
+      // console.log("데이터 길이: ", response.data.length)
     }else{
-      console.log("응답 데이터 없음")
+      // console.log("응답 데이터 없음")
     }
 
     searchReview.value = response.data
@@ -205,9 +205,9 @@ const fetchReviews = async () => {
 
 // route가 변경될 때마다 실행
 watchEffect(() => {
-  console.log('현재 경로:', route.path);
+  // console.log('현재 경로:', route.path);
   if (route.path === '/goods/review/list') {
-    console.log('리뷰 목록 조회 시작');
+    // console.log('리뷰 목록 조회 시작');
     fetchReviews();
   }
 });

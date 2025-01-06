@@ -23,7 +23,7 @@ const fetchTeamSpaceId = async () => {
         Authorization: `Bearer ${useAuth.accessToken}`
       }
     });
-    console.log(response.data);
+    // console.log(response.data);
     teamspaceId.value = response.data; // 서버에서 반환한 팀스페이스 ID
   } catch (error) {
     console.error('팀스페이스 ID 조회 실패:', error);

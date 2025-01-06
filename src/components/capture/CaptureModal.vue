@@ -20,7 +20,7 @@ const props = defineProps({
 const captureScreen = async () => {
   try {
     // 캡처 시작을 알리는 토스트 메시지나 로딩 표시를 추가할 수 있습니다
-    console.log('캡처 시작...');
+    // console.log('캡처 시작...');
     // 현재 시간을 한국 시간으로 설정
     const now = new Date();
     const koreanTime = new Intl.DateTimeFormat('ko-KR', {
@@ -139,7 +139,7 @@ const uploadCapture = async (imageData, fileName, description) => {
 
     // 1. S3 업로드 요청
     const s3Response = await postFetch('/file/s3/upload', formData);
-    console.log('S3 업로드 응답:', s3Response);
+    // console.log('S3 업로드 응답:', s3Response);
 
     if (!s3Response?.data?.data) {
       throw new Error('S3 업로드 실패');
@@ -152,7 +152,7 @@ const uploadCapture = async (imageData, fileName, description) => {
       teamBoardTitle: fileName.replace('.png', ''),
       teamBoardContent: description || ''
     });
-    console.log('워크보드 응답:', boardResponse);
+    // console.log('워크보드 응답:', boardResponse);
 
     if (!boardResponse?.data?.data) {
       throw new Error('Board save failed');
@@ -166,7 +166,7 @@ const uploadCapture = async (imageData, fileName, description) => {
       imageS3Urls: [s3Url],
       entityType: "TEAMBOARD"  // enum 값 대문자로 수정
     });
-    console.log('파일 정보 저장 응답:', fileResponse);
+    // console.log('파일 정보 저장 응답:', fileResponse);
 
     return { success: true };
   } catch (error) {

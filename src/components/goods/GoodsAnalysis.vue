@@ -49,7 +49,7 @@ const handleSearchInput = async () => {
     const response = await getFetch(`/goods/search/${searchWord.value}`);
     suggestions.value = response.data.data;
   } catch (error) {
-    console.log('검색어 제안 조회 중 오류 발생:', error);
+    // console.log('검색어 제안 조회 중 오류 발생:', error);
     suggestions.value = [];
   }
 };

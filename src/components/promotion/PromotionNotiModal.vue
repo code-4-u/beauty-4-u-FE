@@ -80,7 +80,7 @@ const searchPromotion = async() => {
     promotions.value = response.data.data.findPromotionResList;
     totalCount.value = response.data.data.promotionCount;
   } catch(e) {
-    console.log("프로모션을 검색하는데 실패했습니다.", e);
+    // console.log("프로모션을 검색하는데 실패했습니다.", e);
   }
 }
 

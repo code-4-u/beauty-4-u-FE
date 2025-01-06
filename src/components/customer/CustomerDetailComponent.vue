@@ -16,11 +16,11 @@ const customerDetails = ref({});
 // 고객 정보를 가져오는 메서드
 const fetchCustomerDetails = async () => {
   try {
-    console.log(props.customerCode);
+    // console.log(props.customerCode);
     const response = await getFetch(`/customer/${props.customerCode}`)
-    console.log(response);
+    // console.log(response);
     customerDetails.value = response.data.data;
-    console.log(customerDetails.value);
+    // console.log(customerDetails.value);
   } catch (error) {
     console.error('고객 정보를 가져오는 데 실패했습니다:', error);
   }

@@ -60,7 +60,7 @@ const saveUser = async () => {
     await router.push('/');
   } catch (error) {
     alert('사용자 정보가 틀렸습니다.');
-    console.log('로그인 실패', error);
+    // console.log('로그인 실패', error);
   }
 };
 

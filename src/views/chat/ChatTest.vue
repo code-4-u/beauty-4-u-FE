@@ -20,25 +20,25 @@ const route = useRoute(); // 현재 라우트 정보 가져오기
 // WebSocket 연결
 const connectWebSocket = () => {
   const socket = new SockJS("http://localhost:8080/chat"); // 절대 경로로 설정
-  console.log("연결됨?1");
+  // console.log("연결됨?1");
   stompClient = Stomp.over(socket); // Stomp 클라이언트 생성
-  console.log(stompClient);
+  // console.log(stompClient);
 
   stompClient.debug = function(str) {
-    console.log('STOMP debug:', str);
+    // console.log('STOMP debug:', str);
   };
 
-  console.log("Attempting WebSocket connection...");
+  // console.log("Attempting WebSocket connection...");
   stompClient.connect(
       {},
       () => {
-        console.log("Connected to WebSocket");
-        console.log(`Teamspace ID: ${teamspaceId.value}`);
+        // console.log("Connected to WebSocket");
+        // console.log(`Teamspace ID: ${teamspaceId.value}`);
 
         stompClient.subscribe(`/sub/teamspace/${teamspaceId.value}`, (message) => {
           try {
             const chatMessage = JSON.parse(message.body);
-            console.log("Raw message received:", message.body);
+            // console.log("Raw message received:", message.body);
             messages.value.push(chatMessage);
           } catch (error) {
             console.error("Failed to parse message:", error, message.body);
@@ -86,13 +86,13 @@ onMounted(() => {
   }
 
   teamspaceId.value = id;
-  console.log(`Teamspace ID: ${teamspaceId.value}`);
+  // console.log(`Teamspace ID: ${teamspaceId.value}`);
   connectWebSocket();
 
   onBeforeUnmount(() => {
     if (stompClient) {
       stompClient.disconnect(() => {
-        console.log("Disconnected from WebSocket");
+        // console.log("Disconnected from WebSocket");
       });
       stompClient = null; // 연결 해제 후 초기화
     }

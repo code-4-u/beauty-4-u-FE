@@ -155,7 +155,7 @@ const loadPromotionType = async () => {
     const response = await getFetch(`/promotion-statistical/type`);
     promotionType.value = response.data.data;
   } catch(e) {
-    console.log("프로모션 종류 데이터 조회 실패", e);
+    // console.log("프로모션 종류 데이터 조회 실패", e);
   }
 }
 
@@ -190,7 +190,7 @@ const loadSearchPromotion = async () => {
     const response = await getFetch(`/promotion-statistical/search-promotion?${searchParams.toString()}`);
     promotionSearchResult.value = response.data.data;
   } catch(e) {
-    console.log("프로모션 검색 실패", e);
+    // console.log("프로모션 검색 실패", e);
   } finally {
     resetSearchKeyword();
   }
@@ -210,7 +210,7 @@ const loadPromotionByYearSales = async (promotionTypeId, promotionTypeName) => {
     promotionByYearSales.value = response.data.data;
     promotionByYearSales.value.sort((a,b) => a.promoYear - b.promoYear);
   } catch(e) {
-    console.log("프로모션 년도별 매출 조회중 오류가 났습니다.", e);
+    // console.log("프로모션 년도별 매출 조회중 오류가 났습니다.", e);
   } finally {
     loadFin.value = true;
   }
@@ -225,7 +225,7 @@ const loadPromotionByGoodsSales = async (promotionId) => {
     const response = await getFetch(`/promotion-statistical/by-goods-sales?${params.toString()}`);
     promotionByGoods.value = response.data.data;
   } catch(e) {
-    console.log("프로모션 별 상품 리스트 조회 중 오류가 났습니다.", e);
+    // console.log("프로모션 별 상품 리스트 조회 중 오류가 났습니다.", e);
   }
 }
 
@@ -243,7 +243,7 @@ const loadPromotionByComparison = async() => {
     const response = await getFetch(`/promotion-statistical/by-comparison-promotion?${params.toString()}`);
     promotionByComparison.value = response.data.data;
   } catch(e) {
-    console.log("비교 리스트를 조회하는데 오류가 발생 했습니다.", e);
+    // console.log("비교 리스트를 조회하는데 오류가 발생 했습니다.", e);
   }
 }
 
@@ -320,7 +320,7 @@ const chartOption = computed(() => {
         const promotionYear = chartData.value.datasets[0].promotionYears[dataIndex];
 
         loadPromotionByGoodsSales(promotionId).then(() => {
-          console.log("promotionByGoodsAfter : ", promotionByGoods.value);
+          // console.log("promotionByGoodsAfter : ", promotionByGoods.value);
 
           const newData = {
             promotionId: promotionId,

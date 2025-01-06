@@ -48,7 +48,7 @@ router.beforeEach(async (to, from, next) => {
 
     // 1. SSE 연결 상태 확인 및 처리
     if (authStore.accessToken && sseStore.connectionStatus === 'disconnected') {
-        console.log('SSE 연결 시도 중...');
+        // console.log('SSE 연결 시도 중...');
         await sseStore.connectSSE();
     }
 

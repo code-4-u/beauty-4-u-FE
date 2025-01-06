@@ -56,7 +56,7 @@ const deleteUser = async (userCode, isExpired) => {
       await putFetch('/user/unexpire', {
         userCode: userCode
       });
-      console.log('계정이 복구되었습니다.');
+      // console.log('계정이 복구되었습니다.');
     } else {
       const confirmedExpire = confirm(`${userCode} 회원을 비활성화하시겠습니까?`);
       if (!confirmedExpire) return;
@@ -64,7 +64,7 @@ const deleteUser = async (userCode, isExpired) => {
       await putFetch('/user/expire', {
         userCode: userCode
       });
-      console.log('계정이 삭제되었습니다.');
+      // console.log('계정이 삭제되었습니다.');
     }
     await fetchUserList();
   } catch (error) {

@@ -313,7 +313,7 @@ const loadCustomersChartData = async () => {
     /* 한번에 할당 */
     Object.assign(analysisCustomer, response.data.data);
   } catch (error) {
-    console.log('데이터 로딩 에러 : ', error)
+    // console.log('데이터 로딩 에러 : ', error)
   } finally {
     isAnalysisCustomerLoading.value = false;
   }
@@ -334,9 +334,9 @@ const loadPurchasesByAgeData = async () => {
 
     /* 한번에 할당 */
     Object.assign(analysisPurchasesByAge, response.data.data);
-    console.log(analysisPurchasesByAge);
+    // console.log(analysisPurchasesByAge);
   } catch(error) {
-    console.log('데이터 로딩 에러 : ', error)
+    // console.log('데이터 로딩 에러 : ', error)
   } finally {
     isAnalysisPurchasesByAge.value = false;
   }

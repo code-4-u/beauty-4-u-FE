@@ -27,7 +27,7 @@ const handleSearchInput = async () => {
     const response = await getFetch(`/goods/search/${searchTerm.value}`)
     suggestions.value = response.data.data
   } catch (error) {
-    console.log('검색어 제안 조회 중 오류 발생:', error)
+    // console.log('검색어 제안 조회 중 오류 발생:', error)
     suggestions.value = []
   }
 }
@@ -53,7 +53,7 @@ const fetchAllProducts = async () => {
       searchResults.value = []
     }
   } catch (error) {
-    console.log(searchResults.value)
+    // console.log(searchResults.value)
     console.error('상품 목록 조회 중 오류 발생:', error)
     searchResults.value = [];
   } finally {

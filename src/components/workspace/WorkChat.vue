@@ -178,7 +178,7 @@ const modalImageUrl = ref(null); // 현재 표시할 이미지의 URL
 
 // 모달 열기
 const openModal = (url) => {
-  console.log('이미지 클릭됨:', url); // 디버깅용
+  // console.log('이미지 클릭됨:', url); // 디버깅용
   modalImageUrl.value = url;
 };
 
@@ -290,13 +290,13 @@ const leaveChatRoom = async () => {
   const confirmLeave = window.confirm('해당 채팅방을 나가시겠습니까?');
 
   if (!confirmLeave) {
-    console.log('채팅방 나가기 취소됨');
+    // console.log('채팅방 나가기 취소됨');
     return; // 사용자가 취소를 선택한 경우 함수 종료
   }
 
   try {
     const response = await delFetch(`/chat/${chatRoomId.value}/leave`);
-    console.log('채팅방 나가기 성공:', response.data);
+    // console.log('채팅방 나가기 성공:', response.data);
 
     // 채팅방 나간 후 다른 페이지로 이동
     window.location.href = '/workspace/chat';
@@ -381,13 +381,13 @@ const scrollToBottom = async (smooth = false) => {
 const fetchChatRooms = async () => {
   try {
     const response = await getFetch("/chat/rooms");
-    console.log("채팅방 목록 테스트");
+    // console.log("채팅방 목록 테스트");
     chatRooms.value = response.data.data;
-    console.log(chatRooms);
-    console.log(response.data.data);
-    console.log("채팅방 목록 가져오기 확인 후");
+    // console.log(chatRooms);
+    // console.log(response.data.data);
+    // console.log("채팅방 목록 가져오기 확인 후");
 
-    console.log("내 채팅방 목록:", response.data);
+    // console.log("내 채팅방 목록:", response.data);
   } catch (error) {
     console.error("채팅방 목록 조회 실패:", error);
   }
@@ -399,14 +399,14 @@ const fetchChatInfo = async (roomId) => {
   try {
     const response = await getFetch(`/chat/${roomId}/details`);
     const data = await response.data.data;
-    console.log("채팅방 정보 불러오기 데이터 : ",data);
+    // console.log("채팅방 정보 불러오기 데이터 : ",data);
     participants.value = data.participants;
     messages.value = data.messages;
-    console.log("messages 정보 확인 : ", messages.value);
+    // console.log("messages 정보 확인 : ", messages.value);
 
-    console.log("채팅방 정보 불러온 뒤 채팅 사용자 정보 조회");
-    console.log(participants.value);
-    console.log(data.messages);
+    // console.log("채팅방 정보 불러온 뒤 채팅 사용자 정보 조회");
+    // console.log(participants.value);
+    // console.log(data.messages);
     // 메시지에 self 속성 추가
     messages.value = addSelfToMessages(data.messages); // 헬퍼 함수 사용
 
@@ -424,7 +424,7 @@ const connectWebSocket = (roomId) => {
   if (stompClient && stompClient.connected) {
     // 기존 연결이 있을 경우 해제
     stompClient.disconnect(() => {
-      console.log("Disconnected from WebSocket");
+      // console.log("Disconnected from WebSocket");
     });
   }
 
@@ -440,12 +440,12 @@ const connectWebSocket = (roomId) => {
   stompClient.connect(
       { Authorization: `Bearer ${authObjectInfo.accessToken}` },
       () => {
-        console.log("Connected to WebSocket");
+        // console.log("Connected to WebSocket");
 
         stompClient.subscribe(`/sub/chat/${roomId}`, (message) => {
           try {
             const receivedMessage = JSON.parse(message.body);
-            console.log(receivedMessage);
+            // console.log(receivedMessage);
 
             if (receivedMessage.userCode === userCode.value) return;
 
@@ -504,9 +504,9 @@ const sendMessage = async () => {
       try {
         const response = await postFetch('/file/s3/upload', formData);
         const s3Url = response.data.data;
-        console.log("파일 업로드시 response 확인")
-        console.log(response);
-        console.log(response.data);
+        // console.log("파일 업로드시 response 확인")
+        // console.log(response);
+        // console.log(response.data);
 
 
         uploadedS3Urls.push(s3Url);
@@ -571,7 +571,7 @@ const sendMessage = async () => {
 
 
     // 5. 목록으로 이동
-    console.log("파일 저장 완료")
+    // console.log("파일 저장 완료")
 
 
 
@@ -617,9 +617,9 @@ const selectRoom = async (roomId, roomName) => {
   selectedRoomName.value = roomName;
   chatRoomId.value = roomId;
 
-  console.log("Selected room 이름:", selectedRoomName.value);
-  console.log("chatRooms ", chatRooms)
-  console.log("Selected Room:", roomId);
+  // console.log("Selected room 이름:", selectedRoomName.value);
+  // console.log("chatRooms ", chatRooms)
+  // console.log("Selected Room:", roomId);
 
   // 채팅방 정보 가져오기
   await fetchChatInfo(roomId);
@@ -633,7 +633,7 @@ const selectRoom = async (roomId, roomName) => {
 onBeforeUnmount(() => {
   if (stompClient && stompClient.connected) {
     stompClient.disconnect(() => {
-      console.log("Disconnected from WebSocket");
+      // console.log("Disconnected from WebSocket");
     });
   }
 });

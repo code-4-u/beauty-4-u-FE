@@ -111,7 +111,7 @@ const handleScroll = () => {
 // 팀스페이스 정보 로드
 const loadTeamSpaceDetails = async (teamspaceId, deptCode) => {
   try {
-    console.log("loadTeamSpaceDetails called");
+    // console.log("loadTeamSpaceDetails called");
     const response = await axios.get(`http://localhost:8080/api/v1/teamspace/${teamspaceId}/details`, {
       params: { deptCode },
       headers: {
@@ -131,7 +131,7 @@ const loadTeamSpaceDetails = async (teamspaceId, deptCode) => {
       self: msg.userCode === userCode.value,
     }));
 
-    console.log("TeamSpace details loaded:", data);
+    // console.log("TeamSpace details loaded:", data);
     await scrollToBottom();
   } catch (error) {
     console.error("Failed to load TeamSpace details:", error);
@@ -147,7 +147,7 @@ const connectWebSocket = () => {
   stompClient.connect(
       { Authorization: `Bearer ${authObjectInfo.accessToken}` },
       () => {
-        console.log("Connected to WebSocket");
+        // console.log("Connected to WebSocket");
 
         stompClient.subscribe(`/sub/teamspace/${teamspaceId.value}`, (message) => {
           try {

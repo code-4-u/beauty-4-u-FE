@@ -73,7 +73,7 @@ const handleRemove = (fileId) => {
 };
 
 const goBack = () => {
-  console.log('teamspaceId:', teamspaceId.value);
+  // console.log('teamspaceId:', teamspaceId.value);
   router.push(`/teamspace/${teamspaceId.value}/board`);
 };
 
