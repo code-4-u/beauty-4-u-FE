@@ -27,7 +27,7 @@ export const useAuthStore = defineStore('auth', () => {
 
     async function fetchTeamspaceId() {
         if (!deptCode.value) {
-            console.error("부서 코드가 없습니다.");
+            // console.error("부서 코드가 없습니다.");
             return null;
         }
         try {
@@ -38,10 +38,10 @@ export const useAuthStore = defineStore('auth', () => {
                 },
             });
             teamspaceId.value = response.data; // teamspaceId 저장
-            console.log("teamspaceId fetched: ", teamspaceId.value);
+            // console.log("teamspaceId fetched: ", teamspaceId.value);
             return teamspaceId.value;
         } catch (error) {
-            console.error("팀스페이스 ID 조회 실패:", error);
+            // console.error("팀스페이스 ID 조회 실패:", error);
             return null;
         }
     }
@@ -49,8 +49,8 @@ export const useAuthStore = defineStore('auth', () => {
     onMounted(() => {
         const aToken = localStorage.getItem('accessToken');
         const rToken = localStorage.getItem('refreshToken');
-        console.log("액세스 토큰: ", aToken);
-        console.log("리프레시 토큰: ", rToken);
+        // console.log("액세스 토큰: ", aToken);
+        // console.log("리프레시 토큰: ", rToken);
         if (aToken) {
             accessToken.value = aToken;
             refreshToken.value = rToken;
@@ -67,7 +67,7 @@ export const useAuthStore = defineStore('auth', () => {
         try {
             await sseStore.connectSSE();
         } catch (error) {
-            console.error('SSE 연결 중 오류 발생:', error);
+            // console.error('SSE 연결 중 오류 발생:', error);
         }
     }
 

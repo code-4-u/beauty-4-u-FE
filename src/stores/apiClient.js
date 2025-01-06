@@ -11,7 +11,7 @@ const apiClient = axios.create({
 // 요청 인터셉터
 apiClient.interceptors.request.use(
     (config) => {
-        console.log('요청 인터셉터:', config);
+        // console.log('요청 인터셉터:', config);
 
         const authStore = useAuthStore();
         if (authStore.accessToken) {
@@ -21,7 +21,7 @@ apiClient.interceptors.request.use(
         return config;
     },
     (error) => {
-        console.error('요청 인터셉터 에러:', error);
+        // console.error('요청 인터셉터 에러:', error);
         return Promise.reject(error);
     }
 );
@@ -29,12 +29,12 @@ apiClient.interceptors.request.use(
 // 응답 인터셉터
 apiClient.interceptors.response.use(
     (response) => {
-        console.log('응답 인터셉터:', response);
+        // console.log('응답 인터셉터:', response);
 
         return response;
     },
     async (error) => {
-        console.error('응답 인터셉터 에러:', error);
+        // console.error('응답 인터셉터 에러:', error);
 
         const authStore = useAuthStore();
 
@@ -54,7 +54,7 @@ apiClient.interceptors.response.use(
                 const newRefreshToken = response.headers['refresh-token'];
 
                 if (newAccessToken && newRefreshToken) {
-                    console.log('새로운 토큰 수신됨');
+                    // console.log('새로운 토큰 수신됨');
                     authStore.setAccessToken(newAccessToken);
                     authStore.setRefreshToken(newRefreshToken);
 
@@ -96,7 +96,7 @@ const request = async (method, endpoint, data = null) => {
 
         return await apiClient.request(config);
     } catch (error) {
-        console.log('api 요청 중 에러 발생');
+        // console.log('api 요청 중 에러 발생');
         throw error;
     }
 };

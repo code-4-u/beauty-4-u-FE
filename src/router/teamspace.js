@@ -10,6 +10,7 @@ export default [
     {
         path: "/teamspace",
         component: TeamSpaceHome,
+        meta: { requiresAuth: true },
         children: [
             {
                 path: ':teamspaceId/board',
@@ -35,6 +36,7 @@ export default [
     },
     {
         path: '/sockjs',
-        component: ChatTest
+        component: ChatTest,
+        meta: { requiresAuth: true },
     }
 ];

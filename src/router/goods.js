@@ -7,6 +7,7 @@ import GoodsList from "@/components/goods/GoodsList.vue";
 export default [
     {
         path: '/goods',
+        meta: { requiresAuth: true },
         children: [
             {
                 path: '',

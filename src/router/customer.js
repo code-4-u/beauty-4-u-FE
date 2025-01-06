@@ -10,6 +10,7 @@ export default [
     {
         path: '/customer',
         component: CustomerHome,
+        meta: { requiresAuth: true },
         children: [
             {
                 path: 'list',

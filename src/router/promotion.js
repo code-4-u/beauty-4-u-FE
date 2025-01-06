@@ -9,6 +9,7 @@ import PromotionNotiModal from "@/components/promotion/PromotionNotiModal.vue";
 export default [
     {
         path: '/promotion',
+        meta: { requiresAuth: true },
         children: [
             {
                 path: '',

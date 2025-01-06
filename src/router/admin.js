@@ -5,6 +5,7 @@ export default [
     {
         path: "/admin",
         component: UserList,
+        meta: { requiresAuth: true },
         beforeEnter: (to, from, next) => {
             const authStore = useAuthStore();
             const userRole = authStore.userRole?.toUpperCase();

@@ -26,6 +26,7 @@ const checkAdminRole = (to, from, next) => {
 export default [
     {
         path: '/inform',
+        meta: { requiresAuth: true },
         children: [
             {
                 path: '',
@@ -49,6 +50,7 @@ export default [
     },
     {
         path: '/qna',
+        meta: { requiresAuth: true },
         children: [
             {
                 path: '',
@@ -70,6 +72,7 @@ export default [
     },
     {
         path: '/faq',
+        meta: { requiresAuth: true },
         children: [
             {
                 path: '',
