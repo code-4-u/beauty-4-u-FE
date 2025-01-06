@@ -418,6 +418,7 @@ onMounted(() => {
   transition: all 0.2s;
 }
 
+
 .form-input:focus {
   outline: none;
   border-color: #3b82f6;
