@@ -428,7 +428,14 @@ onMounted(() => {
   border-radius: 4px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   z-index: 1000;
+  box-sizing: border-box;
 }
+
+.dropdown-container input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
 
 .dropdown-item {
   padding: 8px 12px;
