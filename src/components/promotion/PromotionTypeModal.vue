@@ -477,6 +477,21 @@ onMounted(() => {
   border: 1px solid #e5e7eb;
   border-radius: 0.5rem;
   overflow: hidden;
+  max-height: 400px;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* 테이블 헤더 고정을 위한 스타일 */
+.table-container thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.table-container thead th {
+  background-color: #f8fafc;
+  box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.1);
 }
 
 table {
