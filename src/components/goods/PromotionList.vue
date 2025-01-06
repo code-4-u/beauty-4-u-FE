@@ -372,7 +372,7 @@ onMounted(() => {
 
 .promotion-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 16px;
 }
 
@@ -384,20 +384,20 @@ onMounted(() => {
 }
 
 .promotion-header {
-  padding: 12px 16px;
+  padding: 8px 12px;
   background: #f8f9fa;
   border-bottom: 1px solid #e0e0e0;
 }
 
 .promotion-title {
   margin: 0;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #333;
 }
 
 .promotion-body {
-  padding: 12px 16px;
+  padding: 8px 12px;
 }
 
 .info-row {
@@ -617,7 +617,7 @@ onMounted(() => {
   opacity: 1;
 }
 
-/* 필터 컨테이너 스타일 수정 */
+/* 필터 컨테이너 스타일 */
 .filters {
   background: white;
   border-radius: 8px;
