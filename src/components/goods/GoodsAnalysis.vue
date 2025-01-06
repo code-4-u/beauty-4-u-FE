@@ -750,7 +750,7 @@ const handleCapture = async () => {
 }
 
 h3 {
-  margin: 0;
+  margin: 10px;
   color: #333;
   font-size: 18px;
 }
