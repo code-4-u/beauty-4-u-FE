@@ -511,8 +511,11 @@ const handleCapture = async () => {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   height: calc(100vh);
   overflow-y: auto;
+  overflow-x: hidden;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .list-container {
