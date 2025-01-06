@@ -27,7 +27,7 @@ export const useSSEStore = defineStore('sse', () => {
             const response = await getFetch('/noti')
             notifications.value = response.data.data
         } catch (error) {
-            console.error('초기 알림 로드 실패:', error)
+            // console.error('초기 알림 로드 실패:', error)
             throw error
         }
     }
@@ -37,7 +37,7 @@ export const useSSEStore = defineStore('sse', () => {
             const permission = await Notification.requestPermission()
             return permission === 'granted'
         } catch (error) {
-            console.error('알림 권한 요청 실패:', error)
+            // console.error('알림 권한 요청 실패:', error)
             return false
         }
     }
@@ -80,7 +80,7 @@ export const useSSEStore = defineStore('sse', () => {
             }
             return null
         } catch (error) {
-            console.error('토큰 갱신 실패:', error)
+            // console.error('토큰 갱신 실패:', error)
             authStore.logout()
             throw error
         }
@@ -107,7 +107,7 @@ export const useSSEStore = defineStore('sse', () => {
                         await connectSSE()
                     }
                 } catch (error) {
-                    console.error('토큰 갱신 실패:', error)
+                    // console.error('토큰 갱신 실패:', error)
                     connectionStatus.value = 'auth_failed'
                     throw error
                 }
@@ -117,7 +117,7 @@ export const useSSEStore = defineStore('sse', () => {
 
     const connectSSE = async () => {
         if (connectionStatus.value === 'connecting' || connectionStatus.value === 'connected') {
-            console.log('이미 연결중이거나 연결된 상태입니다.')
+            // console.log('이미 연결중이거나 연결된 상태입니다.')
             return
         }
 
@@ -163,12 +163,12 @@ export const useSSEStore = defineStore('sse', () => {
                         showBrowserNotification(data)
                     }
                 } catch (error) {
-                    console.error('메시지 파싱 에러:', error)
+                    // console.error('메시지 파싱 에러:', error)
                 }
             }
 
             eventSource.onerror = async (error) => {
-                console.error('SSE 에러:', error)
+                // console.error('SSE 에러:', error)
                 connectionStatus.value = 'error'
 
                 if (eventSource) {
@@ -176,18 +176,18 @@ export const useSSEStore = defineStore('sse', () => {
 
                     if (reconnectAttempts.value < MAX_RECONNECT_ATTEMPTS) {
                         const delay = getRetryDelay()
-                        console.log(`${delay}ms 후 재연결 시도...`)
+                        // console.log(`${delay}ms 후 재연결 시도...`)
                         reconnectAttempts.value++
                         await new Promise(resolve => setTimeout(resolve, delay))
                         await connectSSE()
                     } else {
-                        console.error('최대 재연결 시도 횟수 초과')
+                        // console.error('최대 재연결 시도 횟수 초과')
                         connectionStatus.value = 'failed'
                     }
                 }
             }
         } catch (error) {
-            console.error('SSE 연결 준비 중 에러:', error)
+            // console.error('SSE 연결 준비 중 에러:', error)
             connectionStatus.value = 'error'
             throw error
         }
