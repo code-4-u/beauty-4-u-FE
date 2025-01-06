@@ -147,7 +147,6 @@ onMounted(() => {
       <div class="header">
         <h2>워크보드</h2>
         <button
-            v-if="userStore.userRole === 'ADMIN'"
             class="add-button"
             @click="goToWorkSave"
         >

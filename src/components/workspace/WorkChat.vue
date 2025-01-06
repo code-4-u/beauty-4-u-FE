@@ -342,6 +342,15 @@ const handleInviteUsers = async (selectedUsers) => {
       alert('사용자가 성공적으로 초대되었습니다.');
       isInviteModalOpen.value = false;
     }
+
+    // 선택된 채팅방 정보를 로컬 스토리지에 저장
+    localStorage.setItem('selectedChatRoomId', chatRoomId.value);
+    localStorage.setItem('selectedChatRoomName', selectedRoomName.value);
+
+    // 페이지 새로고침
+    window.location.reload();
+
+
   } catch (error) {
     console.error('사용자 초대 실패:', error);
     alert('초대 중 문제가 발생했습니다.');
@@ -424,6 +433,7 @@ const connectWebSocket = (roomId) => {
     return;
   }
 
+  // 개발 단계(http -> ws) 배포 단계(https -> wss)
   const socketUrl = `wss://${chatUrl}/chat`;
   stompClient = Stomp.over(() => new WebSocket(socketUrl));
 
@@ -630,6 +640,15 @@ onBeforeUnmount(() => {
 
 onMounted(() => {
   fetchChatRooms();
+
+  // 로컬 스토리지에서 저장된 채팅방 정보 읽기
+  const storedRoomId = localStorage.getItem('selectedChatRoomId');
+  const storedRoomName = localStorage.getItem('selectedChatRoomName');
+
+  if (storedRoomId && storedRoomName) {
+    // 로컬 스토리지에서 가져온 값은 문자열이므로 숫자로 변환
+    selectRoom(Number(storedRoomId), storedRoomName);
+  }
 });
 </script>
 
