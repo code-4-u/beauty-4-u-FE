@@ -141,16 +141,19 @@ export const useSSEStore = defineStore('sse', () => {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Connection': 'keep-alive',
-                    'Cache-Control': 'no-cache',
-                    'X-Protocol': 'http1.1'
+                    'Cache-Control': 'no-cache'
                 },
                 withCredentials: true,
                 heartbeatTimeout: 3600000,
                 beforeRequest
             }
 
-            eventSource = new EventSourcePolyfill(`${baseUrl}/noti/connect`, options)
-
+            try {
+                eventSource = new EventSourcePolyfill(`${baseUrl}/noti/connect`, options)
+            } catch (err) {
+                connectionStatus.value = 'error'
+                return
+            }
             eventSource.onopen = () => {
                 connectionStatus.value = 'connected'
                 reconnectAttempts.value = 0
