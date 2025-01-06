@@ -89,7 +89,8 @@ export const useSSEStore = defineStore('sse', () => {
     const beforeRequest = async (xhr) => {
         const token = localStorage.getItem('accessToken')
         if (!token) {
-            throw new Error('인증 토큰이 없습니다.')
+            // throw new Error('인증 토큰이 없습니다.')
+            return
         }
 
         xhr.setRequestHeader('Authorization', `Bearer ${token}`)
@@ -134,16 +135,20 @@ export const useSSEStore = defineStore('sse', () => {
 
             const token = localStorage.getItem('accessToken')
             if (!token) {
-                throw new Error('인증 토큰이 없습니다.')
+                // throw new Error('인증 토큰이 없습니다.')
+                return
             }
 
             const options = {
                 headers: {
-                    'Authorization': `Bearer ${token}`
+                    'Authorization': `Bearer ${token}`,
+                    'Accept': 'text/event-stream',
+                    'Cache-Control': 'no-cache',
                 },
                 withCredentials: true,
                 heartbeatTimeout: 3600000,
-                beforeRequest
+                beforeRequest,
+                transport: 'http1',
             }
 
             try {
@@ -172,7 +177,6 @@ export const useSSEStore = defineStore('sse', () => {
             eventSource.onerror = async (error) => {
                 // console.error('SSE 에러:', error)
                 connectionStatus.value = 'error'
-
 
                 if (error.status === 200) {
                     await connectSSE();
