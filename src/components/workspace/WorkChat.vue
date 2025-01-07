@@ -342,14 +342,7 @@ const handleInviteUsers = async (selectedUsers) => {
       isInviteModalOpen.value = false;
     }
 
-    // 선택된 채팅방 정보를 로컬 스토리지에 저장
-    // localStorage.setItem('selectedChatRoomId', chatRoomId.value);
-    // localStorage.setItem('selectedChatRoomName', selectedRoomName.value);
-    //
-    // // 페이지 새로고침
-    // 사용자 목록 정보 다시 불러오기
-    await fetchChatInfo();
-
+    await fetchChatInfo(chatRoomId.value);
 
   } catch (error) {
     console.error('사용자 초대 실패:', error);
