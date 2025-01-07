@@ -296,7 +296,6 @@ const leaveChatRoom = async () => {
 
   try {
     const response = await delFetch(`/chat/${chatRoomId.value}/leave`);
-    // console.log('채팅방 나가기 성공:', response.data);
 
     // 채팅방 나간 후 다른 페이지로 이동
     window.location.href = '/workspace/chat';
@@ -344,11 +343,12 @@ const handleInviteUsers = async (selectedUsers) => {
     }
 
     // 선택된 채팅방 정보를 로컬 스토리지에 저장
-    localStorage.setItem('selectedChatRoomId', chatRoomId.value);
-    localStorage.setItem('selectedChatRoomName', selectedRoomName.value);
-
-    // 페이지 새로고침
-    window.location.reload();
+    // localStorage.setItem('selectedChatRoomId', chatRoomId.value);
+    // localStorage.setItem('selectedChatRoomName', selectedRoomName.value);
+    //
+    // // 페이지 새로고침
+    // 사용자 목록 정보 다시 불러오기
+    await fetchChatInfo();
 
 
   } catch (error) {
@@ -381,13 +381,8 @@ const scrollToBottom = async (smooth = false) => {
 const fetchChatRooms = async () => {
   try {
     const response = await getFetch("/chat/rooms");
-    // console.log("채팅방 목록 테스트");
     chatRooms.value = response.data.data;
-    // console.log(chatRooms);
-    // console.log(response.data.data);
-    // console.log("채팅방 목록 가져오기 확인 후");
 
-    // console.log("내 채팅방 목록:", response.data);
   } catch (error) {
     console.error("채팅방 목록 조회 실패:", error);
   }
@@ -399,15 +394,9 @@ const fetchChatInfo = async (roomId) => {
   try {
     const response = await getFetch(`/chat/${roomId}/details`);
     const data = await response.data.data;
-    // console.log("채팅방 정보 불러오기 데이터 : ",data);
+
     participants.value = data.participants;
     messages.value = data.messages;
-    // console.log("messages 정보 확인 : ", messages.value);
-
-    // console.log("채팅방 정보 불러온 뒤 채팅 사용자 정보 조회");
-    // console.log(participants.value);
-    // console.log(data.messages);
-    // 메시지에 self 속성 추가
     messages.value = addSelfToMessages(data.messages); // 헬퍼 함수 사용
 
     await scrollToBottom(true);
@@ -436,6 +425,7 @@ const connectWebSocket = (roomId) => {
   // 개발 단계(http -> ws) 배포 단계(https -> wss)
   const socketUrl = `wss://${chatUrl}/chat`;
   stompClient = Stomp.over(() => new WebSocket(socketUrl));
+  stompClient.debug = () => {};
 
   stompClient.connect(
       { Authorization: `Bearer ${authObjectInfo.accessToken}` },
@@ -445,7 +435,6 @@ const connectWebSocket = (roomId) => {
         stompClient.subscribe(`/sub/chat/${roomId}`, (message) => {
           try {
             const receivedMessage = JSON.parse(message.body);
-            // console.log(receivedMessage);
 
             if (receivedMessage.userCode === userCode.value) return;
 
@@ -504,20 +493,9 @@ const sendMessage = async () => {
       try {
         const response = await postFetch('/file/s3/upload', formData);
         const s3Url = response.data.data;
-        // console.log("파일 업로드시 response 확인")
-        // console.log(response);
-        // console.log(response.data);
-
 
         uploadedS3Urls.push(s3Url);
         originalFileNames.push(fileInfo.name);
-
-
-        // tempUrl을 실제 S3 URL로 교체
-        // editorContent.value = editorContent.value.replace(
-        //     fileInfo.tempUrl,
-        //     s3Url
-        // );
 
         return s3Url;
       } catch (error) {
@@ -568,12 +546,6 @@ const sendMessage = async () => {
       s3PresignedUrls: uploadedS3Urls, // Presigned URL 포함
       self: true, // 클라이언트에서만 사용하는 필드
     });
-
-
-    // 5. 목록으로 이동
-    // console.log("파일 저장 완료")
-
-
 
   } catch (error) {
     console.error('저장에 실패했습니다.', error);
@@ -642,13 +614,13 @@ onMounted(() => {
   fetchChatRooms();
 
   // 로컬 스토리지에서 저장된 채팅방 정보 읽기
-  const storedRoomId = localStorage.getItem('selectedChatRoomId');
-  const storedRoomName = localStorage.getItem('selectedChatRoomName');
-
-  if (storedRoomId && storedRoomName) {
-    // 로컬 스토리지에서 가져온 값은 문자열이므로 숫자로 변환
-    selectRoom(Number(storedRoomId), storedRoomName);
-  }
+  // const storedRoomId = localStorage.getItem('selectedChatRoomId');
+  // const storedRoomName = localStorage.getItem('selectedChatRoomName');
+  //
+  // if (storedRoomId && storedRoomName) {
+  //   // 로컬 스토리지에서 가져온 값은 문자열이므로 숫자로 변환
+  //   selectRoom(Number(storedRoomId), storedRoomName);
+  // }
 });
 </script>
 
