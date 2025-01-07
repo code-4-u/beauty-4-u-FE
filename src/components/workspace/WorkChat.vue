@@ -423,7 +423,7 @@ const connectWebSocket = (roomId) => {
   }
 
   // 개발 단계(http -> ws) 배포 단계(https -> wss)
-  const socketUrl = `ws://${chatUrl}/chat`;
+  const socketUrl = `wss://${chatUrl}/chat`;
   stompClient = Stomp.over(() => new WebSocket(socketUrl));
   stompClient.debug = () => {};
 
